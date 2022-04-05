@@ -170,8 +170,6 @@ class ShocGridGenerator(abc.ABC):
 
     @property
     def standard_vars(self) -> Dict[Hashable, xarray.DataArray]:
-        print("Standard mask:")
-        print(self.standard_mask)
         return {
             "x_grid": xarray.DataArray(
                 data=self.x_grid,

@@ -19,5 +19,6 @@ API reference
     utils.rst
     tutorial.rst
     plot.rst
+    transect.rst
     types.rst
     exceptions.rst
