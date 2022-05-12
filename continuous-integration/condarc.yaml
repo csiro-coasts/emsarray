@@ -1,0 +1,8 @@
+# Set these channels in .condarc so that all conda commands use the correct
+# channel priority by default, without having to repeat ourselves.
+channels:
+  - conda-forge
+  - defaults
+
+notify_outdated_conda: false
+channel_priority: strict

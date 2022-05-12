@@ -1,0 +1,62 @@
+[build-system]
+requires = [
+	"setuptools >= 35.0.2",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+	"error",
+	"ignore:GeometryTypeError will derive from ShapelyError:shapely.errors.ShapelyDeprecationWarning",
+	# xarray.core.pycompat uses LooseVersion, which causes this
+	# Fixed in xarray >= 0.21.0
+	"ignore:distutils Version classes are deprecated:DeprecationWarning",
+]
+markers = [
+	"matplotlib: Tests that involve matplotlib and plotting",
+]
+
+[tool.mypy]
+python_version = "3.8"
+plugins = ["numpy.typing.mypy_plugin"]
+
+disallow_untyped_defs = true
+warn_return_any = true
+warn_unused_configs = true
+
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
+
+[[tool.mypy.overrides]]
+# These modules do not (yet) have type stubs, so they need to be explicitly ignored
+module = [
+	"cartopy.*",
+	"cftime.*",
+	"geojson.*",
+	"matplotlib.*",
+	"netCDF4.*",
+	"pytest.*",
+	"shapely.*",
+	"importlib_metadata.*",
+	"pooch.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+warn_return_any = false
+
+[tool.isort]
+multi_line_output = 5
+known_first_party = "emsarray,tests"
+
+[tool.coverage.run]
+source_pkgs = ["emsarray"]
+
+[tool.coverage.report]
+exclude_lines = [
+	"# pragma: no cover",
+	"@abc\\.abstract",
+	"if TYPE_CHECKING:",
+]

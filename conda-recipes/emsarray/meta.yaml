@@ -1,0 +1,36 @@
+{% set data = load_setup_py_data(setup_file="../../setup.py", from_recipe_dir=True) %}
+
+package:
+  name: emsarray
+  version: {{ data['version'] }}
+
+
+source:
+  url: ../../dist/{{ data['name'] }}-{{ data['version'] }}.tar.gz
+
+
+build:
+  number: 0
+  noarch: python
+
+
+requirements:
+  run:
+    - python >=3.4
+    - emsarray-core {{ data['version'] }}
+    - matplotlib
+    - scipy
+    - cartopy
+    - pykdtree
+
+
+about:
+  home: data['url']
+  license: NONE
+  license_file: LICENSE
+  license_family: NONE
+
+  summary: data['description']
+  description: data['long_description']
+  doc_url: https://example.com/TODO
+  dev_url: data['url']

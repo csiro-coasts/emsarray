@@ -1,0 +1,123 @@
+stages:
+  - lint
+  - test
+  - build
+  - publish
+
+
+image: continuumio/miniconda3:latest
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  CONDA_PKGS_DIRS: "$CI_PROJECT_DIR/.cache/conda"
+  # This will be used as a version constraint to install Python with conda in
+  # the setup step. Individual jobs can override this to install a different
+  # version of Python, if desired.
+  PYTHON_VERSION: "python~=3.8.0"
+  MAMBA_NO_BANNER: 1
+  FF_ENABLE_JOB_CLEANUP: 1
+  FF_SCRIPT_SECTIONS: 1
+cache:
+  - key:
+      files:
+        - requirements.txt
+        - continuous-integration/environment.yaml
+    paths:
+      - .cache/pip
+      - .cache/conda
+
+before_script:
+  # Install build tools for compiling packages
+  - apt-get update -qq && apt-get install -qqy build-essential
+  # Activate the conda environment - this step is skipped by default because of
+  # gitlab shenanigans
+  - source /opt/conda/etc/profile.d/conda.sh
+  # Install some compiled libraries from conda
+  - conda create --quiet --yes --name ci --no-default-packages
+  - conda activate ci
+  - conda config --env --stdin < "$CI_PROJECT_DIR/continuous-integration/condarc.yaml"
+  - conda install mamba "$PYTHON_VERSION"
+  - mamba install tox
+  - mamba env update --quiet -f "$CI_PROJECT_DIR/continuous-integration/environment.yaml"
+  # Debug information
+  - mamba info
+  - mamba list
+  - python3 -VV
+
+
+test py38:
+  stage: test
+  needs: []
+  variables:
+    PYTHON_VERSION: "python~=3.8.0"
+  script:
+    - tox -e py38-pytest
+  artifacts:
+    when: always
+    reports:
+      junit: junit-py38-pytest.xml
+      cobertura: coverage-py38-pytest.xml
+
+test py39:
+  stage: test
+  needs: []
+  variables:
+    PYTHON_VERSION: "python~=3.9.0"
+  script:
+    - tox -e py39-pytest
+  artifacts:
+    when: always
+    reports:
+      junit: junit-py39-pytest.xml
+      cobertura: coverage-py39-pytest.xml
+
+
+lint all:
+  stage: lint
+  needs: []
+  script:
+    - tox -e isort,mypy,flake8
+  artifacts:
+    when: always
+    reports:
+      junit: report-mypy.xml
+
+
+build package:
+  stage: build
+  script:
+    - pip3 install build
+    - python3 -m build
+    - conda install conda-build
+    - mkdir "./conda-packages"
+    - conda index ./conda-packages
+    - conda build --output-folder ./conda-packages conda-recipes/cemarray-core/
+    - conda build --output-folder ./conda-packages conda-recipes/cemarray/
+    - mkdir "packages"
+    - cp dist/cemarray-* conda-packages/noarch/cemarray*.tar.bz2 packages
+  artifacts:
+    name: "Packages"
+    paths:
+      - packages/*
+
+build docs:
+  stage: build
+  script:
+    - tox -e docs
+  artifacts:
+    name: "Docs"
+    when: always
+    paths:
+      - docs/_build/html
+    expire_in: 1 week
+
+
+publish docs:
+  stage: publish
+  script:
+    - mv docs/_build/html public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

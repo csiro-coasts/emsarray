@@ -1,0 +1,13 @@
+cemarray.egg-info/
+dist/
+.tox/
+*.mp4
+.ipynb_checkpoints
+
+# pytest junitxml report
+junit-*.xml
+
+# pytest code coverage reports
+.coverage
+coverage-*/
+coverage-*.xml
