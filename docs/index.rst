@@ -38,6 +38,7 @@ Contents
 
     installing.rst
     concepts/index.rst
+    examples/index.rst
     cli.rst
     api/index.rst
     testing.rst
