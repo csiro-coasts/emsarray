@@ -55,10 +55,38 @@ def make_cfgrid1d(out: pathlib.Path) -> None:
     dataset.close()
 
 
+@dataset_maker
+def make_cfgrid2d(out: pathlib.Path) -> None:
+    nj, ni = 15, 21
+    jj, ii = np.mgrid[0:nj, 0:ni]
+
+    dataset = netCDF4.Dataset(str(out), "w", format="NETCDF4")
+    dataset.createDimension("i", ni)
+    dataset.createDimension("j", nj)
+
+    theta, radius = ii / ni, (jj / 3) + 2
+
+    lat = dataset.createVariable("lat", "f4", ["j", "i"])
+    lat[:] = np.sin(theta) * radius
+    lat[-2:, :3] = np.nan
+    lat.standard_name = 'latitude'
+
+    lon = dataset.createVariable("lon", "f4", ["j", "i"])
+    lon[:] = np.cos(theta) * radius
+    lon[-2:, :3] = np.nan
+    lon.standard_name = 'longitude'
+
+    values = dataset.createVariable("values", "i4", ["j", "i"])
+    values[:] = np.arange(nj * ni).reshape((nj, ni))
+
+    dataset.close()
+
+
 def main() -> None:
     here = pathlib.Path(__file__).parent
 
     make_cfgrid1d(here / 'cfgrid1d.nc')
+    make_cfgrid2d(here / 'cfgrid2d.nc')
 
 
 if __name__ == '__main__':

@@ -3,13 +3,14 @@ import xarray as xr
 
 import emsarray
 from emsarray.formats import get_file_format
-from emsarray.formats.grid import CFGrid1D
+from emsarray.formats.grid import CFGrid1D, CFGrid2D
 from emsarray.formats.shoc import ShocSimple
 from emsarray.formats.ugrid import UGrid
 
 
 @pytest.mark.parametrize(['dataset', 'expected_class'], [
     ('cfgrid1d.nc', CFGrid1D),
+    ('cfgrid2d.nc', CFGrid2D),
 ])
 def test_files(datasets, dataset, expected_class):
     dataset = xr.open_dataset(datasets / dataset)

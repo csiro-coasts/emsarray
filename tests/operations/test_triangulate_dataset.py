@@ -2,6 +2,7 @@ from collections import defaultdict
 from functools import reduce
 from typing import List, Tuple
 
+import numpy as np
 import pytest
 import xarray as xr
 from shapely.geometry import Polygon
@@ -28,13 +29,16 @@ def test_triangulate_dataset_cfgrid1d(datasets):
     check_triangulation(dataset, vertices, triangles, cell_indices)
 
 
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_triangulate_dataset_shoc_simple():
-    dataset = emsarray.open_dataset("./tests/datasets/shoc_simple.nc")
+def test_triangulate_dataset_cfgrid2d(datasets):
+    dataset = emsarray.open_dataset(datasets / "cfgrid2d.nc")
     vertices, triangles, cell_indices = triangulate_dataset(dataset)
+    topology = dataset.ems.topology
 
-    # There is no good way of calculating the number of vertices, as the
-    # geometry is quite complicated in shoc datasets with wet cells
+    # There is a hole in one corner, taking out 6 vertices from the expected count
+    assert len(vertices) == np.prod(np.array((1, 1)) + topology.shape) - 6
+
+    # Two triangles per polygon, 6 polygons are missing in the corner
+    assert len(triangles) == 2 * (topology.size - 6)
 
     # Shoc cells are quadrilaterals, so they each have two triangles
     only_polygons = dataset.ems.polygons[dataset.ems.mask]
