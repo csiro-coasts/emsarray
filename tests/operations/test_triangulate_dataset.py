@@ -10,9 +10,8 @@ import emsarray
 from emsarray.operations import _triangulate_polygon, triangulate_dataset
 
 
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_triangulate_dataset_grid():
-    dataset = emsarray.open_dataset("./tests/datasets/cfgrid_oceanmap.nc")
+def test_triangulate_dataset_cfgrid1d(datasets):
+    dataset = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
     topology = dataset.ems.topology
     dataset.ems.polygons
     vertices, triangles, cell_indices = triangulate_dataset(dataset)

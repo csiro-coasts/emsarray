@@ -1,10 +1,19 @@
 import pytest
+import xarray as xr
 
 import emsarray
 from emsarray.formats import get_file_format
 from emsarray.formats.grid import CFGrid1D
 from emsarray.formats.shoc import ShocSimple
 from emsarray.formats.ugrid import UGrid
+
+
+@pytest.mark.parametrize(['dataset', 'expected_class'], [
+    ('cfgrid1d.nc', CFGrid1D),
+])
+def test_files(datasets, dataset, expected_class):
+    dataset = xr.open_dataset(datasets / dataset)
+    assert get_file_format(dataset) is expected_class
 
 
 @pytest.mark.tutorial

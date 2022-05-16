@@ -5,6 +5,12 @@ import pytest
 import emsarray
 
 
+@pytest.fixture
+def datasets() -> pathlib.Path:
+    here = pathlib.Path(__file__).parent
+    return here / 'datasets'
+
+
 def pytest_runtest_setup(item):
     if 'matplotlib' in item.keywords and "matplotlib_backend" not in item.fixturenames:
         item.fixturenames.append("matplotlib_backend")
