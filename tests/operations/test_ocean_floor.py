@@ -55,22 +55,17 @@ def test_ocean_floor():
         np.array([expected_values] * 5))
 
 
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-@pytest.mark.parametrize('filename,depth_warnings', [
-    ('cfgrid_oceanmap.nc', 0),
-    ('shoc_simple.nc', 0),
-    ('shoc_standard.nc', 2),
-    ('ugrid_mesh2d.nc', 1),
+@pytest.mark.tutorial
+@pytest.mark.parametrize('name', [
+    'bran2020',
 ])
-def test_ocean_floor_from_files(datasets, filename, depth_warnings):
-    # Test tests make sure that the operation runs without throwing an error,
+def test_ocean_floor_from_files(name):
+    # Make sure that the operation runs without throwing an error,
     # and that the dataset returned has the expected dimensions.
     # It does not look at the actual data returned.
-    dataset = emsarray.tutorial.open_dataset(filename)
+    dataset = emsarray.tutorial.open_dataset(name)
 
-    with pytest.warns(None) as warnings:
-        floored = dataset.ems.ocean_floor()
-    assert len(warnings) == depth_warnings
+    floored = dataset.ems.ocean_floor()
 
     depth_dimensions = {
         dataset.variables[name].dims[0]

@@ -1,31 +1,18 @@
 import pytest
-import xarray as xr
 
+import emsarray
 from emsarray.formats import get_file_format
 from emsarray.formats.grid import CFGrid1D
-from emsarray.formats.shoc import ShocSimple, ShocStandard
+from emsarray.formats.shoc import ShocSimple
 from emsarray.formats.ugrid import UGrid
 
 
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_cfgrid():
-    dataset = xr.tutorial.open_dataset('cfgrid_oceanmap')
-    assert get_file_format(dataset) is CFGrid1D
-
-
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_shoc_standard():
-    dataset = xr.tutorial.open_dataset('shoc_standard')
-    assert get_file_format(dataset) is ShocStandard
-
-
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_shoc_simple():
-    dataset = xr.tutorial.open_dataset('shoc_simple')
-    assert get_file_format(dataset) is ShocSimple
-
-
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_unstructured_grid():
-    dataset = xr.tutorial.open_dataset('ugrid_mesh2d', mask_and_scale=False)
-    assert get_file_format(dataset) is UGrid
+@pytest.mark.tutorial
+@pytest.mark.parametrize(['dataset', 'expected_class'], [
+    ('bran2020', CFGrid1D),
+    ('gbr4', ShocSimple),
+    ('austen', UGrid),
+])
+def test_tutorial_datasets(dataset, expected_class):
+    dataset = emsarray.tutorial.open_dataset(dataset)
+    assert get_file_format(dataset) is expected_class
