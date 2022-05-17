@@ -47,9 +47,8 @@ def test_triangulate_dataset_cfgrid2d(datasets):
     check_triangulation(dataset, vertices, triangles, cell_indices)
 
 
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_triangulate_dataset_shoc_standard():
-    dataset = emsarray.open_dataset("./tests/datasets/shoc_standard.nc")
+def test_triangulate_dataset_shoc_standard(datasets):
+    dataset = emsarray.open_dataset(datasets / 'shoc_standard.nc')
     vertices, triangles, cell_indices = triangulate_dataset(dataset)
 
     # There is no good way of calculating the number of vertices, as the
