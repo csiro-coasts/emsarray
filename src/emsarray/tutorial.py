@@ -22,13 +22,16 @@ except ImportError as exc:
 _requires_tutorial = requires_extra('tutorial', IMPORT_EXCEPTION)
 
 
-BASE_URL = "https://github.com/csiro-coasts/cemarray-data/raw/{branch}/{path}"
-BRANCH = "main"
+BASE_URL = "https://github.com/csiro-coasts/emsarray-data/raw/{version}/{path}"
+
+# Bump this version as new datasets are added or as old datasets are updated.
+# Should be a tag name or commit hash, something immutable.
+VERSION = "8f1c3ee739d351d22c2c381c8a66f6ffb3124c41"
 
 
 def _make_download_url(name: str) -> str:
     """URL to download a named file."""
-    return BASE_URL.format(branch=BRANCH, path=name)
+    return BASE_URL.format(version=VERSION, path=name)
 
 
 @_requires_tutorial
@@ -37,7 +40,7 @@ def _cache_directory() -> pathlib.Path:
     if 'EMSARRAY_DATA_DIR' in os.environ:
         path = pathlib.Path(os.environ['EMSARRAY_DATA_DIR'])
     else:
-        path = cast(pathlib.Path, pooch.os_cache('emsarray_tutorial'))
+        path = cast(pathlib.Path, pooch.os_cache('emsarray_tutorial') / VERSION)
     path.mkdir(exist_ok=True, parents=True)
     return path
 
