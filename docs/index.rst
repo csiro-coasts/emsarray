@@ -17,9 +17,18 @@ and use the :ref:`dataset.ems <accessor>` attribute:
     import emsarray
     import json
 
-    dataset = emsarray.open_dataset('./tests/datasets/shoc_standard.nc')
+    dataset = emsarray.tutorial.open_dataset('gbr4')
+
+    # Export dataset geometry as geojson
     with open("geometry.geojson", "w") as f:
         json.dump(dataset.ems.make_geojson_geometry(), f)
+
+    # Plot the sea surface temperature for time = 0
+    temp = dataset['temp'].isel(time=0, k=-1)
+    dataset.ems.plot(temp)
+
+.. image:: _static/images/gbr4_temp.png
+   :alt: Plot of sea surface temperature from the GBR4 example file
 
 Contents
 ========

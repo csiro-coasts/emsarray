@@ -6,6 +6,8 @@
 #
 alabaster==0.7.12
     # via sphinx
+appdirs==1.4.4
+    # via pooch
 attrs==21.2.0
     # via pytest
 babel==2.9.1
@@ -110,9 +112,9 @@ numpy==1.21.4
     #   bokeh
     #   bottleneck
     #   cartopy
-    #   emsarray (setup.cfg)
     #   cftime
     #   dask
+    #   emsarray (setup.cfg)
     #   matplotlib
     #   netcdf4
     #   pandas
@@ -124,6 +126,7 @@ packaging==21.3
     #   bokeh
     #   dask
     #   matplotlib
+    #   pooch
     #   pytest
     #   setuptools-scm
     #   sphinx
@@ -147,6 +150,8 @@ pluggy==1.0.0
     # via
     #   pytest
     #   tox
+pooch==1.6.0
+    # via emsarray (setup.cfg)
 psutil==5.8.0
     # via distributed
 py==1.11.0
@@ -192,7 +197,9 @@ pyyaml==6.0
     #   distributed
     #   sphinx-book-theme
 requests==2.26.0
-    # via sphinx
+    # via
+    #   pooch
+    #   sphinx
 scipy==1.7.3
     # via emsarray (setup.cfg)
 setuptools-scm==6.3.2

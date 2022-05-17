@@ -326,9 +326,8 @@ def test_make_dataset():
     assert_equal(face_node.values[12], [10, 14, 15, 11])
 
 
-@pytest.mark.skip("Tutorial datasets are a work in progress")
-def test_requires_mask_and_scale():
-    path = "./tests/datasets/ugrid_mesh2d.nc"
+def test_requires_mask_and_scale(datasets):
+    path = datasets / "ugrid_mesh2d.nc"
 
     # Opening it without mask_and_scale should raise an error
     dataset = xr.open_dataset(path)

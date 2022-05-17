@@ -2,6 +2,7 @@ from collections import defaultdict
 from functools import reduce
 from typing import List, Tuple
 
+import numpy as np
 import pytest
 import xarray as xr
 from shapely.geometry import Polygon
@@ -10,9 +11,8 @@ import emsarray
 from emsarray.operations import _triangulate_polygon, triangulate_dataset
 
 
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_triangulate_dataset_grid():
-    dataset = emsarray.open_dataset("./tests/datasets/cfgrid_oceanmap.nc")
+def test_triangulate_dataset_cfgrid1d(datasets):
+    dataset = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
     topology = dataset.ems.topology
     dataset.ems.polygons
     vertices, triangles, cell_indices = triangulate_dataset(dataset)
@@ -29,9 +29,26 @@ def test_triangulate_dataset_grid():
     check_triangulation(dataset, vertices, triangles, cell_indices)
 
 
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_triangulate_dataset_shoc_simple():
-    dataset = emsarray.open_dataset("./tests/datasets/shoc_simple.nc")
+def test_triangulate_dataset_cfgrid2d(datasets):
+    dataset = emsarray.open_dataset(datasets / "cfgrid2d.nc")
+    vertices, triangles, cell_indices = triangulate_dataset(dataset)
+    topology = dataset.ems.topology
+
+    # There is a hole in one corner, taking out 6 vertices from the expected count
+    assert len(vertices) == np.prod(np.array((1, 1)) + topology.shape) - 6
+
+    # Two triangles per polygon, 6 polygons are missing in the corner
+    assert len(triangles) == 2 * (topology.size - 6)
+
+    # Shoc cells are quadrilaterals, so they each have two triangles
+    only_polygons = dataset.ems.polygons[dataset.ems.mask]
+    assert len(triangles) == 2 * len(only_polygons)
+
+    check_triangulation(dataset, vertices, triangles, cell_indices)
+
+
+def test_triangulate_dataset_shoc_standard(datasets):
+    dataset = emsarray.open_dataset(datasets / 'shoc_standard.nc')
     vertices, triangles, cell_indices = triangulate_dataset(dataset)
 
     # There is no good way of calculating the number of vertices, as the
@@ -44,24 +61,8 @@ def test_triangulate_dataset_shoc_simple():
     check_triangulation(dataset, vertices, triangles, cell_indices)
 
 
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_triangulate_dataset_shoc_standard():
-    dataset = emsarray.open_dataset("./tests/datasets/shoc_standard.nc")
-    vertices, triangles, cell_indices = triangulate_dataset(dataset)
-
-    # There is no good way of calculating the number of vertices, as the
-    # geometry is quite complicated in shoc datasets with wet cells
-
-    # Shoc cells are quadrilaterals, so they each have two triangles
-    only_polygons = dataset.ems.polygons[dataset.ems.mask]
-    assert len(triangles) == 2 * len(only_polygons)
-
-    check_triangulation(dataset, vertices, triangles, cell_indices)
-
-
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_triangulate_dataset_ugrid():
-    dataset = emsarray.open_dataset("./tests/datasets/ugrid_mesh2d.nc")
+def test_triangulate_dataset_ugrid(datasets):
+    dataset = emsarray.open_dataset(datasets / "ugrid_mesh2d.nc")
     topology = dataset.ems.topology
     vertices, triangles, cell_indices = triangulate_dataset(dataset)
 

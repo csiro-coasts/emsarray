@@ -338,7 +338,7 @@ def triangulate_dataset(
         hv.extension('bokeh')
 
         # Triangulate the dataset
-        dataset = emsarray.open_dataset("./tests/datasets/shoc_standard.nc")
+        dataset = emsarray.tuorial.open_dataset("austen")
         vertices, triangles, cell_indices = triangulate_dataset(dataset)
 
         # This takes a while to render
@@ -354,7 +354,7 @@ def triangulate_dataset(
         import trimesh
         from emsarray.operations import triangulate_dataset
 
-        dataset = emsarray.open_dataset("./tests/datasets/ugrid_mesh2d.nc")
+        dataset = emsarray.tutorial.open_dataset("gbr4")
         vertices, triangles, cell_indices = triangulate_dataset(dataset)
         # Trimesh expects 3D vertices.
         vertices = np.c_[vertices, np.zeros(len(vertices))]
