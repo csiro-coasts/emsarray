@@ -1,0 +1,11 @@
+name: emsarray-docs
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip
+  - geos ~=3.10.2
+  - proj ~=8.2.0
+  - pip:
+    - -r ../requirements.txt
+    - -e ..
