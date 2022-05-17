@@ -12,7 +12,7 @@ and use the `dataset.ems` attribute:
 import emsarray
 import json
 
-dataset = emsarray.open_dataset('./tests/datasets/shoc_standard.nc')
+dataset = emsarray.tutorial.open_dataset('gbr4')
 with open("geometry.geojson", "w") as f:
 	json.dump(dataset.ems.make_geojson_geometry(), f)
 ```
@@ -20,14 +20,12 @@ with open("geometry.geojson", "w") as f:
 Some methods take a DataArray as a parameter:
 
 ```python
-eta = ds.eta.isel(record=1)
-
-# Get all sea surface height values
-values = ds.ems.make_linear(eta)
-
-# Plot the sea surface height for record=1
-ds.ems.plot(eta)
+# Plot the sea surface temperature for time = 0
+temp = dataset['temp'].isel(time=0, k=-1)
+dataset.ems.plot(temp)
 ```
+
+![Plot of sea surface temperature from the GBR4 example file](docs/_static/images/gbr4_temp.png)
 
 ## Developing
 
