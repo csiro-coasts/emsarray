@@ -12,6 +12,7 @@ from emsarray.formats.ugrid import UGrid
     ('cfgrid1d.nc', CFGrid1D),
     ('cfgrid2d.nc', CFGrid2D),
     ('shoc_standard.nc', ShocStandard),
+    ('ugrid_mesh2d.nc', UGrid),
 ])
 def test_files(datasets, dataset, expected_class):
     dataset = xr.open_dataset(datasets / dataset)

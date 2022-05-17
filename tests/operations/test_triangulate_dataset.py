@@ -61,9 +61,8 @@ def test_triangulate_dataset_shoc_standard(datasets):
     check_triangulation(dataset, vertices, triangles, cell_indices)
 
 
-@pytest.mark.skip(reason="Tutorial datasets are a work in progress")
-def test_triangulate_dataset_ugrid():
-    dataset = emsarray.open_dataset("./tests/datasets/ugrid_mesh2d.nc")
+def test_triangulate_dataset_ugrid(datasets):
+    dataset = emsarray.open_dataset(datasets / "ugrid_mesh2d.nc")
     topology = dataset.ems.topology
     vertices, triangles, cell_indices = triangulate_dataset(dataset)
 
