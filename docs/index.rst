@@ -38,8 +38,9 @@ Contents
 
     installing.rst
     concepts/index.rst
-    cli.rst
+    examples/index.rst
     api/index.rst
+    cli.rst
     testing.rst
 
 .. _xarray: https://xarray.pydata.org/

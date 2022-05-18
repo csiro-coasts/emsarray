@@ -1,5 +1,7 @@
 # emsarray
 
+[![Documentation Status](https://readthedocs.org/projects/emsarray/badge/?version=latest)](https://emsarray.readthedocs.io/en/latest/?badge=latest)
+
 The `emsarray` package provides a common interface
 for working with the many model formats used at CSIRO.
 It enhances [`xarray`][xarray] Datasets
