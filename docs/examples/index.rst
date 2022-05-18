@@ -8,5 +8,3 @@ The following examples demonstrate some basic ``emsarray`` features:
 
    plot.ipynb
    clip.ipynb
-   animation.ipynb
-   section.ipynb
