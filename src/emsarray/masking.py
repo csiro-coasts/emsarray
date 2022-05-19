@@ -136,7 +136,9 @@ def find_fill_value(data_array: xr.DataArray) -> Any:
         return np.ma.masked
 
     if '_FillValue' in data_array.encoding:
-        return data_array.encoding['_FillValue']
+        # The dataset was opened with mask_and_scale=True and a mask has been
+        # applied. Masked values are now represented as np.nan, not _FillValue.
+        return np.nan
     if '_FillValue' in data_array.attrs:
         return data_array.attrs['_FillValue']
     if issubclass(data_array.dtype.type, np.floating):
