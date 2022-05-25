@@ -4,9 +4,22 @@
 Installing
 ==========
 
-``emsarray`` can be installed using ``pip``.
+The easiest way of installing ``emsarray`` is using
+`Conda <https://docs.conda.io/projects/conda/en/latest/index.html>`_.
+``emsarray`` is published on the ``conda-forge`` channel.
+You can install it in your Conda environment with:
 
-.. code-block:: python
+.. code-block:: shell-session
+
+   $ conda install -c conda-forge emsarray
+
+This will install ``emsarray`` with all its :ref:`optional dependencies <extras>`.
+Alternately you install only the core dependencies
+by installing the ``emsarray-core`` package instead.
+
+If you prefer, ``emsarray`` can be installed using ``pip``.
+
+.. code-block:: shell-session
 
    $ pip install emsarray
 
@@ -34,7 +47,7 @@ and it guarantees that compatible versions of ``geos`` and ``proj`` are installe
 
    $ conda create -n my-env
    $ conda activate my-env
-   $ conda install proj geos
+   $ conda install shapely cartopy
 
 If ``geos`` and ``proj`` are installed using your system package manager,
 and ``shapely`` and ``cartopy`` are installed via pip,
@@ -48,7 +61,7 @@ or Python crashing when calling ``shapely`` or ``cartopy`` functions.
 Building
 ========
 
-On any computer, run the following commands to build a package:
+On any computer, run the following commands from the root of the ``emsarray`` source directory to build a package:
 
 .. code-block:: shell-session
 
@@ -76,6 +89,11 @@ Extras
 
 When installed via ``pip``, ``emsarray`` can be installed with "extras".
 These extra packages are optional.
+
+For conda installs,
+the ``emsarray`` package contains all the extras
+and is equivalent to ``emsarray[complete]``.
+``emsarray-core`` is equivalent to ``emsarray`` without any extras.
 
 ``plot``
 --------
