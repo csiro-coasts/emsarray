@@ -1,6 +1,8 @@
 # emsarray
 
+[![Binder](https://mybinder.org/badge_logo.svg)][emsarray-binder]
 [![Documentation Status](https://readthedocs.org/projects/emsarray/badge/?version=latest)](https://emsarray.readthedocs.io/en/latest/?badge=latest)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/emsarray.svg)](https://anaconda.org/conda-forge/emsarray)
 
 The `emsarray` package provides a common interface
 for working with the many model formats used at CSIRO.
@@ -28,6 +30,12 @@ dataset.ems.plot(temp)
 ```
 
 ![Plot of sea surface temperature from the GBR4 example file](docs/_static/images/gbr4_temp.png)
+
+## Examples
+
+Examples of using `emsarray` are available in the [emsarray-notebooks][emsarray-notebooks] repository.
+You can [explore these notebooks online][emsarray-binder] with Binder.
+
 
 ## Developing
 
@@ -69,5 +77,7 @@ $ make -C docs/ live
 
 You can the view the docs at <http://localhost:5500>
 
+[emsarray-notebooks]: https://github.com/csiro-coasts/emsarray-notebooks
+[emsarray-binder]: https://mybinder.org/v2/gh/csiro-coasts/emsarray-notebooks/HEAD
 [xarray]: https://xarray.pydata.org/
 [livereload]: https://livereload.readthedocs.io/en/latest/
