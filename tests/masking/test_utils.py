@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pathlib
+
+import netCDF4
 import numpy as np
 import pytest
 import xarray as xr
@@ -7,6 +10,96 @@ from numpy.testing import assert_equal
 
 from emsarray import masking
 from tests.utils import mask_from_strings
+
+
+def assert_raw_values(
+    dataset_path: pathlib.Path,
+    variable_name: str,
+    values: np.ndarray,
+) -> None:
+    __tracebackhide__ = True
+    with netCDF4.Dataset(dataset_path, 'r') as ds:
+        ds.set_auto_maskandscale(False)
+        var = ds.variables[variable_name]
+        assert_dtype_equal(var[:], values)
+
+
+def assert_dtype_equal(actual, desired):
+    __tracebackhide__ = True
+    assert_equal(actual, desired)
+    assert actual.dtype == desired.dtype
+
+
+def test_find_fill_value_masked_float(datasets):
+    dataset_path = datasets / 'masking/find_fill_value/float_with_fill_value.nc'
+
+    assert_raw_values(
+        dataset_path, 'var',
+        np.array([[1.0, 2.0], [-999., 4.0]], dtype=np.float64))
+
+    # When opened with mask_and_scale=True (the default) xarray uses np.nan
+    # to indicate masked values.
+    with xr.open_dataarray(dataset_path, mask_and_scale=True) as data_array:
+        assert_dtype_equal(
+            data_array.values,
+            np.array([[1.0, 2.0], [np.nan, 4.0]], dtype=np.float64))
+        assert masking.find_fill_value(data_array) is np.nan
+
+    # When opened with mask_and_scale=False, xarray does nothing with masks.
+    # The raw _FillValue should be returned.
+    with xr.open_dataarray(dataset_path, mask_and_scale=False) as data_array:
+        assert_dtype_equal(
+            data_array.values,
+            np.array([[1.0, 2.0], [-999., 4.]], dtype=np.float64))
+        assert_dtype_equal(masking.find_fill_value(data_array), np.float64(-999.))
+
+
+def test_find_fill_value_masked_and_scaled_float(datasets):
+    dataset_path = datasets / 'masking/find_fill_value/float_with_fill_value_and_offset.nc'
+
+    assert_raw_values(
+        dataset_path, 'var',
+        np.array([[-4.5, -4.0], [-999., -3.0]], dtype=np.float32))
+
+    # When opened with mask_and_scale=True (the default) xarray uses np.nan
+    # to indicate masked values.
+    with xr.open_dataarray(dataset_path, mask_and_scale=True) as data_array:
+        assert_dtype_equal(
+            data_array.values,
+            np.array([[1.0, 2.0], [np.nan, 4.0]], dtype=np.float32))
+        assert masking.find_fill_value(data_array) is np.nan
+
+    # When opened with mask_and_scale=False, xarray does nothing with masks.
+    # The raw _FillValue should be returned.
+    with xr.open_dataarray(dataset_path, mask_and_scale=False) as data_array:
+        assert_dtype_equal(
+            data_array.values,
+            np.array([[-4.5, -4.0], [-999., -3.0]], dtype=np.float32))
+        assert_dtype_equal(masking.find_fill_value(data_array), np.float32(-999.))
+
+
+def test_find_fill_value_masked_and_scaled_int(datasets):
+    dataset_path = datasets / 'masking/find_fill_value/int_with_fill_value_and_offset.nc'
+
+    assert_raw_values(
+        dataset_path, 'var',
+        np.array([[22, 24], [-1, 28]], dtype=np.int8))
+
+    # When opened with mask_and_scale=True (the default) xarray uses np.nan
+    # to indicate masked values.
+    with xr.open_dataarray(dataset_path, mask_and_scale=True) as data_array:
+        assert_dtype_equal(
+            data_array.values,
+            np.array([[1.0, 2.0], [np.nan, 4.0]], dtype=np.float32))
+        assert masking.find_fill_value(data_array) is np.nan
+
+    # When opened with mask_and_scale=False, xarray does nothing with masks.
+    # The raw _FillValue should be returned.
+    with xr.open_dataarray(dataset_path, mask_and_scale=False) as data_array:
+        assert_dtype_equal(
+            data_array.values,
+            np.array([[22, 24], [-1, 28]], dtype=np.int8))
+        assert_dtype_equal(masking.find_fill_value(data_array), np.int8(-1))
 
 
 def test_calculate_mask_bounds():

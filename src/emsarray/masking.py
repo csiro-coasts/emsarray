@@ -106,30 +106,10 @@ def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataA
     """
     dimensions = set(data_array.dims)
 
-    # Float-typed variables can easily be masked. If they don't already have
-    # a fill value, they can be masked using `NaN` without issue.
-    # However there are some `int`-typed variables without a fill value that
-    # _cant_ be automatically masked.
-    fill_value: Any
-
-    # Look for an existing _FillValue and use it if it exists.
-    for d in [data_array.encoding, data_array.attrs]:
-        if '_FillValue' in d:
-            fill_value = d['_FillValue']
-            break
-    else:
-        if issubclass(data_array.dtype.type, np.floating):
-            # NaN is a useful fallback for a _FillValue, but only if the dtype
-            # is some sort of float. We won't actually _set_ a _FillValue
-            # attribute though, as that can play havok when trying to save
-            # existing datasets. xarray gets real grumpy when you have
-            # a _FillValue and a missing_value, and some existing datasets play
-            # fast and loose with mixing the two.
-            fill_value = np.nan
-
-        else:
-            # No fill value, and it isn't a float. Abandon all hope
-            return data_array
+    try:
+        fill_value = find_fill_value(data_array)
+    except ValueError:
+        return data_array
 
     # Loop through each possible mask
     for mask_name, mask_data_array in mask.data_vars.items():
@@ -143,6 +123,40 @@ def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataA
     # Fallback, no appropriate mask was found, so don't apply any.
     # This generally happens for data arrays such as time, record, x_grid, etc.
     return data_array
+
+
+def find_fill_value(data_array: xr.DataArray) -> Any:
+    """
+    Float-typed variables can easily be masked. If they don't already have
+    a fill value, they can be masked using `NaN` without issue.
+    However there are some `int`-typed variables without a fill value that
+    _cant_ be automatically masked.
+    """
+    if np.ma.is_masked(data_array.values):
+        # xarray does not use masked arrays, but just in case someone has
+        # constructed a dataset using one...
+        return np.ma.masked
+
+    if '_FillValue' in data_array.encoding:
+        # The dataset was opened with mask_and_scale=True and a mask has been
+        # applied. Masked values are now represented as np.nan, not _FillValue.
+        return np.nan
+
+    if '_FillValue' in data_array.attrs:
+        # The dataset was opened with mask_and_scale=False and a mask has not
+        # been applied. Masked values should be represented using _FillValue.
+        return data_array.attrs['_FillValue']
+
+    if issubclass(data_array.dtype.type, np.floating):
+        # NaN is a useful fallback for a _FillValue, but only if the dtype
+        # is some sort of float. We won't actually _set_ a _FillValue
+        # attribute though, as that can play havok when trying to save
+        # existing datasets. xarray gets real grumpy when you have
+        # a _FillValue and a missing_value, and some existing datasets play
+        # fast and loose with mixing the two.
+        return np.nan
+
+    raise ValueError("No appropriate fill value found")
 
 
 def calculate_grid_mask_bounds(mask: xr.Dataset) -> Dict[Hashable, slice]:

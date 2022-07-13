@@ -5,9 +5,12 @@ import pathlib
 import netCDF4
 import numpy as np
 import pandas as pd
+import pytest
+import shapely.geometry
 import xarray as xr
 from numpy.testing import assert_equal
 
+import emsarray
 from emsarray.formats.arakawa_c import ArakawaCGridKind, c_mask_from_centres
 from tests.utils import DiagonalShocGrid, ShocLayerGenerator, mask_from_strings
 
@@ -279,3 +282,37 @@ def test_mask_dataset(tmp_path: pathlib.Path):
         assert nc_some_coord.shape == (30,)
         assert_equal(nc_some_coord[:], np.arange(30, dtype=int))
         assert nc_some_coord.getncattr('reticulating') == 'splines'
+
+
+@pytest.mark.tutorial
+def test_clip_unmasked_dataset(tmp_path: pathlib.Path):
+    """
+    Test clipping the bran2020 dataset. The `temp` variable in this dataset is
+    stored as a int with a _FillValue, add_offset, and scale_factor.
+    If opened with mask_and_scale=False, clipping must use _FillValue directly.
+
+    See also
+    --------
+    https://github.com/csiro-coasts/emsarray/pull/4
+    """
+    dataset = emsarray.tutorial.open_dataset('bran2020')
+    dataset = dataset.isel({'st_ocean': 0}, drop=True)
+
+    tasmania_clip = shapely.geometry.Polygon([
+        (141.459, -40.780),
+        (142.954, -39.198),
+        (149.106, -39.095),
+        (150.864, -41.376),
+        (149.809, -44.621),
+        (144.843, -45.706),
+        (141.723, -43.389),
+        (141.372, -40.913),
+    ])
+
+    tassie = dataset.ems.clip(tasmania_clip, tmp_path)
+    tassie.ems.to_netcdf(tmp_path / "tassie.nc")
+    assert np.isnan(tassie['temp'].values[0, 0, 0])
+    tassie.close()
+
+    tassie = emsarray.open_dataset(tmp_path / "tassie.nc")
+    assert np.isnan(tassie['temp'].values[0, 0, 0])
