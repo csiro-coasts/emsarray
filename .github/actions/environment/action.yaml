@@ -1,0 +1,33 @@
+name: Set up environment
+description: Install Python, plus dependencies from conda and pip
+inputs:
+  python-version:
+    description: Python version to install. Used as a Conda version constraint.
+    required: true
+
+runs:
+  using: composite
+
+  steps:
+      # Used for the pip cache, not for the python version
+    - uses: actions/setup-python@v2
+      with:
+        cache: 'pip'
+
+    - name: Install base Conda environment
+      uses: mamba-org/provision-with-micromamba@main
+      with:
+        cache-downloads: true
+        cache-env: true
+        channels: conda-forge
+        environment-file: continuous-integration/environment.yaml
+        environment-name: continuous-integration
+        extra-specs: |
+          python=${{ matrix.python_version }}
+          wheel
+          pip
+
+    - name: Install Python dependencies
+      shell: bash -l {0}
+      run: |
+        pip install -r requirements.txt -e .
