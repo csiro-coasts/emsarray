@@ -9,9 +9,9 @@ testpaths = ["tests"]
 filterwarnings = [
 	"error",
 	"ignore:GeometryTypeError will derive from ShapelyError:shapely.errors.ShapelyDeprecationWarning",
-	# xarray.core.pycompat uses LooseVersion, which causes this
-	# Fixed in xarray >= 0.21.0
-	"ignore:distutils Version classes are deprecated:DeprecationWarning",
+	# xarray.backends.plugins uses a deprecated interface
+	# Fixed in xarray >= v2022.06.0
+	"ignore:SelectableGroups dict interface is deprecated. Use select.:DeprecationWarning",
 ]
 markers = [
 	"matplotlib: Tests that involve matplotlib and plotting",

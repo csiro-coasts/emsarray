@@ -1,0 +1,102 @@
+name: pytest
+on:
+  pull_request:
+    branches:
+      - "*"
+
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/environment
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run tests
+        shell: bash -l {0}
+        run: |
+          pytest -v \
+            --junitxml=junit-py${{ matrix.python-version }}.xml \
+            --cov --cov-report term \
+            --cov-report xml:coverage-${{ matrix.python-version }}.xml
+
+      - name: JUnit Report
+        uses: mikepenz/action-junit-report@v3.1.0
+        if: always()
+        with:
+          report_paths: 'junit-py*.xml'
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Code coverage for Python ${{ matrix.python-version }}
+          path: coverage-*.xml
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/environment
+        with:
+          python-version: "3.10"
+
+      - run: flake8 src/ tests/
+      - run: isort --diff --check-only src/ tests/
+      - run: mypy --junit-xml report-mypy.xml src/
+
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/environment
+        with:
+          python-version: "3.10"
+
+      - run: |
+          cd docs/
+          sphinx-build -b html -aEW . _build/html
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Docs
+          path: docs/_build/html
+
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/environment
+        with:
+          python-version: "3.10"
+
+      - run: |
+          pip install build
+          python3 -m build
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Python packages
+          path: dist
