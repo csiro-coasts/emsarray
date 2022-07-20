@@ -41,6 +41,7 @@ Contents
     examples.rst
     api/index.rst
     cli.rst
+    developing/formats.rst
     testing.rst
 
 .. _xarray: https://xarray.pydata.org/
