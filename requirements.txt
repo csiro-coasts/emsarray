@@ -70,6 +70,8 @@ idna==3.3
     # via requests
 imagesize==1.3.0
     # via sphinx
+importlib-metadata==4.12.0
+    # via emsarray (setup.cfg)
 iniconfig==1.1.1
     # via pytest
 isort==5.10.1
@@ -277,6 +279,8 @@ xarray[parallel]==2022.3.0
     # via emsarray (setup.cfg)
 zict==2.0.0
     # via distributed
+zipp==3.8.1
+    # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

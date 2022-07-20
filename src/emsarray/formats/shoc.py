@@ -22,14 +22,13 @@ from typing import List, Optional, Tuple
 
 import xarray as xr
 
-from ._helpers import Specificity, register_format
+from ._helpers import Specificity
 from .arakawa_c import ArakawaC, ArakawaCGridKind
 from .grid import CFGrid2D, CFGrid2DTopology
 
 logger = logging.getLogger(__name__)
 
 
-@register_format
 class ShocStandard(ArakawaC):
     """
     SHOC datasets are :class:`.ArakawaC` datasets
@@ -58,7 +57,6 @@ class ShocStandard(ArakawaC):
         return 't'
 
 
-@register_format
 class ShocSimple(CFGrid2D):
     """
     SHOC standard datasets can be simplified down to SHOC simple datasets,
