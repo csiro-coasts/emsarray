@@ -23,7 +23,7 @@ from emsarray import masking, utils
 from emsarray.types import Pathish
 
 from ._base import Format
-from ._helpers import Specificity, register_format
+from ._helpers import Specificity
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +130,6 @@ ArakawaCCoordinates = Dict[ArakawaCGridKind, Tuple[str, str]]
 ArakawaCDimensions = Dict[ArakawaCGridKind, Tuple[str, str]]
 
 
-@register_format
 class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
     """
     An Arakawa C grid is a curvilinear orthogonal grid

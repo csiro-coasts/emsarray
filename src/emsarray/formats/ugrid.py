@@ -28,7 +28,7 @@ from emsarray import utils
 from emsarray.types import Pathish
 
 from ._base import Format
-from ._helpers import Specificity, register_format
+from ._helpers import Specificity
 
 logger = logging.getLogger(__name__)
 
@@ -972,7 +972,6 @@ class UGridKind(str, enum.Enum):
 UGridIndex = Tuple[UGridKind, int]
 
 
-@register_format
 class UGrid(Format[UGridKind, UGridIndex]):
     """A :class:`.Format` subclass to handle unstructured grid datasets.
     """

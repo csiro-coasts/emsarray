@@ -23,7 +23,7 @@ from emsarray import masking, utils
 from emsarray.types import Pathish
 
 from ._base import Format
-from ._helpers import Specificity, register_format
+from ._helpers import Specificity
 
 logger = logging.getLogger(__name__)
 
@@ -338,7 +338,6 @@ class CFGrid1DTopology(CFGridTopology):
         )
 
 
-@register_format
 class CFGrid1D(CFGrid[CFGrid1DTopology]):
     """A :class:`.Format` subclass representing datasets on an axis-aligned grid
     that follows the CF metadata conventions
@@ -418,7 +417,6 @@ class CFGrid2DTopology(CFGridTopology):
         return str(self.latitude.dims[1])
 
 
-@register_format
 class CFGrid2D(CFGrid[CFGrid2DTopology]):
     """A :class:`.Format` subclass representing datasets on a curvilinear grid
     that follows the CF metadata conventions
