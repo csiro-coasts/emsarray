@@ -662,17 +662,16 @@ def test_derive_connectivity():
     assert not topology.has_valid_face_edge_connectivity
     assert not topology.has_valid_face_face_connectivity
 
-    fv = topology.sensible_fill_value
+    fv = np.ma.masked
 
     with pytest.raises(NoEdgeDimensionException):
-        edge_node = topology.edge_node_connectivity
+        edge_node = topology.edge_node_array
         # WHoops ok lets fix that...
     dataset.variables['Mesh2'].attrs['edge_dimension'] = 'nMesh2_edge'
 
     # The actual order of these edges, and the order of the nodes in the pair,
     # is irrelevant to us. They just need to all exist
-    edge_node = topology.edge_node_connectivity
-    assert edge_node.attrs['cf_role'] == 'edge_node_connectivity'
+    edge_node = topology.edge_node_array
     expected_edge_node = [
         # Triangle edges
         (0, 1), (1, 2), (2, 0),
@@ -682,66 +681,65 @@ def test_derive_connectivity():
         (6, 9), (9, 10), (7, 10), (10, 11), (8, 11),
     ]
     expected_edge_node = sorted(tuple(sorted(pair)) for pair in expected_edge_node)
-    actual_edge_node = sorted(tuple(sorted(pair)) for pair in edge_node.values.tolist())
+    actual_edge_node = sorted(tuple(sorted(pair)) for pair in edge_node.tolist())
     assert expected_edge_node == actual_edge_node
 
     # Again the actual order here is irrelevant, as long as the edge maps to
     # the correct pair of faces. An edge index names a node pair, so using
     # a node pair as an index gives a stable method of addressing edges.
-    edge_face = topology.edge_face_connectivity
-    assert edge_face.attrs['cf_role'] == 'edge_face_connectivity'
+    edge_face = topology.edge_face_array
     expected_edge_face = {
-        (0, 1): {0, fv}, (0, 2): {0, fv}, (1, 2): {0, 2},
-        (1, 3): {1, fv}, (3, 4): {1, 4}, (1, 4): {1, 2},
-        (2, 4): {2, 3}, (4, 5): {3, 5}, (2, 5): {3, fv},
-        (3, 6): {4, fv}, (6, 7): {4, 6}, (4, 7): {4, 5}, (7, 8): {5, 7}, (5, 8): {5, fv},
-        (6, 9): {6, fv}, (9, 10): {6, fv}, (7, 10): {6, 7}, (10, 11): {7, fv}, (8, 11): {7, fv},
+        (0, 1): (0, fv), (0, 2): (0, fv), (1, 2): (0, 2),
+        (1, 3): (1, fv), (3, 4): (1, 4), (1, 4): (1, 2),
+        (2, 4): (2, 3), (4, 5): (3, 5), (2, 5): (3, fv),
+        (3, 6): (4, fv), (6, 7): (4, 6), (4, 7): (4, 5), (7, 8): (5, 7), (5, 8): (5, fv),
+        (6, 9): (6, fv), (9, 10): (6, fv), (7, 10): (6, 7), (10, 11): (7, fv), (8, 11): (7, fv),
     }
     actual_edge_face = {
-        tuple(sorted(edge_node.values[edge_index])): set(face_indices)
-        for edge_index, face_indices in enumerate(edge_face.values)
+        tuple(sorted(edge_node[edge_index])): tuple(sorted(face_indices))
+        for edge_index, face_indices in enumerate(edge_face)
     }
     assert expected_edge_face == actual_edge_face
 
     # face_edge is a little tedious. It helps if we build up a mapping of
     # node_pair: edge_index
-    face_edge = topology.face_edge_connectivity
+    face_edge = topology.face_edge_array
     edge_indices = {
         tuple(sorted(node_indices)): edge_index
-        for edge_index, node_indices in enumerate(edge_node.values.tolist())
+        for edge_index, node_indices in enumerate(edge_node.tolist())
     }
     expected_face_edge = [
-        sorted(edge_indices[pair] if pair is not None else fv for pair in row)
+        sorted(edge_indices[pair] for pair in row)
         for row in [
-            [(0, 1), (1, 2), (0, 2), None],
-            [(1, 3), (3, 4), (1, 4), None],
-            [(1, 2), (1, 4), (2, 4), None],
-            [(2, 4), (2, 5), (4, 5), None],
+            [(0, 1), (1, 2), (0, 2)],
+            [(1, 3), (3, 4), (1, 4)],
+            [(1, 2), (1, 4), (2, 4)],
+            [(2, 4), (2, 5), (4, 5)],
             [(3, 4), (3, 6), (4, 7), (6, 7)],
             [(4, 5), (4, 7), (5, 8), (7, 8)],
             [(6, 7), (6, 9), (7, 10), (9, 10)],
             [(7, 8), (7, 10), (8, 11), (10, 11)],
         ]
     ]
-    actual_face_edge = [sorted(row) for row in face_edge.values.tolist()]
+    actual_face_edge = [sorted(row.compressed()) for row in face_edge]
     assert expected_face_edge == actual_face_edge
 
     # This one is fairly straight forward at least. This lists which faces
     # border a particular face
-    face_face = topology.face_face_connectivity
+    face_face = topology.face_face_array
     expected_face_face = [
-        [2, fv, fv, fv],
-        [2, 4, fv, fv],
-        [0, 1, 3, fv],
-        [2, 5, fv, fv],
-        [1, 5, 6, fv],
-        [3, 4, 7, fv],
-        [4, 7, fv, fv],
-        [5, 6, fv, fv],
+        [2],
+        [2, 4],
+        [0, 1, 3],
+        [2, 5],
+        [1, 5, 6],
+        [3, 4, 7],
+        [4, 7],
+        [5, 6],
     ]
     actual_face_face = [
-        list(sorted(face_indices))
-        for face_indices in face_face.values.tolist()
+        sorted(face_indices.compressed())
+        for face_indices in face_face
     ]
     assert expected_face_face == actual_face_face
 
