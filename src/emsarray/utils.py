@@ -29,9 +29,6 @@ import pytz
 import xarray as xr
 from packaging.version import Version
 from xarray.coding import times
-from xarray.coding.variables import (
-    CFMaskCoder, CFScaleOffsetCoder, UnsignedIntegerCoder
-)
 from xarray.core.common import contains_cftime_datetimes
 
 from emsarray.types import Pathish
