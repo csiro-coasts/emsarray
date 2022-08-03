@@ -34,7 +34,9 @@ def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndar
     square_edges = 2 * square_rows * square_columns + square_rows + square_columns
     total_edges = triangle_edges + square_edges - width
 
-    face_node = np.full((total_faces, 4), fill_value=fill_value, dtype=np.int32)
+    face_node = np.ma.masked_array(
+        np.full((total_faces, 4), fill_value, dtype=np.int32),
+        mask=True, fill_value=fill_value)
     edge_node = np.zeros((total_edges, 2), dtype=np.int32)
 
     for row in range(1, width + 1):
@@ -150,7 +152,6 @@ def make_dataset(
         dims=[face_dimension, max_node_dimension],
         name="Mesh2_face_nodes",
         attrs={
-            "_FillValue": fill_value,
             "cf_role": "face_node_connectivity",
             "long_name": "Maps every face to its corner nodes.",
             "start_index": 0,
@@ -263,7 +264,7 @@ def make_dataset(
     if make_face_coordinates:
         face_x = xr.DataArray(
             data=[
-                np.average(coordinate_values[face_nodes[face_nodes != fill_value], 0])
+                np.average(coordinate_values[face_nodes.compressed(), 0])
                 for face_nodes in face_node_values
             ],
             dims=[face_dimension],
@@ -276,7 +277,7 @@ def make_dataset(
 
         face_y = xr.DataArray(
             data=[
-                np.average(coordinate_values[face_nodes[face_nodes != fill_value], 1])
+                np.average(coordinate_values[face_nodes.compressed(), 1])
                 for face_nodes in face_node_values
             ],
             dims=[face_dimension],
@@ -316,14 +317,13 @@ def test_make_dataset():
 
     # Check the mesh generation worked
     face_node = dataset.variables["Mesh2_face_nodes"]
-    fill_value = face_node.attrs["_FillValue"]
-    assert_equal(face_node.values[0], [0, 1, 2, fill_value])
-    assert_equal(face_node.values[1], [1, 3, 4, fill_value])
-    assert_equal(face_node.values[2], [2, 1, 4, fill_value])
-    assert_equal(face_node.values[3], [2, 4, 5, fill_value])
-    assert_equal(face_node.values[9], [6, 10, 11, 7])
-    assert_equal(face_node.values[10], [7, 11, 12, 8])
-    assert_equal(face_node.values[12], [10, 14, 15, 11])
+    assert_equal(face_node.values[0], [0., 1., 2., np.nan])
+    assert_equal(face_node.values[1], [1., 3., 4., np.nan])
+    assert_equal(face_node.values[2], [2., 1., 4., np.nan])
+    assert_equal(face_node.values[3], [2., 4., 5., np.nan])
+    assert_equal(face_node.values[9], [6., 10., 11., 7.])
+    assert_equal(face_node.values[10], [7., 11., 12., 8.])
+    assert_equal(face_node.values[12], [10., 14., 15., 11.])
 
 
 def test_varnames():
@@ -536,11 +536,11 @@ def test_mask_from_face_indices_without_edges():
         'old_face_index': topology.face_count,
     }
 
-    expected_face = np.full(topology.face_count, fill_value=topology.sensible_fill_value)
+    expected_face = np.full(topology.face_count, fill_value=np.nan)
     expected_face[face_indices] = np.arange(len(face_indices))
     assert_equal(expected_face, mask.data_vars['new_face_index'].values)
 
-    expected_node = np.full(topology.node_count, fill_value=topology.sensible_fill_value)
+    expected_node = np.full(topology.node_count, fill_value=np.nan)
     expected_node[node_indices] = np.arange(len(node_indices))
     assert_equal(expected_node, mask.data_vars['new_node_index'].values)
 
@@ -560,15 +560,15 @@ def test_mask_from_face_indices_with_edges():
         'old_face_index': topology.face_count,
     }
 
-    expected_face = np.full(topology.face_count, fill_value=topology.sensible_fill_value)
+    expected_face = np.full(topology.face_count, fill_value=np.nan)
     expected_face[face_indices] = np.arange(len(face_indices))
     assert_equal(expected_face, mask.data_vars['new_face_index'].values)
 
-    expected_edge = np.full(topology.edge_count, fill_value=topology.sensible_fill_value)
+    expected_edge = np.full(topology.edge_count, fill_value=np.nan)
     expected_edge[edge_indices] = np.arange(len(edge_indices))
     assert_equal(expected_edge, mask.data_vars['new_edge_index'].values)
 
-    expected_node = np.full(topology.node_count, fill_value=topology.sensible_fill_value)
+    expected_node = np.full(topology.node_count, fill_value=np.nan)
     expected_node[node_indices] = np.arange(len(node_indices))
     assert_equal(expected_node, mask.data_vars['new_node_index'].values)
 
@@ -635,7 +635,9 @@ def test_make_and_apply_clip_mask(tmp_path):
     # selected some faces. Open the geojson files that are generated in qgis
     # and inspect the index attributes. This list is built from that.
     face_indices = [6, 7, 8, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 27, 28, 29, 32, 33, 34]
-    new_face_indices = np.full(topology.face_count, fill_value=topology.sensible_fill_value, dtype=np.int32)
+    fill_value = topology.sensible_fill_value
+    new_face_indices = np.ma.masked_array(
+        np.full(topology.face_count, fill_value, dtype=np.float64), mask=True)
     new_face_indices[face_indices] = np.arange(len(face_indices))
     assert_equal(clip_mask.data_vars['new_face_index'].values, new_face_indices)
 
