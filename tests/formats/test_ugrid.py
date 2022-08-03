@@ -326,20 +326,6 @@ def test_make_dataset():
     assert_equal(face_node.values[12], [10, 14, 15, 11])
 
 
-def test_requires_mask_and_scale(datasets):
-    path = datasets / "ugrid_mesh2d.nc"
-
-    # Opening it without mask_and_scale should raise an error
-    dataset = xr.open_dataset(path)
-    with pytest.raises(Exception, match="mask_and_scale=False"):
-        dataset.ems
-    del dataset
-
-    # Opening the same path with mask_and_scale=False should work fine
-    dataset = xr.open_dataset(path, mask_and_scale=False)
-    assert isinstance(dataset.ems, UGrid)
-
-
 def test_varnames():
     dataset = make_dataset(width=3)
     assert dataset.ems.get_depth_name() == 'Mesh2_layers'
