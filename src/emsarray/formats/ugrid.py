@@ -408,6 +408,12 @@ class Mesh2DTopology:
             # to a floating point data type, and replace masked values with np.nan.
             # Here we convert a floating point array to a masked integer array.
             values = np.ma.masked_invalid(values).astype(np.int_)
+        elif '_FillValue' in data_array.attrs:
+            # The data array has a fill value, but xarray has not applied it.
+            # This implied the dataset was opened with mask_and_scale=False,
+            # or was constructed in memory.
+            # Convert it to a mask array with _FillValue masked out.
+            values = np.ma.masked_equal(values, data_array.attrs['_FillValue'])
         else:
             # If the value is still an integer then it had no fill value.
             # Convert it to a mask array with no masked values.
