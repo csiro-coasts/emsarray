@@ -61,7 +61,7 @@ jobs:
       - name: 'mypy cache'
         uses: actions/cache@v3
         with:
-          path: '.mypy-cache'
+          path: '.mypy_cache'
           key: mypy-${{ runner.os }}-py${{ env.python_version }}-${{ hashFiles('requirements.txt') }}
 
       - run: flake8 src/ tests/
