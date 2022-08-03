@@ -31,16 +31,17 @@ mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
 [[tool.mypy.overrides]]
 # These modules do not (yet) have type stubs, so they need to be explicitly ignored
 module = [
-	"cryptography.*",
 	"cartopy.*",
 	"cftime.*",
+	"cryptography.*",
 	"geojson.*",
+	"importlib_metadata.*",
 	"matplotlib.*",
 	"netCDF4.*",
+	"pooch.*",
 	"pytest.*",
 	"shapely.*",
-	"importlib_metadata.*",
-	"pooch.*",
+	"traitlets.*",
 ]
 ignore_missing_imports = true
 

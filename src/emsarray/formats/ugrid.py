@@ -88,7 +88,7 @@ def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -
     fill_value = topology.sensible_fill_value
     data_vars = {}
 
-    def new_element_indices(size: int, indices: np.ndarray) -> np.ndarray:
+    def new_element_indices(size: int, indices: np.ndarray) -> np.ma.MaskedArray:
         new_indices = np.full(
             (size,), fill_value=fill_value, dtype=topology.sensible_dtype)
         new_indices = np.ma.masked_array(new_indices, mask=True)
@@ -198,14 +198,14 @@ def update_connectivity(
     # xarray will cooperate.
     dtype = connectivity.encoding.get('dtype', connectivity.dtype)
     include_row = ~np.ma.getmask(row_indices)
-    values = np.array([
+    raw_values = np.array([
         [
             column_values[item] if item is not np.ma.masked else fill_value
             for item in row
         ]
         for row in old_array[include_row]
     ], dtype=dtype)
-    values = np.ma.masked_equal(values, fill_value)
+    values = np.ma.masked_equal(raw_values, fill_value)
 
     if connectivity.dims[1] == primary_dimension:
         values = np.transpose(values)
@@ -226,7 +226,7 @@ def _masked_integer_data_array(
     fill_value: int,
     **kwargs: Any,
 ) -> xr.DataArray:
-    float_data = data.astype(np.double).filled(np.nan)
+    float_data = np.ma.filled(data.astype(np.double), np.nan)
     data_array = xr.DataArray(data=float_data, **kwargs)
     data_array.encoding.update({'dtype': data.dtype, '_FillValue': fill_value})
     return data_array
@@ -558,7 +558,7 @@ class Mesh2DTopology:
             # The edge_face connectivity matrix
             shape = (self.edge_count, 2)
             filled = np.full(shape, fill_value, dtype=self.sensible_dtype)
-            edge_face = np.ma.masked_array(filled, mask=True)
+            edge_face: np.ndarray = np.ma.masked_array(filled, mask=True)
 
             # The number of faces already seen for this edge
             edge_face_count = np.zeros(self.edge_count, dtype=self.sensible_dtype)
@@ -655,7 +655,7 @@ class Mesh2DTopology:
         with utils.PerfTimer() as timer:
             shape = (self.face_count, self.max_node_count)
             filled = np.full(shape, fill_value, dtype=self.sensible_dtype)
-            face_edge = np.ma.array(filled, mask=True)
+            face_edge: np.ndarray = np.ma.masked_array(filled, mask=True)
 
             node_pair_to_edge_index = {
                 frozenset(edge): edge_index
@@ -718,7 +718,7 @@ class Mesh2DTopology:
             face_count = np.zeros(self.face_count, dtype=self.sensible_dtype)
             shape = (self.face_count, self.max_node_count)
             filled = np.full(shape, fill_value, dtype=self.sensible_dtype)
-            face_face = np.ma.masked_array(filled, mask=True)
+            face_face: np.ndarray = np.ma.masked_array(filled, mask=True)
 
             for edge_index, face_indices in enumerate(edge_face):
                 if np.any(np.ma.getmask(face_indices)):
@@ -795,12 +795,9 @@ class Mesh2DTopology:
         )
 
     @cached_property
-    def edge_dimension(self) -> Optional[str]:
+    def edge_dimension(self) -> str:
         """
         The name of the dimension for the number of edges.
-
-        Returns None if there is no such dimension. This implies that data are
-        not stored on edges in this dataset.
         """
         if not self.has_edge_dimension:
             raise NoEdgeDimensionException
@@ -972,7 +969,7 @@ class UGrid(Format[UGridKind, UGridIndex]):
         node_y = topology.node_y.values
         face_node = topology.face_node_array
 
-        def create_poly(row: np.ndarray) -> Polygon:
+        def create_poly(row: np.ma.MaskedArray) -> Polygon:
             vertices = row.compressed()
             return Polygon(np.c_[node_x[vertices], node_y[vertices]])
 
@@ -992,8 +989,7 @@ class UGrid(Format[UGridKind, UGridIndex]):
             return {self.topology.face_dimension: i}
         if kind is UGridKind.edge:
             if self.topology.has_edge_dimension:
-                edge_dimension = str(self.topology.edge_dimension)
-                return {edge_dimension: i}
+                return {self.topology.edge_dimension: i}
             else:
                 raise ValueError("Grid has no edge dimension")
         if kind is UGridKind.node:
@@ -1071,7 +1067,9 @@ class UGrid(Format[UGridKind, UGridIndex]):
         topology_variables: List[xr.DataArray] = [topology.mesh_variable]
 
         def integer_indices(data_array: xr.DataArray) -> np.ndarray:
-            return np.ma.masked_invalid(data_array.values).astype(np.int_)
+            masked = np.ma.masked_invalid(data_array.values)
+            masked_integers: np.ndarray = masked.astype(np.int_)
+            return masked_integers
 
         # This is the fill value used in the mask.
         new_fill_value = clip_mask.data_vars['new_node_index'].encoding['_FillValue']
