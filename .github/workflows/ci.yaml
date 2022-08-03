@@ -49,11 +49,20 @@ jobs:
       run:
         shell: bash -l {0}
 
+    env:
+      python_version: "3.10"
+
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/environment
         with:
-          python-version: "3.10"
+          python-version: ${{ env.python_version }}
+
+      - name: 'mypy cache'
+        uses: actions/cache@v3
+        with:
+          path: '.mypy_cache'
+          key: mypy-${{ runner.os }}-py${{ env.python_version }}-${{ hashFiles('requirements.txt') }}
 
       - run: flake8 src/ tests/
       - run: isort --diff --check-only src/ tests/
