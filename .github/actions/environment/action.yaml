@@ -23,7 +23,7 @@ runs:
         environment-file: continuous-integration/environment.yaml
         environment-name: continuous-integration
         extra-specs: |
-          python=${{ matrix.python_version }}
+          python=${{ matrix.python-version }}
           wheel
           pip
 
