@@ -55,6 +55,12 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: 'mypy cache'
+        uses: actions/cache@v3
+        with:
+          path: '.mypy-cache'
+          key: mypy-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+
       - run: flake8 src/ tests/
       - run: isort --diff --check-only src/ tests/
       - run: mypy --junit-xml report-mypy.xml src/
