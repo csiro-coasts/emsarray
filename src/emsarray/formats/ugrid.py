@@ -899,7 +899,11 @@ class UGrid(Format[UGridKind, UGridIndex]):
         grid_dimension = self.topology.dimension_for_grid_kind[grid_kind]
         return utils.linearise_dimensions(data_array, [grid_dimension])
 
-    def make_clip_mask(self, clip_geometry: BaseGeometry) -> xr.Dataset:
+    def make_clip_mask(
+        self,
+        clip_geometry: BaseGeometry,
+        buffer: int = 0,
+    ) -> xr.Dataset:
         """
         Make a mask dataset from a clip geometry for this dataset.
         This mask can later be applied using :meth:`apply_clip_mask`.
@@ -926,10 +930,12 @@ class UGrid(Format[UGridKind, UGridIndex]):
             for polygon, item in self.spatial_index.query(clip_geometry)
             if polygon.intersects(clip_geometry)
         ])
-        logger.debug("Found %d intersecting faces, adding buffer...", len(intersecting_face_indices))
+        logger.debug("Found %d intersecting faces, adding size %d buffer...", len(intersecting_face_indices), buffer)
 
         # Include all the neighbours of the intersecting faces
-        included_face_indices = buffer_faces(intersecting_face_indices, self.topology)
+        included_face_indices = intersecting_face_indices
+        for _ in range(buffer):
+            included_face_indices = buffer_faces(included_face_indices, self.topology)
         logger.debug("Total faces in mask: %d", len(included_face_indices))
 
         # Make a mask dataset

@@ -253,7 +253,11 @@ class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
         surface_dims = [self.topology.y_dimension, self.topology.x_dimension]
         return utils.linearise_dimensions(data_array, surface_dims)
 
-    def make_clip_mask(self, clip_geometry: BaseGeometry) -> xr.Dataset:
+    def make_clip_mask(
+        self,
+        clip_geometry: BaseGeometry,
+        buffer: int = 0,
+    ) -> xr.Dataset:
         topology = self.topology
 
         intersecting_indices = [
@@ -263,7 +267,8 @@ class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
         intersections = np.full(topology.shape, fill_value=False)
         intersections.ravel()[intersecting_indices] = True
 
-        mask = masking.blur_mask(intersections)
+        if buffer > 0:
+            mask = masking.blur_mask(intersections, size=buffer)
         dimensions = [topology.y_dimension, topology.x_dimension]
 
         return xr.Dataset(

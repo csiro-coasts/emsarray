@@ -242,7 +242,7 @@ def test_make_clip_mask():
     clip_geometry = Polygon([
         (0.18, .30), (.40, .30), (.60, .51), (.60, .64), (.18, .64), (.18, .30),
     ])
-    mask = helper.make_clip_mask(clip_geometry)
+    mask = helper.make_clip_mask(clip_geometry, buffer=1)
     assert mask.attrs == {'type': 'CFGrid mask'}
     assert mask.dims == {
         topology.longitude_name: topology.longitude.size,
@@ -274,7 +274,7 @@ def test_apply_clip_mask(tmp_path):
     clip_geometry = Polygon([
         (0.18, .30), (.40, .30), (.60, .51), (.60, .64), (.18, .64), (.18, .30),
     ])
-    mask = helper.make_clip_mask(clip_geometry)
+    mask = helper.make_clip_mask(clip_geometry, buffer=1)
     clipped = dataset.ems.apply_clip_mask(mask, tmp_path)
 
     assert isinstance(clipped.ems, CFGrid1D)

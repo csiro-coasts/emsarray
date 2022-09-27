@@ -1052,7 +1052,11 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         ])
 
     @abc.abstractmethod
-    def make_clip_mask(self, clip_geometry: BaseGeometry) -> xr.Dataset:
+    def make_clip_mask(
+        self,
+        clip_geometry: BaseGeometry,
+        buffer: int = 0,
+    ) -> xr.Dataset:
         """
         Make a new Dataset that can be used to clip this dataset to only the
         cells that intersect some geometry.
@@ -1107,7 +1111,13 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         :returns: A new :class:`~xarray.Dataset` clipped using the mask
         """
 
-    def clip(self, clip_geomery: BaseGeometry, work_dir: Pathish) -> xr.Dataset:
+    def clip(
+        self,
+        clip_geomery: BaseGeometry,
+        work_dir: Pathish,
+        *,
+        buffer: int = 0,
+    ) -> xr.Dataset:
         """
         Generates a clip mask and applies it in one step.
 
@@ -1121,7 +1131,7 @@ class Format(abc.ABC, Generic[GridKind, Index]):
             using :obj:`tempfile.TemporaryDirectory`.
         :returns: A new :class:`~xarray.Dataset` clipped using the mask
         """
-        mask = self.make_clip_mask(clip_geomery)
+        mask = self.make_clip_mask(clip_geomery, buffer=buffer)
         return self.apply_clip_mask(mask, work_dir=work_dir)
 
     def to_netcdf(self, path: Pathish, **kwargs: Any) -> None:
