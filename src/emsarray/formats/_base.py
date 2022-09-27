@@ -14,9 +14,9 @@ import numpy as np
 import xarray as xr
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry
-from shapely.strtree import STRtree
 
 from emsarray import operations, utils
+from emsarray.compat.shapely import SpatialIndex
 from emsarray.plot import (
     _requires_plot, animate_on_figure, plot_on_figure,
     polygons_to_patch_collection
@@ -858,7 +858,7 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         return cast(np.ndarray, mask)
 
     @cached_property
-    def spatial_index(self) -> STRtree:
+    def spatial_index(self) -> SpatialIndex[SpatialIndexItem[Index]]:
         """
         A shapely :class:`strtree.STRtree` spatial index of all cells in this dataset.
         This allows for fast spatial lookups, querying which cells lie at
@@ -878,25 +878,25 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         .. code-block:: python
 
             indices = [
-                item.index for item in dataset.ems.spatial_index.query(shape)
-                if item.polygon.intersects(shape)
+                item.index
+                for item, polygon in dataset.ems.spatial_index.query(shape)
+                if polygon.intersects(shape)
             ]
 
         See also
         --------
         :class:`.SpatialIndexItem`
-        :class:`strtree.STRtree`
         """
         logger.info("Building spatial index...")
         with utils.PerfTimer() as timer:
             items = [
-                SpatialIndexItem(index, self.unravel_index(index), poly)
+                (poly, SpatialIndexItem(index, self.unravel_index(index), poly))
                 for index, poly in enumerate(self.polygons)
                 if poly is not None
             ]
-            str_tree = STRtree([item.polygon for item in items], items=items)
+            spatial_index = SpatialIndex(items)
         logger.debug("Build spatial index in %f seconds", timer.elapsed)
-        return str_tree
+        return spatial_index
 
     def get_index_for_point(
         self,
@@ -928,8 +928,9 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         or if the geometry of the dataset contains overlapping polygons.
         """
         hits: List[SpatialIndexItem] = sorted(
-            item for item in self.spatial_index.query_items(point)
-            if item.polygon.intersects(point)
+            item
+            for polygon, item in self.spatial_index.query(point)
+            if polygon.intersects(point)
         )
         if len(hits) > 0:
             return hits[0]

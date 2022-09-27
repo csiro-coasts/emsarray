@@ -91,7 +91,7 @@ class SimpleFormat(Format[SimpleGridKind, SimpleGridIndex]):
     def make_clip_mask(self, clip_geometry: BaseGeometry) -> xr.Dataset:
         intersections = [
             item.linear_index
-            for item in self.spatial_index.query(clip_geometry)
+            for polygon, item in self.spatial_index.query(clip_geometry)
             if item.polygon.intersects(clip_geometry)
         ]
         cells = np.full(self.shape, False)
@@ -129,7 +129,7 @@ def test_spatial_index():
         SimpleGridIndex(3, 2), SimpleGridIndex(3, 3)}
 
     # Query the spatial index
-    items = helper.spatial_index.query_items(line)
+    items = helper.spatial_index.query(line)['data']
 
     # The exact number of items returned isn't relevant, it should just be at
     # least the total expected interesections
@@ -171,8 +171,8 @@ def test_get_index_for_point_vertex():
 
     # There should be four cells intersecting this point
     intersections = [
-        item for item in helper.spatial_index.query_items(point)
-        if item.polygon.intersects(point)
+        item for polygon, item in helper.spatial_index.query(point)
+        if polygon.intersects(point)
     ]
     assert len(intersections) == 4
 

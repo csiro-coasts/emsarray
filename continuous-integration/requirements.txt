@@ -123,6 +123,7 @@ packaging==21.3
     #   bokeh
     #   dask
     #   distributed
+    #   emsarray (setup.cfg)
     #   matplotlib
     #   pooch
     #   pydata-sphinx-theme

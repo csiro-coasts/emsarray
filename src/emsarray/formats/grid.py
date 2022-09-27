@@ -257,8 +257,9 @@ class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
         topology = self.topology
 
         intersecting_indices = [
-            item.linear_index for item in self.spatial_index.query_items(clip_geometry)
-            if item.polygon.intersects(clip_geometry)]
+            item.linear_index
+            for polygon, item in self.spatial_index.query(clip_geometry)
+            if polygon.intersects(clip_geometry)]
         intersections = np.full(topology.shape, fill_value=False)
         intersections.ravel()[intersecting_indices] = True
 
