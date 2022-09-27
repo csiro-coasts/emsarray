@@ -276,4 +276,5 @@ def blur_mask(arr: np.ndarray, size: int = 1) -> np.ndarray:
         for index in indices
     )
 
-    return np.fromiter(values, count=arr.size, dtype=arr.dtype).reshape(arr.shape)
+    arr = np.fromiter(values, count=arr.size, dtype=arr.dtype).reshape(arr.shape)
+    return cast(np.ndarray, arr)

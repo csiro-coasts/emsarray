@@ -925,21 +925,20 @@ class UGrid(Format[UGridKind, UGridIndex]):
         """
         # Find all faces that intersect the clip geometry
         logger.info("Making clip mask")
-        intersecting_face_indices = np.array([
+        face_indices = np.array([
             item.linear_index
             for polygon, item in self.spatial_index.query(clip_geometry)
             if polygon.intersects(clip_geometry)
         ])
-        logger.debug("Found %d intersecting faces, adding size %d buffer...", len(intersecting_face_indices), buffer)
+        logger.debug("Found %d intersecting faces, adding size %d buffer...", len(face_indices), buffer)
 
         # Include all the neighbours of the intersecting faces
-        included_face_indices = intersecting_face_indices
         for _ in range(buffer):
-            included_face_indices = buffer_faces(included_face_indices, self.topology)
-        logger.debug("Total faces in mask: %d", len(included_face_indices))
+            face_indices = buffer_faces(face_indices, self.topology)
+        logger.debug("Total faces in mask: %d", len(face_indices))
 
         # Make a mask dataset
-        return mask_from_face_indices(included_face_indices, self.topology)
+        return mask_from_face_indices(face_indices, self.topology)
 
     def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
         """

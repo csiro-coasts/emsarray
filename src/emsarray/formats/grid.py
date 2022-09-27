@@ -264,11 +264,11 @@ class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
             item.linear_index
             for polygon, item in self.spatial_index.query(clip_geometry)
             if polygon.intersects(clip_geometry)]
-        intersections = np.full(topology.shape, fill_value=False)
-        intersections.ravel()[intersecting_indices] = True
+        mask = np.full(topology.shape, fill_value=False)
+        mask.ravel()[intersecting_indices] = True
 
         if buffer > 0:
-            mask = masking.blur_mask(intersections, size=buffer)
+            mask = masking.blur_mask(mask, size=buffer)
         dimensions = [topology.y_dimension, topology.x_dimension]
 
         return xr.Dataset(
