@@ -20,7 +20,7 @@ bokeh==2.4.2
     # via dask
 bottleneck==1.3.5
     # via emsarray (setup.cfg)
-cartopy==0.20.2
+cartopy==0.21.0
     # via emsarray (setup.cfg)
 certifi==2021.10.8
     # via
@@ -123,6 +123,7 @@ packaging==21.3
     #   bokeh
     #   dask
     #   distributed
+    #   emsarray (setup.cfg)
     #   matplotlib
     #   pooch
     #   pydata-sphinx-theme
@@ -171,9 +172,9 @@ pyparsing==3.0.6
     # via
     #   matplotlib
     #   packaging
-pyproj==3.3.0
+pyproj==3.4.0
     # via cartopy
-pyshp==2.1.3
+pyshp==2.3.1
     # via cartopy
 pytest==7.1.3
     # via
@@ -203,7 +204,7 @@ scipy==1.7.3
     # via emsarray (setup.cfg)
 setuptools-scm==6.3.2
     # via matplotlib
-shapely==1.8.0
+shapely==1.8.4
     # via
     #   cartopy
     #   emsarray (setup.cfg)

@@ -354,8 +354,9 @@ class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
 
         # A cell is included if it intersects the clip polygon
         intersecting_indices = [
-            item.linear_index for item in self.spatial_index.query_items(clip_geometry)
-            if item.polygon.intersects(clip_geometry)]
+            item.linear_index
+            for polygon, item in self.spatial_index.query(clip_geometry)
+            if polygon.intersects(clip_geometry)]
         face_mask = np.full(self.face.shape, fill_value=False)
         face_mask.ravel()[intersecting_indices] = True
 

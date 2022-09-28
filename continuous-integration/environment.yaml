@@ -3,4 +3,3 @@ channels:
 
 dependencies:
   - geos ~=3.10.2
-  - proj ~=8.2.0
