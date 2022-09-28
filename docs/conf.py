@@ -86,7 +86,7 @@ autodoc_type_aliases = {
 # Other documentation that we link to
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
-    'xarray': ('https://xarray.pydata.org/en/stable/', None),
+    'xarray': ('https://docs.xarray.dev/en/stable/', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
     'shapely': ('https://shapely.readthedocs.io/en/stable/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
