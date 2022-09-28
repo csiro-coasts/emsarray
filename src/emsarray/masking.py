@@ -179,7 +179,7 @@ def calculate_grid_mask_bounds(mask: xr.Dataset) -> Dict[Hashable, slice]:
         for dimension in mask_data_array.dims:
             # For each step along this dimension, see if there are any True
             # cells in any of the other dimensions
-            values = mask_data_array.any(dim=dimensions_set - {dimension})
+            values = mask_data_array.any(dim=list(dimensions_set - {dimension}))
 
             # Find the first and last True values
             min_index = next(i for i, value in enumerate(values) if value)
