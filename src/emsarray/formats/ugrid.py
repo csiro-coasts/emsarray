@@ -226,6 +226,16 @@ def _masked_integer_data_array(
     fill_value: int,
     **kwargs: Any,
 ) -> xr.DataArray:
+    """
+    Create an :class:`xarray.DataArray` that represents
+    an integer variable with a _FillValue.
+    When reading such a variable from disk,
+    xarray will cast it to a double
+    and replace any occurrence of _FillValue with np.nan.
+    This method replicates these actions.
+    When saved to disk, a variable built using this should have
+    an integer type and a _FillValue.
+    """
     float_data = np.ma.filled(data.astype(np.double), np.nan)
     data_array = xr.DataArray(data=float_data, **kwargs)
     data_array.encoding.update({'dtype': data.dtype, '_FillValue': fill_value})
@@ -255,6 +265,41 @@ class Mesh2DTopology:
     topology of the dataset. For example, the names of the variables that store
     the coordinates for nodes can be found in the `node_coordinates` attribute
     as the string "x_variable y_variable".
+
+    There are five possible connectivity variables on a UGRID dataset:
+    face-node, face-edge, face-face, edge-node, and edge-face.
+    Face-node is the only required variable.
+    Each has a property to check whether it is defined (``has_valid_foo``),
+    a property to get the variable if it is defined (``foo_connectivity``),
+    and a property to get or derive a normalised connectivity array (``foo_array``):
+
+    .. list-table::
+        :header-rows: 1
+
+        * - Attribute
+          - has_valid_foo
+          - foo_connectivity
+          - foo_array
+        * - face_node
+          - :attr:`has_valid_face_node_connectivity`
+          - :attr:`face_node_connectivity`
+          - :attr:`face_node_array`
+        * - face_edge
+          - :attr:`has_valid_face_edge_connectivity`
+          - :attr:`face_edge_connectivity`
+          - :attr:`face_edge_array`
+        * - face_face
+          - :attr:`has_valid_face_face_connectivity`
+          - :attr:`face_face_connectivity`
+          - :attr:`face_face_array`
+        * - edge_node
+          - :attr:`has_valid_edge_node_connectivity`
+          - :attr:`edge_node_connectivity`
+          - :attr:`edge_node_array`
+        * - edge_face
+          - :attr:`has_valid_edge_face_connectivity`
+          - :attr:`edge_face_connectivity`
+          - :attr:`edge_face_array`
     """
     #: The UGRID dataset
     dataset: xr.Dataset
@@ -421,8 +466,9 @@ class Mesh2DTopology:
 
         # UGRID conventions allow for zero based or one based indexing.
         # To be consistent we convert all indices to zero based.
-        if data_array.attrs.get('start_index') == 1:
-            values = values - 1
+        start_index = data_array.attrs.get('start_index', 0)
+        if start_index != 0:
+            values = values - start_index
 
         return values
 
@@ -459,10 +505,8 @@ class Mesh2DTopology:
         This data array defines unique indexes for each edge. This allows data
         to be stored 'on' an edge.
 
-        If this dataset is _not_ defined, data are not stored on the edges for
-        this dataset. We can derive it from the existing data, arbitrarily
-        assigning an index to each edge. This will allow us to derive other
-        datasets if required.
+        If this variable is *not* defined,
+        data are not stored on the edges for this dataset.
         """
         if not self.has_edge_dimension:
             raise NoEdgeDimensionException
@@ -476,6 +520,18 @@ class Mesh2DTopology:
 
     @cached_property
     def edge_node_array(self) -> np.ndarray:
+        """
+        An integer numpy array with shape
+        (:attr:`edge_dimension`, 2),
+        indicating which nodes each edge consists of.
+        If data are stored on edges in this dataset,
+        the ordering of these edges matches the ordering of the data.
+
+        If this variable is *not* defined,
+        we can derive it from the existing data,
+        arbitrarily assigning an index to each edge.
+        This will allow us to derive other connectivity variables if required.
+        """
         if not self.has_edge_dimension:
             raise NoEdgeDimensionException
 
@@ -544,6 +600,11 @@ class Mesh2DTopology:
 
     @cached_property
     def edge_face_array(self) -> np.ndarray:
+        """
+        An integer numpy array with shape
+        (:attr:`edge_dimension`, 2),
+        indicating which faces border each edge.
+        """
         if self.has_valid_edge_face_connectivity:
             return self._to_index_array(
                 self.edge_face_connectivity, self.edge_dimension)
@@ -596,15 +657,20 @@ class Mesh2DTopology:
     @cached_property
     def face_node_connectivity(self) -> xr.DataArray:
         """
-        A dataset that lists the nodes that make up the boundary of each face.
-        This is the only required data variable in a UGRID dataset, all the
-        others can be derived from this if required.
+        A variable that lists the nodes that make up the boundary of each face.
+        This is the only required data variable in a UGRID dataset,
+        all the others can be derived from this if required.
         """
         name = self.mesh_attributes['face_node_connectivity']
         return self.dataset.data_vars[name]
 
     @cached_property
     def face_node_array(self) -> np.ndarray:
+        """
+        An integer numpy array with shape
+        (:attr:`face_dimension`, :attr:`max_node_dimension`),
+        representing the node indices that make up each face.
+        """
         return self._to_index_array(
             self.face_node_connectivity, self.face_dimension)
 
@@ -634,6 +700,9 @@ class Mesh2DTopology:
 
     @cached_property
     def face_edge_connectivity(self) -> xr.DataArray:
+        """
+        The face_edge_connectivity variable from the dataset, if present.
+        """
         if not self.has_valid_face_edge_connectivity:
             raise NoConnectivityVariableException(
                 "No valid face_edge_connectivity defined")
@@ -642,6 +711,11 @@ class Mesh2DTopology:
 
     @cached_property
     def face_edge_array(self) -> np.ndarray:
+        """
+        An integer numpy array with shape
+        (:attr:`face_dimension`, :attr:`max_node_dimension`),
+        representing the edge indices that border each face.
+        """
         if self.has_valid_face_edge_connectivity:
             return self._to_index_array(
                 self.face_edge_connectivity, self.face_dimension)
@@ -696,6 +770,9 @@ class Mesh2DTopology:
 
     @cached_property
     def face_face_connectivity(self) -> xr.DataArray:
+        """
+        The face_face_connectivity variable from the dataset, if present.
+        """
         if not self.has_valid_face_face_connectivity:
             raise NoConnectivityVariableException(
                 "No valid face_face_connectivity defined")
@@ -704,6 +781,11 @@ class Mesh2DTopology:
 
     @cached_property
     def face_face_array(self) -> np.ndarray:
+        """
+        An integer numpy array with shape
+        (:attr:`face_dimension`, :attr:`max_node_dimension`),
+        representing the indices of all faces that border a given face.
+        """
         if self.has_valid_face_face_connectivity:
             return self._to_index_array(
                 self.face_face_connectivity, self.face_dimension)
@@ -746,6 +828,9 @@ class Mesh2DTopology:
 
     @cached_property
     def dimension_for_grid_kind(self) -> Dict[UGridKind, str]:
+        """
+        Get the dimension names for each of the grid types in this dataset.
+        """
         dimensions = {
             UGridKind.face: self.face_dimension,
             UGridKind.node: self.node_dimension,
@@ -780,6 +865,10 @@ class Mesh2DTopology:
 
     @property
     def has_edge_dimension(self) -> bool:
+        """
+        Check whether this dataset has an edge dimension.
+        If not, data are not stored on edges in this dataset.
+        """
         if 'edge_dimension' in self.mesh_attributes:
             return True
 
@@ -861,7 +950,9 @@ class Mesh2DTopology:
 
     @property
     def face_count(self) -> int:
-        """The number of faces in the dataset."""
+        """
+        The number of faces in the dataset.
+        """
         return self.dataset.dims[self.face_dimension]
 
     @property
