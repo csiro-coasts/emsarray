@@ -19,7 +19,7 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 plugins = ["numpy.typing.mypy_plugin"]
 
 disallow_untyped_defs = true
@@ -31,6 +31,7 @@ mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
 [[tool.mypy.overrides]]
 # These modules do not (yet) have type stubs, so they need to be explicitly ignored
 module = [
+	"cryptography.*",
 	"cartopy.*",
 	"cftime.*",
 	"geojson.*",

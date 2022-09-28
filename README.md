@@ -45,7 +45,7 @@ To get set up for development, make a virtual environment and install the depend
 $ python3 -m venv
 $ source venv/bin/activate
 $ pip install --upgrade pip>=21.3
-$ pip install -e . -r requirements.txt
+$ pip install -e . -r continuous-integration/requirements.txt
 ```
 
 ## Tests

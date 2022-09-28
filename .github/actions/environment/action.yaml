@@ -30,4 +30,6 @@ runs:
     - name: Install Python dependencies
       shell: bash -l {0}
       run: |
-        pip install -r requirements.txt -e .
+        pip install \
+          -r continuous-integration/requirements.txt \
+          -e .
