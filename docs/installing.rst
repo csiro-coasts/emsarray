@@ -34,29 +34,29 @@ Dependencies
 ============
 
 ``emsarray`` depends on
-`shapely <https://shapely.readthedocs.io/en/stable/project.html#installing-shapely>`_ and
-`cartopy <https://scitools.org.uk/cartopy/docs/latest/installing.html>`_.
-These use the non-Python dependencies ``geos`` and ``proj`` respectively.
+`cartopy <https://scitools.org.uk/cartopy/docs/latest/installing.html>`_
+for plotting.
+This depends on the non-Python ``geos`` library.
 
 These can be installed via your package manager or via ``conda``.
 Installing from ``conda`` is the recommended approach
 as these packages are often more up-to-date than the system packages
-and it guarantees that compatible versions of ``geos`` and ``proj`` are installed:
+and it guarantees that compatible versions of ``geos`` is installed.
 
 .. code-block:: shell-session
 
    $ conda create -n my-env
    $ conda activate my-env
-   $ conda install shapely cartopy
+   $ conda install cartopy
 
-If ``geos`` and ``proj`` are installed using your system package manager,
-and ``shapely`` and ``cartopy`` are installed via pip,
-you must ensure that you install versions of ``shapely`` and ``cartopy``
-that are compatible with these system libraries.
+If ``geos`` is installed using your system package manager,
+and ``cartopy`` is installed via pip,
+you must ensure that you install versions of ``cartopy``
+that are compatible with ``geos``.
 ``pip`` will not check for these version constraints for you.
 A version mismatch between the Python and non-Python libraries
 can lead to the installation failing,
-or Python crashing when calling ``shapely`` or ``cartopy`` functions.
+or Python crashing when calling ``cartopy`` functions.
 
 Building
 ========
