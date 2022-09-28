@@ -7,7 +7,7 @@ which can be accessed via the :attr:`dataset.ems` accessor.
 """
 import warnings
 from collections import defaultdict
-from typing import Dict, FrozenSet, List, Optional, Tuple, cast
+from typing import Dict, FrozenSet, Hashable, List, Optional, Tuple, cast
 
 import numpy as np
 import xarray as xr
@@ -120,7 +120,7 @@ def ocean_floor(
     depth_dimensions = utils.dimensions_from_coords(dataset, depth_variables)
     non_spatial_dimensions = utils.dimensions_from_coords(dataset, non_spatial_variables)
 
-    for depth_dimension in sorted(depth_dimensions):
+    for depth_dimension in sorted(depth_dimensions, key=hash):
         dimension_sets: Dict[FrozenSet[str], List[str]] = defaultdict(list)
         for name, variable in dataset.data_vars.items():
             if depth_dimension not in variable.dims:
@@ -179,7 +179,7 @@ def ocean_floor(
 
 def _find_ocean_floor_indices(
     data_array: xr.DataArray,
-    depth_dimension: str,
+    depth_dimension: Hashable,
 ) -> xr.DataArray:
     # This needs some explaining.
     # (any number * 0 + 1) is 1, while (nan * 0 + 1) is nan.
@@ -400,7 +400,7 @@ def triangulate_dataset(
         for triangle in _triangulate_polygon(polygon)
     )
     triangles: List[Triangle] = [tri for tri, index in triangles_with_index]  # type: ignore
-    indices = np.fromiter((index for tri, index in triangles_with_index), int)
+    indices = [index for tri, index in triangles_with_index]
 
     return (vertices, triangles, indices)
 

@@ -367,7 +367,7 @@ def mask_and_scale(variable: xr.Variable, name: Optional[str] = None) -> xr.Vari
 
 def extract_vars(
     dataset: xr.Dataset,
-    variables: Iterable[str],
+    variables: Iterable[Hashable],
     keep_bounds: bool = True,
     errors: Literal['raise', 'ignore'] = 'raise',
 ) -> xr.Dataset:
@@ -404,7 +404,8 @@ def extract_vars(
         missing_variables = variables - set(cast(Iterable[str], dataset.variables.keys()))
         if missing_variables:
             raise ValueError(
-                f"Variables {sorted(missing_variables)!r} do not exist in the dataset"
+                f"Variables {sorted(missing_variables, key=str)!r} "
+                "do not exist in the dataset"
             )
 
     if keep_bounds:
@@ -437,7 +438,7 @@ def pairwise(iterable: Iterable[_T]) -> Iterable[Tuple[_T, _T]]:
     return zip(a, b)
 
 
-def dimensions_from_coords(dataset: xr.Dataset, coordinate_names: List[str]) -> List[str]:
+def dimensions_from_coords(dataset: xr.Dataset, coordinate_names: List[str]) -> List[Hashable]:
     """
     Get the names of the dimensions for a set of coordinates.
 
@@ -450,7 +451,7 @@ def dimensions_from_coords(dataset: xr.Dataset, coordinate_names: List[str]) -> 
 
     Returns
     -------
-    list of str
+    list of Hashable
         The name of the relevant dimension for each coordinate variable.
     """
     dimensions = []
@@ -459,9 +460,8 @@ def dimensions_from_coords(dataset: xr.Dataset, coordinate_names: List[str]) -> 
         data_array = dataset.variables[coordinate_name]
         if len(data_array.dims) > 1:
             raise ValueError(
-                f"Coordinate variable {coordinate_name} has more than one dimension: "
-                + str(data_array.dims)
-            )
+                f"Coordinate variable {coordinate_name} has more "
+                "than one dimension: {data_array.dims}")
         dimensions.append(data_array.dims[0])
 
     return dimensions
