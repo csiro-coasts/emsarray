@@ -3,8 +3,10 @@ import contextlib
 import logging
 import tempfile
 from pathlib import Path
+from typing import ContextManager
 
 import emsarray
+from emsarray.types import Pathish
 
 from ._operation import Operation
 from .utils import geometry_argument
@@ -39,6 +41,7 @@ class Clip(Operation):
             ))
 
     def handle(self, options: argparse.Namespace) -> None:
+        work_context: ContextManager[Pathish]
         if options.work_dir:
             work_context = contextlib.nullcontext(options.work_dir)
         else:

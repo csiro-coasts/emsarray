@@ -19,7 +19,7 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 plugins = ["numpy.typing.mypy_plugin"]
 
 disallow_untyped_defs = true
