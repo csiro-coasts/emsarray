@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pathlib
 from typing import Tuple
 
 import geojson
@@ -10,7 +11,7 @@ import pytest
 import xarray as xr
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, box
 
 from emsarray.formats import get_file_format
 from emsarray.formats.ugrid import (
@@ -746,3 +747,33 @@ def test_derive_connectivity():
     assert expected_face_face == actual_face_face
 
     assert topology.edge_count == 19
+
+
+def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
+    """
+    Open and check a UGrid dataset that uses one-based indexing,
+    as indicated by the 'start_index' attribute.
+    """
+    dataset = UGrid.open_dataset(datasets / 'ugrid_mesh2d_one_indexed.nc')
+    helper: UGrid = dataset.ems
+    topology = helper.topology
+
+    assert topology.has_valid_face_node_connectivity
+    assert topology.face_node_connectivity.attrs['start_index'] == 1
+    assert_equal(topology.face_node_connectivity.values[0], [1, 10, 9])
+    assert np.min(topology.face_node_connectivity.values) == 1
+    assert np.max(topology.face_node_connectivity.values) == topology.node_count
+
+    assert_equal(topology.face_node_array[0], [0, 9, 8])
+    assert_equal(topology.face_node_array, topology.face_node_connectivity.values - 1)
+
+    assert len(helper.polygons) == topology.face_count
+
+    clipped = helper.clip(box(0.1, 0.1, 4, 4), work_dir=tmp_path)
+    clipped.to_netcdf(tmp_path / 'clipped.nc')
+
+    assert isinstance(clipped.ems, UGrid)
+    assert clipped.ems.topology.face_count == 6
+    assert clipped.ems.topology.face_node_connectivity.attrs['start_index'] == 1
+
+    assert len(clipped.ems.polygons) == 6
