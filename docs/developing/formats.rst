@@ -1,3 +1,5 @@
+.. _additional_formats:
+
 =============================
 Supporting additional formats
 =============================
@@ -17,50 +19,107 @@ to help developers and scientists work with GRASS datasets,
 called ``grass``.
 
 To add support for GRASS to ``emsarray``, make a new Format subclass.
-For this example, we will make a new module named ``grass.format``
-with the following code:
+For this example, we will make a new module named ``grass.format``.
+The complete implementation of the :ref:`Grass class is available <grass_code>`.
+The following is a guided walk through developing this class.
 
-.. code-block:: python
+We will need the following imports:
 
-    import enum
-    from typing import Tuple
+.. literalinclude:: ./grass.py
+   :language: python
+   :start-after: # > imports
+   :end-before: # <
+   :tab-width: 4
 
-    from emsarray.formats import Format, Specificity
+Grids and indexes
+-----------------
 
 A Format must specify an enum of the :ref:`different grids that it supports <grids>`.
 If it only supports one grid, make an enum with a single member.
 
-.. code-block:: python
-
-    class GrassGridKind(enum.Enum):
-        blade = 'blade'
-        meadow = 'meadow'
+.. literalinclude:: ./grass.py
+   :pyobject: GrassGridKind
 
 A Format must specify the :ref:`format native index types <indexing>` it uses.
 GRASS has two-dimensional indexes for both the blade and meadow grids,
 making indexes like ``(kind, warp, weft)``:
 
-.. code-block:: python
+.. literalinclude:: ./grass.py
+   :start-at: GrassIndex
+   :lines: 1
 
-    GrassIndex = Tuple[GrassGridKind, int, int]
+Format class
+------------
 
-Then create a :class:`emsarray.formats.Format` subclass named ``Grass``.
+Create a :class:`emsarray.formats.Format` subclass named ``Grass``,
+and implement all the methods below.
 
-.. code-block:: python
+.. literalinclude:: ./grass.py
+   :start-at: class Grass(
+   :end-at: default_grid_kind
 
-    class Grass(Format[GrassGridKind, GrassIndex]):
+:meth:`.Format.check_dataset` introspects a :class:`xarray.Dataset`
+and returns a value indicating whether this format class can understand the dataset.
 
-.. admonition:: TODO
+.. literalinclude:: ./grass.py
+   :pyobject: Grass.check_dataset
 
-   The rest of the class implementation:
-   :meth:`.Format.check_dataset`,
-   :meth:`.Format.ravel_index`,
-   :meth:`.Format.unravel_index`,
-   :meth:`.Format.get_grid_kind_and_size`,
-   :meth:`.Format.make_linear`,
-   :meth:`.Format.polygons`,
-   :meth:`.Format.make_clip_mask`, and
-   :meth:`.Format.apply_clip_mask`.
+The :meth:`.Format.ravel_index` and :meth:`.Format.unravel_index` methods
+convert between linear and native indexes.
+It is important that the functions are the inverse of one another ---
+that is ``grass.unravel_index(grass.ravel_index(index)) == index``.
+
+.. literalinclude:: ./grass.py
+   :pyobject: Grass.ravel_index
+
+.. literalinclude:: ./grass.py
+   :pyobject: Grass.unravel_index
+
+:meth:`.Format.get_grid_kind_and_size` determines
+what kind of grid a :class:`xarray.DataArray` contains.
+This is usually done by examining the dimensions of the DataArray.
+
+.. literalinclude:: ./grass.py
+   :pyobject: Grass.get_grid_kind_and_size
+
+:meth:`.Format.make_linear` takes a :class:`~xarray.DataArray`
+and flattens the grid dimensions.
+The returned data array can be indexed using linear indexes.
+Non-grid dimensions such as time and depth should be left as-is.
+:func:`emsarray.utils.linearise_dimensions` is very useful here.
+
+.. literalinclude:: ./grass.py
+   :pyobject: Grass.make_linear
+
+:meth:`.Format.selector_for_index` takes a native index
+and returns a dict that can be passed to :meth:`xarray.Dataset.isel`.
+This selector can be used to subset the dataset to a single grid index.
+
+.. literalinclude:: ./grass.py
+   :pyobject: Grass.selector_for_index
+
+:attr:`.Format.polygons` is an array of shapely :class:`Polygon` instances,
+one for each face in the dataset.
+If a cell does not have a valid polygon
+--- for example, if the coordinates for that polygon have been dropped
+or are outside of the valid region
+--- that index must be ``None``.
+It is strongly encouraged to use ``@cached_property`` for this property,
+as it is typically slow to run.
+
+.. literalinclude:: ./grass.py
+   :pyobject: Grass.polygons
+
+The last thing to implement is clipping datasets,
+via the :meth:`.Format.make_clip_mask` and :meth:`.Format.apply_clip_mask` methods.
+Implementers are encouraged to look at existing Format implementations
+for concrete examples.
+
+.. literalinclude:: ./grass.py
+   :pyobject: Grass.make_clip_mask
+
+.. literalinclude:: ./grass.py
+   :pyobject: Grass.apply_clip_mask
 
 
 Registering as part of an application
