@@ -92,7 +92,7 @@ def test_mock_entry_points_duplicate(caplog, monkeypatch):
         ('CFGrid1D', 'emsarray.formats.grid:CFGrid1D'),
         ('CFGrid2D', 'emsarray.formats.grid:CFGrid2D'),
     ])
-    assert list(entry_point_formats()) == [CFGrid1D, CFGrid1D, CFGrid2D]
+    assert list(entry_point_formats()) == [CFGrid1D, CFGrid2D]
     assert len(caplog.records) == 0
 
 
