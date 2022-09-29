@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from functools import cached_property
-from typing import List, Optional, Tuple
+from typing import Hashable, List, Optional, Tuple
 
 import xarray as xr
 
@@ -47,13 +47,13 @@ class ShocStandard(ArakawaC):
         ArakawaCGridKind.node: ('y_grid', 'x_grid'),
     }
 
-    def get_depth_name(self) -> str:
+    def get_depth_name(self) -> Hashable:
         return 'z_centre'
 
-    def get_all_depth_names(self) -> List[str]:
+    def get_all_depth_names(self) -> List[Hashable]:
         return ['z_centre', 'z_grid']
 
-    def get_time_name(self) -> str:
+    def get_time_name(self) -> Hashable:
         return 't'
 
 
@@ -93,11 +93,11 @@ class ShocSimple(CFGrid2D):
             return None
         return Specificity.HIGH
 
-    def get_time_name(self) -> str:
+    def get_time_name(self) -> Hashable:
         return 'time'
 
-    def get_depth_name(self) -> str:
+    def get_depth_name(self) -> Hashable:
         return 'zc'
 
-    def get_all_depth_names(self) -> List[str]:
+    def get_all_depth_names(self) -> List[Hashable]:
         return [self.get_depth_name()]

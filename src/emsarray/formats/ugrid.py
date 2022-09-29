@@ -1007,18 +1007,6 @@ class UGrid(Format[UGridKind, UGridIndex]):
         """
         return Mesh2DTopology(self.dataset)
 
-    def get_depth_name(self) -> str:
-        return 'Mesh2_layers'
-
-    def get_all_depth_names(self) -> List[str]:
-        depths = ['Mesh2_layers']
-        if 'Mesh2_layerfaces' in self.dataset.variables:
-            depths.append('Mesh2_layerfaces')
-        return depths
-
-    def get_time_name(self) -> str:
-        return 't'
-
     def ravel_index(self, index: UGridIndex) -> int:
         return index[1]
 

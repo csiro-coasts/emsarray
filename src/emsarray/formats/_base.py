@@ -5,8 +5,8 @@ import dataclasses
 import logging
 from functools import cached_property
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Generic, List, Optional,
-    Tuple, TypeVar, Union, cast
+    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Generic, Hashable, List,
+    Optional, Tuple, TypeVar, Union, cast
 )
 
 import geojson
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-DataArrayOrName = Union[str, xr.DataArray]
+DataArrayOrName = Union[Hashable, xr.DataArray]
 
 #: Some type that can enumerate the different :ref:`grid types <grids>`
 #: present in a dataset.
@@ -230,19 +230,20 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         This is useful for methods that support being passed either
         the name of a data array or a data array instance.
         """
-        if isinstance(data_array, str):
-            return self.dataset[data_array]
-        else:
+        if isinstance(data_array, xr.DataArray):
             utils.check_data_array_dimensions_match(self.dataset, data_array)
             return data_array
+        else:
+            return self.dataset[data_array]
 
-    @abc.abstractmethod
-    def get_time_name(self) -> str:
+    def get_time_name(self) -> Hashable:
         """Get the name of the time variable in this dataset."""
-        pass
+        for name, variable in self.dataset.variables.items():
+            if variable.attrs.get('standard_name') == 'time':
+                return str(name)
+        raise KeyError("Dataset does not have a time dimension")
 
-    @abc.abstractmethod
-    def get_depth_name(self) -> str:
+    def get_depth_name(self) -> Hashable:
         """Get the name of the layer depth coordinate variable.
         For datasets with multiple depth variables, this should be the one that
         represents the centre of the layer, not the bounds.
@@ -250,10 +251,9 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         Note that this is the name of the coordinate variable,
         not the name of the dimension, for datasets where these differ.
         """
-        pass
+        return self.get_all_depth_names()[0]
 
-    @abc.abstractmethod
-    def get_all_depth_names(self) -> List[str]:
+    def get_all_depth_names(self) -> List[Hashable]:
         """Get the names of all depth layers.
         Some datasets include both a depth layer centre,
         and the depth layer 'edges'.
@@ -261,7 +261,31 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         Note that this is the names of the coordinate variables,
         not the names of the dimensions, for datasets where these differ.
         """
-        pass
+        depth_names = []
+        for name in self.dataset.variables.keys():
+            data_array = self.dataset[name]
+
+            if not (
+                data_array.attrs.get('axis') == 'Z'
+                or data_array.attrs.get('cartesian_axis') == 'Z'
+                or data_array.attrs.get('coordinate_type') == 'Z'
+                or data_array.attrs.get('standard_name') == 'depth'
+            ):
+                continue
+
+            try:
+                # If the variable is defined on a grid,
+                # it is more likely to be a bathymetry variable
+                # not the coordinate for the depth layers.
+                self.get_grid_kind_and_size(data_array)
+                continue
+            except ValueError:
+                # The variable isn't on a grid - this is good!
+                pass
+
+            depth_names.append(name)
+
+        return depth_names
 
     def get_depths(self) -> np.ndarray:
         """Get the depth of each vertical layer in this dataset.
@@ -1167,8 +1191,12 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         Save this dataset to a netCDF file, and also fix up the time units to
         make the EMS compatible.
         """
+        try:
+            time_variable = self.get_time_name()
+        except KeyError:
+            time_variable = None
         utils.to_netcdf_with_fixes(
-            self.dataset, path, time_variable=self.get_time_name(), **kwargs)
+            self.dataset, path, time_variable=time_variable, **kwargs)
 
     # Aliases for emsarray.operations
 

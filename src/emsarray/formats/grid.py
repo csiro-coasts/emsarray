@@ -11,7 +11,7 @@ import logging
 import warnings
 from contextlib import suppress
 from functools import cached_property
-from typing import Dict, Generic, List, Optional, Tuple, Type, TypeVar, cast
+from typing import Dict, Generic, Optional, Tuple, Type, TypeVar, cast
 
 import numpy as np
 import xarray as xr
@@ -205,26 +205,6 @@ class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
     def topology(self) -> Topology:
         """A :class:`CFGridTopology` helper."""
         return self.topology_class(self.dataset)
-
-    def get_time_name(self) -> str:
-        for name, variable in self.dataset.variables.items():
-            if variable.attrs.get('standard_name') == 'time':
-                return str(name)
-        raise KeyError("Dataset does not have a time dimension")
-
-    def get_depth_name(self) -> str:
-        return self.get_all_depth_names()[0]
-
-    def get_all_depth_names(self) -> List[str]:
-        return [
-            str(name) for name, variable in self.dataset.variables.items()
-            if (
-                variable.attrs.get('axis') == 'Z'
-                or variable.attrs.get('cartesian_axis') == 'Z'
-                or variable.attrs.get('coordinate_type') == 'Z'
-                or variable.attrs.get('standard_name') == 'depth'
-            )
-        ]
 
     def unravel_index(
         self,
