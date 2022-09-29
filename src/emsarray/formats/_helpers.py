@@ -200,6 +200,8 @@ def entry_point_formats() -> Iterable[Type[Format]]:
     """
     Finds formats registered using entry points
     """
+    seen = set()
+
     for entry_point in metadata.entry_points(group='emsarray.formats'):
         try:
             obj = entry_point.load()
@@ -213,7 +215,9 @@ def entry_point_formats() -> Iterable[Type[Format]]:
                 entry_point.name, entry_point.value, obj)
             continue
 
-        yield obj
+        if obj not in seen:
+            yield obj
+            seen.add(obj)
 
 
 def register_format(format: Type[Format]) -> Type[Format]:
