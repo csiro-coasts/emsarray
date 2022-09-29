@@ -11,7 +11,7 @@ from __future__ import annotations
 import enum
 import logging
 from functools import cached_property
-from typing import Dict, List, Optional, Tuple, cast
+from typing import Dict, Optional, Tuple, cast
 
 import numpy as np
 import xarray as xr
@@ -23,7 +23,7 @@ from emsarray import masking, utils
 from emsarray.types import Pathish
 
 from ._base import Format
-from ._helpers import Specificity, register_format
+from ._helpers import Specificity
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +130,6 @@ ArakawaCCoordinates = Dict[ArakawaCGridKind, Tuple[str, str]]
 ArakawaCDimensions = Dict[ArakawaCGridKind, Tuple[str, str]]
 
 
-@register_format
 class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
     """
     An Arakawa C grid is a curvilinear orthogonal grid
@@ -254,16 +253,6 @@ class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
         an instance of :class:`ArakawaCGridTopology`.
         """
         return self._topology_for_grid_kind[ArakawaCGridKind.node]
-
-    def get_depth_name(self) -> str:
-        # TODO do better
-        return 'z_centre'
-
-    def get_all_depth_names(self) -> List[str]:
-        return ['z_centre', 'z_grid']
-
-    def get_time_name(self) -> str:
-        return 't'
 
     def unravel_index(
         self,

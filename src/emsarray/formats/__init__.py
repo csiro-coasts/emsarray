@@ -14,14 +14,16 @@ Format instances can be instantiated directly in this case.
 Refer to each Format implementation for details.
 """
 from ._base import Format, GridKind, Index, SpatialIndexItem
-from ._helpers import get_file_format, open_dataset, register_format
+from ._helpers import (
+    Specificity, get_file_format, open_dataset, register_format
+)
 from .arakawa_c import ArakawaC
 from .grid import CFGrid1D, CFGrid2D
 from .shoc import ShocSimple, ShocStandard
 from .ugrid import UGrid
 
 __all__ = [
-    "Format", "GridKind", "Index", "SpatialIndexItem",
+    "Format", "GridKind", "Index", "SpatialIndexItem", "Specificity",
     "get_file_format", "open_dataset", "register_format",
     "ArakawaC",
     "CFGrid1D", "CFGrid2D",

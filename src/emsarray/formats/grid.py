@@ -11,7 +11,7 @@ import logging
 import warnings
 from contextlib import suppress
 from functools import cached_property
-from typing import Dict, Generic, List, Optional, Tuple, Type, TypeVar, cast
+from typing import Dict, Generic, Optional, Tuple, Type, TypeVar, cast
 
 import numpy as np
 import xarray as xr
@@ -23,7 +23,7 @@ from emsarray import masking, utils
 from emsarray.types import Pathish
 
 from ._base import Format
-from ._helpers import Specificity, register_format
+from ._helpers import Specificity
 
 logger = logging.getLogger(__name__)
 
@@ -206,26 +206,6 @@ class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
         """A :class:`CFGridTopology` helper."""
         return self.topology_class(self.dataset)
 
-    def get_time_name(self) -> str:
-        for name, variable in self.dataset.variables.items():
-            if variable.attrs.get('standard_name') == 'time':
-                return str(name)
-        raise KeyError("Dataset does not have a time dimension")
-
-    def get_depth_name(self) -> str:
-        return self.get_all_depth_names()[0]
-
-    def get_all_depth_names(self) -> List[str]:
-        return [
-            str(name) for name, variable in self.dataset.variables.items()
-            if (
-                variable.attrs.get('axis') == 'Z'
-                or variable.attrs.get('cartesian_axis') == 'Z'
-                or variable.attrs.get('coordinate_type') == 'Z'
-                or variable.attrs.get('standard_name') == 'depth'
-            )
-        ]
-
     def unravel_index(
         self,
         index: int,
@@ -338,7 +318,6 @@ class CFGrid1DTopology(CFGridTopology):
         )
 
 
-@register_format
 class CFGrid1D(CFGrid[CFGrid1DTopology]):
     """A :class:`.Format` subclass representing datasets on an axis-aligned grid
     that follows the CF metadata conventions
@@ -418,7 +397,6 @@ class CFGrid2DTopology(CFGridTopology):
         return str(self.latitude.dims[1])
 
 
-@register_format
 class CFGrid2D(CFGrid[CFGrid2DTopology]):
     """A :class:`.Format` subclass representing datasets on a curvilinear grid
     that follows the CF metadata conventions

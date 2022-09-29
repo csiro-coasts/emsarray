@@ -18,9 +18,9 @@ from emsarray import utils
 
 def ocean_floor(
     dataset: xr.Dataset,
-    depth_variables: List[str],
+    depth_variables: List[Hashable],
     *,
-    non_spatial_variables: Optional[List[str]] = None,
+    non_spatial_variables: Optional[List[Hashable]] = None,
 ) -> xr.Dataset:
     """Make a new :class:`xarray.Dataset` reduced along the given depth
     coordinates to only contain values along the ocean floor.
@@ -199,7 +199,7 @@ def _find_ocean_floor_indices(
 
 def normalize_depth_variables(
     dataset: xr.Dataset,
-    depth_variables: List[str],
+    depth_variables: List[Hashable],
     *,
     positive_down: bool = True,
     deep_to_shallow: bool = True,

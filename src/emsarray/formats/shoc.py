@@ -18,18 +18,17 @@ from __future__ import annotations
 
 import logging
 from functools import cached_property
-from typing import List, Optional, Tuple
+from typing import Hashable, List, Optional, Tuple
 
 import xarray as xr
 
-from ._helpers import Specificity, register_format
+from ._helpers import Specificity
 from .arakawa_c import ArakawaC, ArakawaCGridKind
 from .grid import CFGrid2D, CFGrid2DTopology
 
 logger = logging.getLogger(__name__)
 
 
-@register_format
 class ShocStandard(ArakawaC):
     """
     SHOC datasets are :class:`.ArakawaC` datasets
@@ -48,17 +47,16 @@ class ShocStandard(ArakawaC):
         ArakawaCGridKind.node: ('y_grid', 'x_grid'),
     }
 
-    def get_depth_name(self) -> str:
+    def get_depth_name(self) -> Hashable:
         return 'z_centre'
 
-    def get_all_depth_names(self) -> List[str]:
+    def get_all_depth_names(self) -> List[Hashable]:
         return ['z_centre', 'z_grid']
 
-    def get_time_name(self) -> str:
+    def get_time_name(self) -> Hashable:
         return 't'
 
 
-@register_format
 class ShocSimple(CFGrid2D):
     """
     SHOC standard datasets can be simplified down to SHOC simple datasets,
@@ -95,11 +93,11 @@ class ShocSimple(CFGrid2D):
             return None
         return Specificity.HIGH
 
-    def get_time_name(self) -> str:
+    def get_time_name(self) -> Hashable:
         return 'time'
 
-    def get_depth_name(self) -> str:
+    def get_depth_name(self) -> Hashable:
         return 'zc'
 
-    def get_all_depth_names(self) -> List[str]:
+    def get_all_depth_names(self) -> List[Hashable]:
         return [self.get_depth_name()]

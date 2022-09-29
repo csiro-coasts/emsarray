@@ -28,7 +28,7 @@ from emsarray import utils
 from emsarray.types import Pathish
 
 from ._base import Format
-from ._helpers import Specificity, register_format
+from ._helpers import Specificity
 
 logger = logging.getLogger(__name__)
 
@@ -972,7 +972,6 @@ class UGridKind(str, enum.Enum):
 UGridIndex = Tuple[UGridKind, int]
 
 
-@register_format
 class UGrid(Format[UGridKind, UGridIndex]):
     """A :class:`.Format` subclass to handle unstructured grid datasets.
     """
@@ -1007,18 +1006,6 @@ class UGrid(Format[UGridKind, UGridIndex]):
         The :class:`Mesh2DTopology` of this dataset - which faces connect with which edges.
         """
         return Mesh2DTopology(self.dataset)
-
-    def get_depth_name(self) -> str:
-        return 'Mesh2_layers'
-
-    def get_all_depth_names(self) -> List[str]:
-        depths = ['Mesh2_layers']
-        if 'Mesh2_layerfaces' in self.dataset.variables:
-            depths.append('Mesh2_layerfaces')
-        return depths
-
-    def get_time_name(self) -> str:
-        return 't'
 
     def ravel_index(self, index: UGridIndex) -> int:
         return index[1]

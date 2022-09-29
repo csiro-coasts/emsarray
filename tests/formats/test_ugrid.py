@@ -185,6 +185,17 @@ def make_dataset(
             "coordinate_type": "time",
         },
     )
+    z = xr.DataArray(
+        data=-np.arange(0, depth_size),
+        dims=[depth_dimension],
+        name=depth_dimension,
+        attrs={
+            "long_name": "Depth",
+            "standard_name": "depth",
+            "coordinate_type": "Z",
+        },
+    )
+
     # Note: xarray will reformat this in to 1990-01-01T00:00:00+10:00, which
     # EMS fails to parse. There is no way around this using xarray natively,
     # you have to adjust it with nctool after saving it.
@@ -225,7 +236,7 @@ def make_dataset(
     dataset = xr.Dataset(
         data_vars={var.name: var for var in [
             mesh, face_node_connectivity, node_x, node_y,
-            t, botz, eta, temp
+            t, z, botz, eta, temp
         ]},
         attrs={
             'title': "COMPAS defalt version",

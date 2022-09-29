@@ -2,13 +2,23 @@ from __future__ import annotations
 
 import enum
 import logging
-from typing import Any, List, Optional, Tuple, Type
+import sys
+from contextlib import suppress
+from functools import cached_property
+from itertools import chain
+from typing import Any, Iterable, List, Optional, Tuple, Type
 
 import xarray as xr
 
 from emsarray.types import Pathish
 
 from ._base import Format
+
+if sys.version_info >= (3, 10):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata
+
 
 logger = logging.getLogger(__name__)
 
@@ -32,16 +42,60 @@ class Specificity(enum.IntEnum):
 
 
 class FormatRegistry:
-    formats: List[Type[Format]]
+    registered_formats: List[Type[Format]]
 
     def __init__(self) -> None:
-        self.formats = []
+        self.registered_formats = []
+
+    @cached_property
+    def formats(self) -> Iterable[Type[Format]]:
+        """
+        A list of all the registered Format subclasses.
+        This includes those registered via entry points
+        and those registered via :func:`register_format`.
+
+        Returns
+        -------
+        list of Format subclasses
+            All the registered :class:`~emsarray.formats.Format` subclasses
+
+        See also
+        --------
+        :func:`entry_point_formats`
+        :func:`register_format`
+        """
+        formats = []
+        seen = set()
+        # Construct a list of all registered formats in the order that they
+        # were registered. Manually registered formats are prioritised.
+        # Duplicates are removed.
+        for format in chain(self.registered_formats, self.entry_point_formats):
+            if format not in seen:
+                formats.append(format)
+                seen.add(format)
+        return formats
+
+    @cached_property
+    def entry_point_formats(self) -> List[Type[Format]]:
+        """
+        Find all formats registered via the ``emsarray.formats`` entry point.
+        This list is cached.
+
+        Returns
+        -------
+        list of Format subclasses
+            All the :class:`~emsarray.formats.Format` subclasses registered
+            via the ``emsarray.formats`` entry point.
+        """
+        return list(entry_point_formats())
 
     def add_format(self, format: Type[Format]) -> None:
         """Register a Format subclass with this registry.
         Datasets will be checked against this Format when guessing file types.
         """
-        self.formats.append(format)
+        with suppress(AttributeError):
+            del self.formats
+        self.registered_formats.append(format)
 
     def match_formats(self, dataset: xr.Dataset) -> List[Tuple[Type[Format], int]]:
         """
@@ -142,9 +196,38 @@ def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
     return file_format.open_dataset(path, **kwargs)
 
 
+def entry_point_formats() -> Iterable[Type[Format]]:
+    """
+    Finds formats registered using entry points
+    """
+    seen = set()
+
+    for entry_point in metadata.entry_points(group='emsarray.formats'):
+        try:
+            obj = entry_point.load()
+        except (AttributeError, ImportError):
+            logger.exception("Error loading entry point %s", entry_point)
+            continue
+
+        if not (isinstance(obj, type) and issubclass(obj, Format)):
+            logger.error(
+                "Entry point `%s = %s` refers to %r not a Format subclass",
+                entry_point.name, entry_point.value, obj)
+            continue
+
+        if obj not in seen:
+            yield obj
+            seen.add(obj)
+
+
 def register_format(format: Type[Format]) -> Type[Format]:
-    """Register a Format subclass, used for guessing file types.
-    Can be used as a decorator
+    """
+    Register a Format subclass, used for guessing file types.
+    Can be used as a decorator.
+
+    This function is useful for making format classes for internal project use.
+    If you are distributing an emsarray format class as a Python package,
+    see :func:`entry_point_formats` for registering formats using an ``entry_point``.
 
     Example
     -------
@@ -152,6 +235,10 @@ def register_format(format: Type[Format]) -> Type[Format]:
     >>> @formats.register
     ... class FooFormat(Format):
     ...     pass
+
+    See also
+    --------
+    :func:`entry_point_formats`
     """
     registry.add_format(format)
     return format

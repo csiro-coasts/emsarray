@@ -81,7 +81,7 @@ class PerfTimer:
 def to_netcdf_with_fixes(
     dataset: xr.Dataset,
     path: Pathish,
-    time_variable: Optional[str] = None,
+    time_variable: Optional[Hashable] = None,
     **kwargs: Any,
 ) -> None:
     """Saves a :class:`xarray.Dataset` to a netCDF4 file,
@@ -178,7 +178,7 @@ def format_time_units_for_ems(units: str, calendar: Optional[str] = DEFAULT_CALE
 
 def fix_time_units_for_ems(
     dataset_path: Pathish,
-    variable_name: str,
+    variable_name: Hashable,
 ) -> None:
     """
     Updates time units in a file so they are compatible with EMS.
@@ -410,7 +410,10 @@ def pairwise(iterable: Iterable[_T]) -> Iterable[Tuple[_T, _T]]:
     return zip(a, b)
 
 
-def dimensions_from_coords(dataset: xr.Dataset, coordinate_names: List[str]) -> List[Hashable]:
+def dimensions_from_coords(
+    dataset: xr.Dataset,
+    coordinate_names: List[Hashable],
+) -> List[Hashable]:
     """
     Get the names of the dimensions for a set of coordinates.
 
