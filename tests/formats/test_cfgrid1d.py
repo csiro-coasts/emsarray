@@ -242,7 +242,23 @@ def test_make_clip_mask():
     clip_geometry = Polygon([
         (0.18, .30), (.40, .30), (.60, .51), (.60, .64), (.18, .64), (.18, .30),
     ])
+
     mask = helper.make_clip_mask(clip_geometry)
+    expected_cells = mask_from_strings([
+        "0000000000",
+        "0000000000",
+        "0000000000",
+        "0011100000",
+        "0011110000",
+        "0011111000",
+        "0011111000",
+        "0000000000",
+        "0000000000",
+        "0000000000",
+        "0000000000",
+    ])
+    assert_equal(mask.data_vars['cell_mask'].values, expected_cells)
+
     assert mask.attrs == {'type': 'CFGrid mask'}
     assert mask.dims == {
         topology.longitude_name: topology.longitude.size,
@@ -250,6 +266,8 @@ def test_make_clip_mask():
     }
     assert list(mask.data_vars.keys()) == ['cell_mask']
 
+    # Test adding a buffer also
+    mask = helper.make_clip_mask(clip_geometry, buffer=1)
     expected_cells = mask_from_strings([
         "0000000000",
         "0000000000",
@@ -285,12 +303,12 @@ def test_apply_clip_mask(tmp_path):
     assert set(dataset.dims.keys()) == set(clipped.dims.keys())
 
     # Check that the new topology seems reasonable
-    assert clipped.ems.topology.longitude.size == 7
-    assert clipped.ems.topology.latitude.size == 6
+    assert clipped.ems.topology.longitude.size == 5
+    assert clipped.ems.topology.latitude.size == 4
 
     # Check that the data were preserved, beyond being clipped
     def clip_values(values: np.ndarray) -> np.ndarray:
-        values = values[..., 2:8, 1:8].copy()
+        values = values[..., 3:7, 2:7].copy()
         values[..., 0, -2:] = np.nan
         values[..., 1, -1:] = np.nan
         return values
@@ -300,10 +318,10 @@ def test_apply_clip_mask(tmp_path):
     assert_equal(clipped.data_vars['temp'].values, clip_values(dataset.data_vars['temp'].values))
 
     # Check that the new geometry matches the relevant polygons in the old geometry
-    assert len(clipped.ems.polygons) == 6 * 7
+    assert len(clipped.ems.polygons) == 5 * 4
     original_polys = np.concatenate([
-        dataset.ems.polygons[(i * 10 + 1):(i * 10 + 8)]
-        for i in range(2, 8)
+        dataset.ems.polygons[(i * 10 + 2):(i * 10 + 7)]
+        for i in range(3, 7)
     ], axis=None)
     assert len(clipped.ems.polygons) == len(original_polys)
     for original_poly, clipped_poly in zip(original_polys, clipped.ems.polygons):

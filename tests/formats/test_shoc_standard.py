@@ -9,12 +9,15 @@ import pandas as pd
 import pytest
 import xarray as xr
 from matplotlib.figure import Figure
+from numpy.testing import assert_equal
 from shapely.geometry.polygon import Polygon, orient
 
 from emsarray.formats import get_file_format
 from emsarray.formats.arakawa_c import c_mask_from_centres
 from emsarray.formats.shoc import ArakawaCGridKind, ShocStandard
-from tests.utils import DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator
+from tests.utils import (
+    DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator, mask_from_strings
+)
 
 
 def make_dataset(
@@ -112,10 +115,10 @@ def make_dataset(
         data=np.random.normal(0, 0.2, (time_size, j_size, i_size)),
         dims=["record", *wet_mask["face_mask"].dims],
         attrs={
-                "units": "metre",
-                "long_name": "Surface elevation",
-                "standard_name": "sea_surface_height_above_geoid",
-            }
+            "units": "metre",
+            "long_name": "Surface elevation",
+            "standard_name": "sea_surface_height_above_geoid",
+        }
     ).where(wet_mask.data_vars["face_mask"])
     temp = xr.DataArray(
         data=np.random.normal(12, 0.5, (time_size, k_size, j_size, i_size)),
@@ -436,3 +439,167 @@ def test_plot_on_figure():
     dataset.ems.plot_on_figure(figure, surface_temp)
 
     assert len(figure.axes) == 2
+
+
+def test_make_clip_mask():
+    dataset = make_dataset(j_size=10, i_size=8)
+    helper: ShocStandard = dataset.ems
+
+    # The dataset will have cells with centres from 0-.5 longitude, 0-.7 latitude
+    clip_geometry = Polygon([
+        (.74, .84), (.86, .84), (.86, .96), (.74, .96), (.74, .84),
+    ])
+
+    mask = helper.make_clip_mask(clip_geometry)
+
+    assert mask.data_vars.keys() \
+        == {'face_mask', 'left_mask', 'back_mask', 'node_mask'}
+
+    assert_equal(
+        mask.data_vars['face_mask'].values,
+        mask_from_strings([
+            "00000000",
+            "00000000",
+            "00000000",
+            "00010000",
+            "00111000",
+            "00010000",
+            "00000000",
+            "00000000",
+            "00000000",
+            "00000000",
+        ])
+    )
+    assert_equal(
+        mask.data_vars['left_mask'].values,
+        mask_from_strings([
+            "000000000",
+            "000000000",
+            "000000000",
+            "000110000",
+            "001111000",
+            "000110000",
+            "000000000",
+            "000000000",
+            "000000000",
+            "000000000",
+        ]),
+    )
+    assert_equal(
+        mask.data_vars['back_mask'].values,
+        mask_from_strings([
+            "00000000",
+            "00000000",
+            "00000000",
+            "00010000",
+            "00111000",
+            "00111000",
+            "00010000",
+            "00000000",
+            "00000000",
+            "00000000",
+            "00000000",
+        ]),
+    )
+    assert_equal(
+        mask.data_vars['node_mask'].values,
+        mask_from_strings([
+            "000000000",
+            "000000000",
+            "000000000",
+            "000110000",
+            "001111000",
+            "001111000",
+            "000110000",
+            "000000000",
+            "000000000",
+            "000000000",
+            "000000000",
+        ]),
+    )
+
+    # Test adding a buffer also
+    mask = helper.make_clip_mask(clip_geometry, buffer=1)
+    assert_equal(
+        mask.data_vars['face_mask'].values,
+        mask_from_strings([
+            "00000000",
+            "00000000",
+            "00111000",
+            "01111100",
+            "01111100",
+            "01111100",
+            "00111000",
+            "00000000",
+            "00000000",
+            "00000000",
+        ]),
+    )
+    assert_equal(
+        mask.data_vars['node_mask'].values,
+        mask_from_strings([
+            "000000000",
+            "000000000",
+            "001111000",
+            "011111100",
+            "011111100",
+            "011111100",
+            "011111100",
+            "001111000",
+            "000000000",
+            "000000000",
+            "000000000",
+        ]),
+    )
+
+
+def test_apply_clip_mask(tmp_path):
+    dataset = make_dataset(j_size=10, i_size=8)
+    helper: ShocStandard = dataset.ems
+
+    # Clip it!
+    clip_geometry = Polygon([
+        (.74, .84), (.86, .84), (.86, .96), (.74, .96), (.74, .84),
+    ])
+    mask = helper.make_clip_mask(clip_geometry)
+    clipped = dataset.ems.apply_clip_mask(mask, tmp_path)
+
+    assert isinstance(clipped.ems, ShocStandard)
+
+    # Check that the variable and dimension keys were preserved
+    assert set(dataset.data_vars.keys()) == set(clipped.data_vars.keys())
+    assert set(dataset.coords.keys()) == set(clipped.coords.keys())
+    assert set(dataset.dims.keys()) == set(clipped.dims.keys())
+
+    # Check that the new topology seems reasonable
+    assert clipped.ems.face.longitude.shape == (3, 3)
+    assert clipped.ems.face.latitude.shape == (3, 3)
+    assert clipped.ems.node.longitude.shape == (4, 4)
+    assert clipped.ems.node.latitude.shape == (4, 4)
+
+    # Check that the data were preserved, beyond being clipped
+    def clip_values(values: np.ndarray) -> np.ndarray:
+        values = values[..., 3:6, 2:5].copy()
+        values[..., 0, 0] = np.nan
+        values[..., 0, -1] = np.nan
+        values[..., -1, -1] = np.nan
+        values[..., -1, 0] = np.nan
+        return values
+
+    assert_equal(clipped.data_vars['botz'].values, clip_values(dataset.data_vars['botz'].values))
+    assert_equal(clipped.data_vars['eta'].values, clip_values(dataset.data_vars['eta'].values))
+    assert_equal(clipped.data_vars['temp'].values, clip_values(dataset.data_vars['temp'].values))
+
+    # Check that the new geometry matches the relevant polygons in the old geometry
+    original_polygons = helper.polygons.reshape(10, 8)[3:6, 2:5].ravel()
+
+    assert len(clipped.ems.polygons) == 3 * 3
+    assert clipped.ems.polygons[0] is None
+    assert clipped.ems.polygons[1].equals_exact(original_polygons[1], 1e-6)
+    assert clipped.ems.polygons[2] is None
+    assert clipped.ems.polygons[3].equals_exact(original_polygons[3], 1e-6)
+    assert clipped.ems.polygons[4].equals_exact(original_polygons[4], 1e-6)
+    assert clipped.ems.polygons[5].equals_exact(original_polygons[5], 1e-6)
+    assert clipped.ems.polygons[6] is None
+    assert clipped.ems.polygons[7].equals_exact(original_polygons[7], 1e-6)
+    assert clipped.ems.polygons[8] is None

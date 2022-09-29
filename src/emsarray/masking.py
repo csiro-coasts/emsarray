@@ -242,7 +242,7 @@ def smear_mask(arr: np.ndarray, pad_axes: List[bool]) -> np.ndarray:
     return functools.reduce(operator.or_, (np.pad(arr, pad) for pad in paddings))
 
 
-def blur_mask(arr: np.ndarray) -> np.ndarray:
+def blur_mask(arr: np.ndarray, size: int = 1) -> np.ndarray:
     """
     Take a boolean numpy array and blur it, such that all indices neighbouring
     a True value in the input array are True in the output array. The output
@@ -261,8 +261,20 @@ def blur_mask(arr: np.ndarray) -> np.ndarray:
                [0, 0, 1, 1, 1],
                [0, 0, 1, 1, 1]]
     """
-    return np.fromfunction(
-        np.vectorize(lambda *indices: arr[tuple(np.s_[max(i - 1, 0):i + 2] for i in indices)].any()),
-        arr.shape,
-        dtype=int,
+    # Pad the mask with a `size` sized buffer.
+    # This allows simple slicing to pull out a rectangular region around an
+    # index, without worrying about the edges of the array.
+    padded = np.pad(arr, size, constant_values=False)
+
+    # For each cell in the original mask shape,
+    # the blurred mask is true if the original mask was true,
+    # or any cells in a `size` sized slice around the original cell.
+    arr_iter = np.nditer(arr, ['multi_index'])
+    indices = (arr_iter.multi_index for _ in arr_iter)
+    values = (
+        arr[index] or np.any(padded[tuple(slice(i, i + size * 2 + 1) for i in index)])
+        for index in indices
     )
+
+    arr = np.fromiter(values, count=arr.size, dtype=arr.dtype).reshape(arr.shape)
+    return cast(np.ndarray, arr)

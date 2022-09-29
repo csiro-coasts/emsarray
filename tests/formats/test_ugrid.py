@@ -637,7 +637,7 @@ def test_make_and_apply_clip_mask(tmp_path):
     topology = dataset.ems.topology
 
     # Make a clip mask
-    clip_mask = dataset.ems.make_clip_mask(polygon)
+    clip_mask = dataset.ems.make_clip_mask(polygon, buffer=1)
     clip_mask.to_netcdf(tmp_path / "clip.nc")
     assert clip_mask.dims == {
         'old_face_index': topology.face_count,

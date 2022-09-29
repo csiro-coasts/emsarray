@@ -1052,7 +1052,12 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         ])
 
     @abc.abstractmethod
-    def make_clip_mask(self, clip_geometry: BaseGeometry) -> xr.Dataset:
+    def make_clip_mask(
+        self,
+        clip_geometry: BaseGeometry,
+        *,
+        buffer: int = 0,
+    ) -> xr.Dataset:
         """
         Make a new Dataset that can be used to clip this dataset to only the
         cells that intersect some geometry.
@@ -1066,9 +1071,14 @@ class Format(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        clip_geometry
+        clip_geometry : BaseGeometry
             The desired area to cut out. This can be any shapely geometry type,
             but will most likely be a polygon
+        buffer : int, optional
+            If set to a positive integer,
+            a buffer of that many cells will be added around the clip region.
+            This is useful if you need to clip to a particular area,
+            but also would like to do some interpolation on the output cells.
 
         Returns
         -------
@@ -1100,28 +1110,56 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         or save the dataset to disk somewhere outside of the working directory
         before the working directory is cleaned up.
 
-        :param clip_mask: The mask, as made by :meth:`make_clip_mask`.
-        :param work_dir: A directory where temporary files can be written to.
-            Callers must create and manage this temporary directory, perhaps
-            using :obj:`tempfile.TemporaryDirectory`.
-        :returns: A new :class:`~xarray.Dataset` clipped using the mask
+        Parameters
+        ----------
+        clip_mask : xarray.Dataset
+            The mask, as made by :meth:`make_clip_mask`.
+        work_dir : str or pathlib.Path
+            A directory where temporary files can be written to.
+            Callers must create and manage this temporary directory,
+            perhaps using :obj:`tempfile.TemporaryDirectory`.
+
+        Returns
+        -------
+        xarray.Dataset
+            A new :class:`~xarray.Dataset` clipped using the mask
         """
 
-    def clip(self, clip_geomery: BaseGeometry, work_dir: Pathish) -> xr.Dataset:
+    def clip(
+        self,
+        clip_geomery: BaseGeometry,
+        work_dir: Pathish,
+        *,
+        buffer: int = 0,
+    ) -> xr.Dataset:
         """
         Generates a clip mask and applies it in one step.
 
         See the documentation for :meth:`.make_clip_mask` and
         :meth:`.apply_clip_mask` for more details.
 
-        :param clip_geomery: The desired area to cut out. This can be any
-            shapely geometry type, but will most likely be a polygon
-        :param work_dir: A directory where temporary files can be written to.
-            Callers must create and manage this temporary directory, perhaps
-            using :obj:`tempfile.TemporaryDirectory`.
-        :returns: A new :class:`~xarray.Dataset` clipped using the mask
+        Parameters
+        ----------
+        clip_geometry : BaseGeometry
+            The desired area to cut out.
+            This can be any shapely geometry type,
+            but will most likely be a polygon
+        work_dir : str or pathlib.Path
+            A directory where temporary files can be written to.
+            Callers must create and manage this temporary directory,
+            perhaps using :obj:`tempfile.TemporaryDirectory`.
+        buffer : int, optional
+            If set to a positive integer,
+            a buffer of that many cells will be added around the clip region.
+            This is useful if you need to clip to a particular area,
+            but also would like to do some interpolation on the output cells.
+
+        Returns
+        -------
+        xarray.Dataset
+            A new :class:`~xarray.Dataset` clipped using the mask
         """
-        mask = self.make_clip_mask(clip_geomery)
+        mask = self.make_clip_mask(clip_geomery, buffer=buffer)
         return self.apply_clip_mask(mask, work_dir=work_dir)
 
     def to_netcdf(self, path: Pathish, **kwargs: Any) -> None:

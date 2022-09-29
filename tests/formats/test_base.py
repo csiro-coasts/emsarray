@@ -88,7 +88,13 @@ class SimpleFormat(Format[SimpleGridKind, SimpleGridIndex]):
             for x in range(self.shape[1])
         ], dtype=object)
 
-    def make_clip_mask(self, clip_geometry: BaseGeometry) -> xr.Dataset:
+    def make_clip_mask(
+        self,
+        clip_geometry: BaseGeometry,
+        buffer: int = 0,
+    ) -> xr.Dataset:
+        if buffer > 0:
+            raise ValueError("Can not buffer SimpleFormat clip masks")
         intersections = [
             item.linear_index
             for polygon, item in self.spatial_index.query(clip_geometry)

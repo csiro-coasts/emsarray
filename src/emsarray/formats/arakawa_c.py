@@ -344,7 +344,11 @@ class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
         dimensions = [topology.j_dimension, topology.i_dimension]
         return utils.linearise_dimensions(data_array, list(dimensions))
 
-    def make_clip_mask(self, clip_geometry: BaseGeometry) -> xr.Dataset:
+    def make_clip_mask(
+        self,
+        clip_geometry: BaseGeometry,
+        buffer: int = 0,
+    ) -> xr.Dataset:
         """
         Generate an xarray.Dataset with a mask for the cell centres, left and
         back faces, and nodes. The mask values will be True where the
@@ -361,7 +365,8 @@ class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
         face_mask.ravel()[intersecting_indices] = True
 
         # Expand the mask by one cell around the clipped region, as a buffer
-        face_mask = masking.blur_mask(face_mask)
+        if buffer > 0:
+            face_mask = masking.blur_mask(face_mask, size=buffer)
 
         # Complete the rest of the mask
         return c_mask_from_centres(face_mask, self._dimensions_for_grid_kind, self.dataset.coords)
