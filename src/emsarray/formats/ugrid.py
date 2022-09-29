@@ -50,20 +50,19 @@ def buffer_faces(face_indices: np.ndarray, topology: Mesh2DTopology) -> np.ndarr
     included faces.
     """
     original_face_indices = set(face_indices.tolist())
-    face_node = topology.face_node_connectivity
+    face_node = topology.face_node_array
 
     # Find all nodes for the faces
-    included_nodes = set(np.unique(face_node.values[face_indices]))
-    included_nodes.discard(face_node.attrs.get('_FillValue'))
+    included_nodes = set(np.unique(face_node[face_indices].compressed()))
 
     # Find all faces that are composed of any of the nodes just found
     included_faces = (
         face_index
-        for face_index, node_indices in enumerate(face_node.values)
+        for face_index, node_indices in enumerate(face_node)
         # Either one of the original faces ...
         if face_index in original_face_indices
         # ... or shares a node with one of the original faces
-        or bool(included_nodes.intersection(node_indices))
+        or bool(included_nodes.intersection(node_indices.compressed()))
     )
     return cast(np.ndarray, np.fromiter(included_faces, dtype=topology.sensible_dtype))
 
@@ -89,51 +88,42 @@ def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -
     fill_value = topology.sensible_fill_value
     data_vars = {}
 
-    def new_element_indices(size: int, indices: np.ndarray) -> np.ndarray:
+    def new_element_indices(size: int, indices: np.ndarray) -> np.ma.MaskedArray:
         new_indices = np.full(
             (size,), fill_value=fill_value, dtype=topology.sensible_dtype)
+        new_indices = np.ma.masked_array(new_indices, mask=True)
         new_indices[indices] = np.arange(len(indices))
         return new_indices
 
     # Record which old face index maps to which new face index
-    data_vars['new_face_index'] = xr.DataArray(
+    data_vars['new_face_index'] = _masked_integer_data_array(
         data=new_element_indices(topology.face_count, face_indices),
+        fill_value=fill_value,
         dims=['old_face_index'],
-        attrs={'_FillValue': fill_value},
     )
 
     # Find all edges associated with included faces. Don't bother if the
     # dataset doesn't define an edge dimension
     if topology.has_edge_dimension:
-        face_edge = topology.face_edge_connectivity
-        face_edge_fill_value = face_edge.attrs.get('_FillValue')
-        edges_set = set()
-        for face_index in face_indices.tolist():
-            edge_indices = face_edge.values[face_index]
-            edges_set.update(edge_indices[edge_indices != face_edge_fill_value].tolist())
-        edge_indices = np.array(sorted(edges_set))
+        face_edge = topology.face_edge_array
+        edge_indices = np.sort(np.unique(face_edge[face_indices].compressed()))
 
         # Record which old edge index maps to which new edge index
-        data_vars['new_edge_index'] = xr.DataArray(
+        data_vars['new_edge_index'] = _masked_integer_data_array(
             data=new_element_indices(topology.edge_count, edge_indices),
+            fill_value=fill_value,
             dims=['old_edge_index'],
-            attrs={'_FillValue': fill_value},
         )
 
     # Find all nodes associated with included faces
-    face_node = topology.face_node_connectivity
-    face_node_fill_value = face_node.attrs.get('_FillValue')
-    nodes_set = set()
-    for face_index in face_indices.tolist():
-        node_indices = face_node.values[face_index]
-        nodes_set.update(node_indices[node_indices != face_node_fill_value].tolist())
-    node_indices = np.array(sorted(nodes_set))
+    face_node = topology.face_node_array
+    node_indices = np.sort(np.unique(face_node[face_indices].compressed()))
 
     # Record which old node index maps to which new node index
-    data_vars['new_node_index'] = xr.DataArray(
+    data_vars['new_node_index'] = _masked_integer_data_array(
         data=new_element_indices(topology.node_count, node_indices),
+        fill_value=fill_value,
         dims=['old_node_index'],
-        attrs={'_FillValue': fill_value},
     )
 
     # Make the mask dataset
@@ -142,10 +132,127 @@ def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -
     })
 
 
+def update_connectivity(
+    connectivity: xr.DataArray,
+    old_array: np.ndarray,
+    row_indices: np.ndarray,
+    column_values: np.ndarray,
+    primary_dimension: str,
+    fill_value: int,
+) -> xr.DataArray:
+    """
+    Create a new connectivity variable by reindexing existing entries.
+    This is used during masking to trim off unused nodes, edges, and faces.
+    It preserves original dtype, any given ``start_index`` value,
+    and non-standard dimension orderings.
+
+    Parameters
+    ----------
+
+    connectivity : xarray.DataArray
+        The connectivity variable to update.
+        This will be one of
+        :attr:`~Mesh2DTopology.edge_node_connectivity`,
+        :attr:`~Mesh2DTopology.edge_face_connectivity`,
+        :attr:`~Mesh2DTopology.face_node_connectivity`,
+        :attr:`~Mesh2DTopology.face_edge_connectivity`, or
+        :attr:`~Mesh2DTopology.face_face_connectivity`.
+    old_array : np.ndarray
+        The old connectivity array,
+        the companion to the connectivity data array.
+        Each row corresponds to either an edge or a face.
+    row_indices : np.ndarray
+        A one dimensional numpy masked array
+        indicating which rows of ``old_array`` are to be included.
+        Masked items are excluded, all other items are included.
+    column_values : np.ndarray
+        A one dimensional numpy masked array
+        mapping values from ``old_array`` to their new values.
+        Values to be excluded in the new array should be ``np.ma.masked``
+    primary_dimension : str
+        The name of the primary dimension for this connectivity variable.
+        This will be either :attr:`Mesh2DTopology.edge_dimension`
+        or :attr:`Mesh2DTopology.face_dimension`.
+        Each row represents data about either a edge or a face.
+    fill_value : int
+        The fill value to use for missing data.
+
+    Returns
+    -------
+
+    xarray.DataArray
+        A new DataArray containing the clipped and reindexed connectivity data.
+    """
+    logger.debug("Reindexing %r", connectivity.name)
+
+    # Offset the column_values for one-based indexing.
+    start_index = connectivity.attrs.get('start_index', 0)
+    if start_index != 0:
+        column_values = column_values + start_index
+
+    # We need to preseve the integer dtype,
+    # while also accounting for masked values.
+    # xarray does not make this easy.
+    # By constructing the array using new_fill_value where needed,
+    # setting the dtype explicitly, and adding the _FillValue attribute,
+    # xarray will cooperate.
+    dtype = connectivity.encoding.get('dtype', connectivity.dtype)
+    include_row = ~np.ma.getmask(row_indices)
+    raw_values = np.array([
+        [
+            column_values[item] if item is not np.ma.masked else fill_value
+            for item in row
+        ]
+        for row in old_array[include_row]
+    ], dtype=dtype)
+    values = np.ma.masked_equal(raw_values, fill_value)
+
+    if connectivity.dims[1] == primary_dimension:
+        values = np.transpose(values)
+    elif primary_dimension not in connectivity.dims:
+        raise ValueError("Connectivity variable does not contain primary dimension")
+
+    return _masked_integer_data_array(
+        data=values,
+        fill_value=fill_value,
+        dims=connectivity.dims,
+        name=connectivity.name,
+        attrs=connectivity.attrs,
+    )
+
+
+def _masked_integer_data_array(
+    data: np.ma.MaskedArray,
+    fill_value: int,
+    **kwargs: Any,
+) -> xr.DataArray:
+    """
+    Create an :class:`xarray.DataArray` that represents
+    an integer variable with a _FillValue.
+    When reading such a variable from disk,
+    xarray will cast it to a double
+    and replace any occurrence of _FillValue with np.nan.
+    This method replicates these actions.
+    When saved to disk, a variable built using this should have
+    an integer type and a _FillValue.
+    """
+    float_data = np.ma.filled(data.astype(np.double), np.nan)
+    data_array = xr.DataArray(data=float_data, **kwargs)
+    data_array.encoding.update({'dtype': data.dtype, '_FillValue': fill_value})
+    return data_array
+
+
 class NoEdgeDimensionException(ValueError):
     """
     Raised when the dataset does not define a name for the edge dimension, and
     no dimension name can be derived from the available connectivity variables.
+    """
+
+
+class NoConnectivityVariableException(Exception):
+    """
+    Raised when the dataset does not have a particular connectivity variable
+    defined.
     """
 
 
@@ -158,6 +265,41 @@ class Mesh2DTopology:
     topology of the dataset. For example, the names of the variables that store
     the coordinates for nodes can be found in the `node_coordinates` attribute
     as the string "x_variable y_variable".
+
+    There are five possible connectivity variables on a UGRID dataset:
+    face-node, face-edge, face-face, edge-node, and edge-face.
+    Face-node is the only required variable.
+    Each has a property to check whether it is defined (``has_valid_foo``),
+    a property to get the variable if it is defined (``foo_connectivity``),
+    and a property to get or derive a normalised connectivity array (``foo_array``):
+
+    .. list-table::
+        :header-rows: 1
+
+        * - Attribute
+          - has_valid_foo
+          - foo_connectivity
+          - foo_array
+        * - face_node
+          - :attr:`has_valid_face_node_connectivity`
+          - :attr:`face_node_connectivity`
+          - :attr:`face_node_array`
+        * - face_edge
+          - :attr:`has_valid_face_edge_connectivity`
+          - :attr:`face_edge_connectivity`
+          - :attr:`face_edge_array`
+        * - face_face
+          - :attr:`has_valid_face_face_connectivity`
+          - :attr:`face_face_connectivity`
+          - :attr:`face_face_array`
+        * - edge_node
+          - :attr:`has_valid_edge_node_connectivity`
+          - :attr:`edge_node_connectivity`
+          - :attr:`edge_node_array`
+        * - edge_face
+          - :attr:`has_valid_edge_face_connectivity`
+          - :attr:`edge_face_connectivity`
+          - :attr:`edge_face_array`
     """
     #: The UGRID dataset
     dataset: xr.Dataset
@@ -286,6 +428,50 @@ class Mesh2DTopology:
         except KeyError:
             return None
 
+    def _to_index_array(
+        self,
+        data_array: xr.DataArray,
+        primary_dimension: str,
+    ) -> np.ndarray:
+        """
+        Convert a data array of node, edge, or face indices
+        into a masked numpy integer array.
+        This takes care of casting arrays to integers
+        and fixing one-based indexing where appropriate.
+        """
+        # Ensure the dimensions are in the correct order first
+        if primary_dimension not in data_array.dims:
+            raise ValueError(
+                f"Data array did not contain primary dimension {primary_dimension!r}")
+        if data_array.dims[0] != primary_dimension:
+            data_array = data_array.transpose()
+
+        values = data_array.values
+
+        if not issubclass(values.dtype.type, np.integer):
+            # If a data array has a fill value, xarray will convert that data array
+            # to a floating point data type, and replace masked values with np.nan.
+            # Here we convert a floating point array to a masked integer array.
+            values = np.ma.masked_invalid(values).astype(np.int_)
+        elif '_FillValue' in data_array.attrs:
+            # The data array has a fill value, but xarray has not applied it.
+            # This implied the dataset was opened with mask_and_scale=False,
+            # or was constructed in memory.
+            # Convert it to a mask array with _FillValue masked out.
+            values = np.ma.masked_equal(values, data_array.attrs['_FillValue'])
+        else:
+            # If the value is still an integer then it had no fill value.
+            # Convert it to a mask array with no masked values.
+            values = np.ma.masked_array(values, mask=np.ma.nomask)
+
+        # UGRID conventions allow for zero based or one based indexing.
+        # To be consistent we convert all indices to zero based.
+        start_index = data_array.attrs.get('start_index', 0)
+        if start_index != 0:
+            values = values - start_index
+
+        return values
+
     @cached_property
     def has_valid_edge_node_connectivity(self) -> bool:
         """
@@ -306,7 +492,7 @@ class Mesh2DTopology:
         expected = {self.edge_dimension, self.two_dimension}
         if actual != expected:
             warnings.warn(
-                f"Got a face_face_connectivity variable {data_array.name!r} with "
+                f"Got a edge_node_connectivity variable {data_array.name!r} with "
                 f"unexpected dimensions {actual}, expecting {expected}"
             )
             return False
@@ -319,18 +505,41 @@ class Mesh2DTopology:
         This data array defines unique indexes for each edge. This allows data
         to be stored 'on' an edge.
 
-        If this dataset is _not_ defined, data are not stored on the edges for
-        this dataset. We can derive it from the existing data, arbitrarily
-        assigning an index to each edge. This will allow us to derive other
-        datasets if required.
+        If this variable is *not* defined,
+        data are not stored on the edges for this dataset.
         """
+        if not self.has_edge_dimension:
+            raise NoEdgeDimensionException
+
+        if not self.has_valid_edge_node_connectivity:
+            raise NoConnectivityVariableException(
+                "No valid edge_node_connectivity defined")
+
+        name = self.mesh_attributes['edge_node_connectivity']
+        return self.dataset.data_vars[name]
+
+    @cached_property
+    def edge_node_array(self) -> np.ndarray:
+        """
+        An integer numpy array with shape
+        (:attr:`edge_dimension`, 2),
+        indicating which nodes each edge consists of.
+        If data are stored on edges in this dataset,
+        the ordering of these edges matches the ordering of the data.
+
+        If this variable is *not* defined,
+        we can derive it from the existing data,
+        arbitrarily assigning an index to each edge.
+        This will allow us to derive other connectivity variables if required.
+        """
+        if not self.has_edge_dimension:
+            raise NoEdgeDimensionException
+
         if self.has_valid_edge_node_connectivity:
-            return self.dataset.data_vars[self.mesh_attributes['edge_node_connectivity']]
+            return self._to_index_array(
+                self.edge_node_connectivity, self.edge_dimension)
 
-        # Access this here so it raises an error early
-        edge_dimension = self.edge_dimension
-
-        logger.info("Building edge_node_connectivity")
+        logger.info("Building edge_node_array")
         with utils.PerfTimer() as timer:
             # Each edge is composed of two nodes. Each edge may be named twice,
             # once for each face. To de-duplicate this, edges are built up using
@@ -347,15 +556,9 @@ class Mesh2DTopology:
                 for low, highs in low_highs.items()
                 for high in highs
             ], dtype=self.sensible_dtype)
-        logger.debug("Built edge_node_connectivity in %f seconds", timer.elapsed)
+        logger.debug("Built edge_node_array in %f seconds", timer.elapsed)
 
-        return xr.DataArray(
-            data=edge_node,
-            dims=[edge_dimension, self.two_dimension],
-            attrs={
-                "cf_role": "edge_node_connectivity",
-            },
-        )
+        return edge_node
 
     @cached_property
     def has_valid_edge_face_connectivity(self) -> bool:
@@ -389,38 +592,45 @@ class Mesh2DTopology:
         """
         This data array shows which faces an edge borders on.
         """
+        if not self.has_valid_edge_face_connectivity:
+            raise NoConnectivityVariableException(
+                "No valid edge_face_connectivity defined")
+        name = self.mesh_attributes['edge_face_connectivity']
+        return self.dataset.data_vars[name]
+
+    @cached_property
+    def edge_face_array(self) -> np.ndarray:
+        """
+        An integer numpy array with shape
+        (:attr:`edge_dimension`, 2),
+        indicating which faces border each edge.
+        """
         if self.has_valid_edge_face_connectivity:
-            return self.dataset.data_vars[self.mesh_attributes['edge_face_connectivity']]
+            return self._to_index_array(
+                self.edge_face_connectivity, self.edge_dimension)
 
         # Access these outside of the timer below
         fill_value = self.sensible_fill_value
-        face_edge = self.face_edge_connectivity
-        face_edge_fill_value = face_edge.attrs.get('_FillValue')
+        face_edge = self.face_edge_array
 
         # Build an edge_face_connectivity matrix
-        logger.info("Building edge_face_connectivity")
+        logger.info("Building edge_face_array")
         with utils.PerfTimer() as timer:
-            edge_face_count = np.zeros(self.edge_count, dtype=self.sensible_dtype)
-            edge_face = np.full(
-                (self.edge_count, 2), fill_value=fill_value, dtype=self.sensible_dtype)
+            # The edge_face connectivity matrix
+            shape = (self.edge_count, 2)
+            filled = np.full(shape, fill_value, dtype=self.sensible_dtype)
+            edge_face: np.ndarray = np.ma.masked_array(filled, mask=True)
 
-            with np.nditer(face_edge.values, flags=['multi_index']) as nditer:
-                for edge_index in nditer:
-                    if edge_index == face_edge_fill_value:
-                        continue
-                    face_index = nditer.multi_index[0]
+            # The number of faces already seen for this edge
+            edge_face_count = np.zeros(self.edge_count, dtype=self.sensible_dtype)
+
+            for face_index, edge_indices in enumerate(face_edge):
+                for edge_index in edge_indices.compressed():
                     edge_face[edge_index, edge_face_count[edge_index]] = face_index
                     edge_face_count[edge_index] += 1
-        logger.debug("Built edge_face_connectivity in %f seconds", timer.elapsed)
+        logger.debug("Built edge_face_array in %f seconds", timer.elapsed)
 
-        return xr.DataArray(
-            data=edge_face,
-            dims=[self.edge_dimension, self.two_dimension],
-            attrs={
-                '_FillValue': fill_value,
-                'cf_role': 'edge_face_connectivity',
-            },
-        )
+        return edge_face
 
     @cached_property
     def has_valid_face_node_connectivity(self) -> bool:
@@ -447,11 +657,22 @@ class Mesh2DTopology:
     @cached_property
     def face_node_connectivity(self) -> xr.DataArray:
         """
-        A dataset that lists the nodes that make up the boundary of each face.
-        This is the only required data variable in a UGRID dataset, all the
-        others can be derived from this if required.
+        A variable that lists the nodes that make up the boundary of each face.
+        This is the only required data variable in a UGRID dataset,
+        all the others can be derived from this if required.
         """
-        return self.dataset.data_vars[self.mesh_attributes['face_node_connectivity']]
+        name = self.mesh_attributes['face_node_connectivity']
+        return self.dataset.data_vars[name]
+
+    @cached_property
+    def face_node_array(self) -> np.ndarray:
+        """
+        An integer numpy array with shape
+        (:attr:`face_dimension`, :attr:`max_node_dimension`),
+        representing the node indices that make up each face.
+        """
+        return self._to_index_array(
+            self.face_node_connectivity, self.face_dimension)
 
     @cached_property
     def has_valid_face_edge_connectivity(self) -> bool:
@@ -470,7 +691,7 @@ class Mesh2DTopology:
         expected = {self.face_dimension, self.max_node_dimension}
         if actual != expected:
             warnings.warn(
-                f"Got a face_face_connectivity variable {data_array.name!r} with "
+                f"Got a face_edge_connectivity variable {data_array.name!r} with "
                 f"unexpected dimensions {actual}, expecting {expected}"
             )
             return False
@@ -479,40 +700,49 @@ class Mesh2DTopology:
 
     @cached_property
     def face_edge_connectivity(self) -> xr.DataArray:
-        try:
-            return self.dataset.data_vars[self.mesh_attributes['face_edge_connectivity']]
-        except KeyError:
-            pass
+        """
+        The face_edge_connectivity variable from the dataset, if present.
+        """
+        if not self.has_valid_face_edge_connectivity:
+            raise NoConnectivityVariableException(
+                "No valid face_edge_connectivity defined")
+        name = self.mesh_attributes['face_edge_connectivity']
+        return self.dataset.data_vars[name]
+
+    @cached_property
+    def face_edge_array(self) -> np.ndarray:
+        """
+        An integer numpy array with shape
+        (:attr:`face_dimension`, :attr:`max_node_dimension`),
+        representing the edge indices that border each face.
+        """
+        if self.has_valid_face_edge_connectivity:
+            return self._to_index_array(
+                self.face_edge_connectivity, self.face_dimension)
 
         # Access these outside of the timer below
         fill_value = self.sensible_fill_value
-        edge_node_connectivity = self.edge_node_connectivity
+        edge_node = self.edge_node_array
 
         # Build a face_edge_connectivity matrix
-        logger.info("Building face_edge_connectivity")
+        logger.info("Building face_edge_array")
         with utils.PerfTimer() as timer:
-            edge_face = np.full(
-                (self.face_count, self.max_node_count),
-                fill_value=fill_value, dtype=self.sensible_dtype)
+            shape = (self.face_count, self.max_node_count)
+            filled = np.full(shape, fill_value, dtype=self.sensible_dtype)
+            face_edge: np.ndarray = np.ma.masked_array(filled, mask=True)
+
             node_pair_to_edge_index = {
                 frozenset(edge): edge_index
-                for edge_index, edge in enumerate(edge_node_connectivity.values)
+                for edge_index, edge in enumerate(edge_node)
             }
 
             for face_index, node_pairs in self._face_and_node_pair_iter():
                 for column, node_pair in enumerate(node_pairs):
                     edge_index = node_pair_to_edge_index[frozenset(node_pair)]
-                    edge_face[face_index, column] = edge_index
-        logger.debug("Built face_edge_connectivity in %f seconds", timer.elapsed)
+                    face_edge[face_index, column] = edge_index
+        logger.debug("Built face_edge_array in %f seconds", timer.elapsed)
 
-        return xr.DataArray(
-            data=edge_face,
-            dims=[self.face_dimension, self.max_node_dimension],
-            attrs={
-                '_FillValue': fill_value,
-                'cf_role': 'face_edge_connectivity',
-            }
-        )
+        return face_edge
 
     @cached_property
     def has_valid_face_face_connectivity(self) -> bool:
@@ -540,42 +770,49 @@ class Mesh2DTopology:
 
     @cached_property
     def face_face_connectivity(self) -> xr.DataArray:
+        """
+        The face_face_connectivity variable from the dataset, if present.
+        """
+        if not self.has_valid_face_face_connectivity:
+            raise NoConnectivityVariableException(
+                "No valid face_face_connectivity defined")
+        name = self.mesh_attributes['face_face_connectivity']
+        return self.dataset.data_vars[name]
+
+    @cached_property
+    def face_face_array(self) -> np.ndarray:
+        """
+        An integer numpy array with shape
+        (:attr:`face_dimension`, :attr:`max_node_dimension`),
+        representing the indices of all faces that border a given face.
+        """
         if self.has_valid_face_face_connectivity:
-            return self.dataset.data_vars[self.mesh_attributes['face_face_connectivity']]
+            return self._to_index_array(
+                self.face_face_connectivity, self.face_dimension)
 
         # Access these outside of the timer below
         fill_value = self.sensible_fill_value
-        edge_face_connectivity = self.edge_face_connectivity
-        edge_face_fill_value = edge_face_connectivity.attrs.get('_FillValue')
+        edge_face = self.edge_face_array
 
         # Build a face_face_connectivity matrix
-        logger.info("Building face_face_connectivity")
+        logger.info("Building face_face_array")
         with utils.PerfTimer() as timer:
             face_count = np.zeros(self.face_count, dtype=self.sensible_dtype)
-            face_face = np.full(
-                (self.face_count, self.max_node_count),
-                fill_value=fill_value, dtype=self.sensible_dtype)
+            shape = (self.face_count, self.max_node_count)
+            filled = np.full(shape, fill_value, dtype=self.sensible_dtype)
+            face_face: np.ndarray = np.ma.masked_array(filled, mask=True)
 
-            for edge_index, face_indices in enumerate(edge_face_connectivity.values):
-                if np.any(face_indices == edge_face_fill_value):
+            for edge_index, face_indices in enumerate(edge_face):
+                if np.any(np.ma.getmask(face_indices)):
                     continue
                 left, right = face_indices
                 face_face[left, face_count[left]] = right
                 face_face[right, face_count[right]] = left
                 face_count[left] += 1
                 face_count[right] += 1
-        logger.debug("Built face_face_connectivity in %f seconds", timer.elapsed)
+        logger.debug("Built face_face_array in %f seconds", timer.elapsed)
 
-        return xr.DataArray(
-            data=face_face,
-            dims=[self.face_dimension, self.max_node_dimension],
-            attrs={
-                '_FillValue': fill_value,
-                'cf_role': 'face_face_connectivity',
-                'long_name': "Indicated which faces are neighbours",
-                'start_index': 0,
-            },
-        )
+        return face_face
 
     def _face_and_node_pair_iter(self) -> Iterable[Tuple[int, List[Tuple[int, int]]]]:
         """
@@ -583,15 +820,17 @@ class Mesh2DTopology:
         where ``edges`` is a list of ``(node_index, node_index)`` tuples
         defining the edges of the face.
         """
-        face_node = self.face_node_connectivity
-        face_node_fill_value = face_node.attrs.get('_FillValue')
-        for face_index, node_indices in enumerate(face_node.values):
-            node_indices = node_indices[node_indices != face_node_fill_value]
+        face_node = self.face_node_array
+        for face_index, node_indices in enumerate(face_node):
+            node_indices = node_indices.compressed()
             node_indices = np.append(node_indices, node_indices[0])
             yield face_index, list(utils.pairwise(node_indices))
 
     @cached_property
     def dimension_for_grid_kind(self) -> Dict[UGridKind, str]:
+        """
+        Get the dimension names for each of the grid types in this dataset.
+        """
         dimensions = {
             UGridKind.face: self.face_dimension,
             UGridKind.node: self.node_dimension,
@@ -626,21 +865,28 @@ class Mesh2DTopology:
 
     @property
     def has_edge_dimension(self) -> bool:
+        """
+        Check whether this dataset has an edge dimension.
+        If not, data are not stored on edges in this dataset.
+        """
         if 'edge_dimension' in self.mesh_attributes:
             return True
+
+        # We do not use `self.has_valid_edge_node_connectivity` here to prevent
+        # circular logic. This leaves open the possibility of a dataset having
+        # an invalid edge_node_connectivity variable without a proper edge
+        # dimension defined, but this attribute being True regardless.
         topo_keys = ['edge_node_connectivity', 'edge_face_connectivity']
         return any(
-            key in self.mesh_attributes and self.mesh_attributes[key] in self.dataset.variables
+            key in self.mesh_attributes
+            and self.mesh_attributes[key] in self.dataset.variables
             for key in topo_keys
         )
 
     @cached_property
-    def edge_dimension(self) -> Optional[str]:
+    def edge_dimension(self) -> str:
         """
         The name of the dimension for the number of edges.
-
-        Returns None if there is no such dimension. This implies that data are
-        not stored on edges in this dataset.
         """
         if not self.has_edge_dimension:
             raise NoEdgeDimensionException
@@ -648,10 +894,11 @@ class Mesh2DTopology:
         with suppress(KeyError):
             return self.mesh_attributes['edge_dimension']
 
-        # If there is no edge dimension defined, it is implicitly defined as
-        # the first dimension on either of these variables. Both of these
-        # variables is optional, leaving the possibility that there is no edge
-        # dimension defined.
+        # If there is no edge_dimension attribute,
+        # the edge dimension is implicitly defined as the first dimension
+        # on either of these variables.
+        # Both of these variables are optional,
+        # leaving the possibility that there is no edge dimension defined.
         topo_keys = ['edge_node_connectivity', 'edge_face_connectivity']
         names = (self.mesh_attributes[key] for key in topo_keys if key in self.mesh_attributes)
         variables = (self.dataset.variables[name] for name in names if name in self.dataset.variables)
@@ -698,12 +945,14 @@ class Mesh2DTopology:
         with suppress(KeyError):
             return self.dataset.dims[self.edge_dimension]
 
-        edge_node = self.edge_node_connectivity
-        return edge_node.shape[edge_node.dims.index(self.edge_dimension)]
+        # By computing the edge_node array we can determine how many edges exist
+        return self.edge_node_array.shape[0]
 
     @property
     def face_count(self) -> int:
-        """The number of faces in the dataset."""
+        """
+        The number of faces in the dataset.
+        """
         return self.dataset.dims[self.face_dimension]
 
     @property
@@ -726,32 +975,9 @@ UGridIndex = Tuple[UGridKind, int]
 @register_format
 class UGrid(Format[UGridKind, UGridIndex]):
     """A :class:`.Format` subclass to handle unstructured grid datasets.
-
-    UGRID datasets must be opened with ``mask_and_scale=False``,
-    as xarray does not handle masked integer variables well.
-    :meth:`UGrid.open_dataset` or :func:`emsarray.open_dataset` can be useful here.
     """
 
     default_grid_kind = UGridKind.face
-
-    @classmethod
-    def open_dataset(cls, path: Pathish, **kwargs: Any) -> xr.Dataset:
-        """
-        Open the dataset at ``path``, setting ``mask_and_scale=False``.
-
-        Example
-        -------
-
-        .. code-block:: python
-
-            from emsarray.formats.ugrid import UGrid
-            dataset = UGrid.open_dataset("./tests/datasets/ugrid_mesh2d.nc")
-
-        See also
-        --------
-        :func:`emsarray.open_dataset`
-        """
-        return cast(xr.Dataset, xr.open_dataset(path, mask_and_scale=False, **kwargs))
 
     @classmethod
     def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
@@ -761,7 +987,7 @@ class UGrid(Format[UGridKind, UGridIndex]):
         and topology_dimension = 2
         """
         conventions = str(dataset.attrs.get('Conventions', ''))
-        if not conventions.startswith('UGRID'):
+        if 'UGRID' not in conventions:
             return None
 
         topology = Mesh2DTopology(dataset)
@@ -774,37 +1000,6 @@ class UGrid(Format[UGridKind, UGridIndex]):
             return None
 
         return Specificity.HIGH
-
-    @classmethod
-    def check_validity(cls, dataset: xr.Dataset) -> None:
-        """Checks that the dataset is OK to use.
-        Called during __init__, and raises exceptions if the dataset has problems.
-        """
-        # xarray does not handle masked integer variables well. It converts
-        # them to doubles and masks them with nan. This plays havok with some
-        # formats, such as UGRID with its integer topology variables.
-        #
-        # By opening a dataset with `mask_and_scale=False`, this is avoided,
-        # but we have to take care of all masking ourselves, which is a drag.
-        #
-        # There is not a reliable way of detecting if a dataset has been opened
-        # with `mask_and_scale=True` or `False`. The best heuristic is whether
-        # these attributes are set in `attrs` or `encoding`. The masking and
-        # scaling methods move these attributes to `encoding` as part of the
-        # decoding process.
-        #
-        # See also: :func:`utils.mask_and_scale`.
-        mask_and_scale_keys = ['_FillValue', 'missing_value', 'scale_factor', 'add_offset']
-        masked_and_scaled = any(
-            key in variable.encoding
-            for key in mask_and_scale_keys
-            for variable in dataset.variables.values()
-        )
-        if masked_and_scaled:
-            raise Exception('\n'.join([
-                "UGRID datasets must be opened with `mask_and_scale=False`",
-                "    dataset = xarray.open_dataset(path, mask_and_scale=False)",
-            ]))
 
     @cached_property
     def topology(self) -> Mesh2DTopology:
@@ -863,14 +1058,13 @@ class UGrid(Format[UGridKind, UGridIndex]):
         topology = self.topology
         node_x = topology.node_x.values
         node_y = topology.node_y.values
-        faces = topology.face_node_connectivity
-        fill_value = faces.attrs.get('_FillValue')
+        face_node = topology.face_node_array
 
-        def create_poly(face: np.ndarray) -> Polygon:
-            vertices = face[face != fill_value]
-            return Polygon(zip(node_x[vertices], node_y[vertices]))
+        def create_poly(row: np.ma.MaskedArray) -> Polygon:
+            vertices = row.compressed()
+            return Polygon(np.c_[node_x[vertices], node_y[vertices]])
 
-        return np.array([create_poly(face) for face in faces.values], dtype=object)
+        return np.array([create_poly(row) for row in face_node], dtype=object)
 
     @cached_property
     def face_centres(self) -> np.ndarray:
@@ -886,8 +1080,7 @@ class UGrid(Format[UGridKind, UGridIndex]):
             return {self.topology.face_dimension: i}
         if kind is UGridKind.edge:
             if self.topology.has_edge_dimension:
-                edge_dimension = str(self.topology.edge_dimension)
-                return {edge_dimension: i}
+                return {self.topology.edge_dimension: i}
             else:
                 raise ValueError("Grid has no edge dimension")
         if kind is UGridKind.node:
@@ -964,60 +1157,49 @@ class UGrid(Format[UGridKind, UGridIndex]):
         # any changes.
         topology_variables: List[xr.DataArray] = [topology.mesh_variable]
 
-        # This might be overly large for our new, smaller dataset, but that
-        # does not matter.
-        fill_value = topology.sensible_fill_value
+        def integer_indices(data_array: xr.DataArray) -> np.ndarray:
+            masked = np.ma.masked_invalid(data_array.values)
+            masked_integers: np.ndarray = masked.astype(np.int_)
+            return masked_integers
 
         # This is the fill value used in the mask.
-        new_fill_value = clip_mask.data_vars['new_node_index'].attrs['_FillValue']
-        new_node_indices = clip_mask.data_vars['new_node_index'].values
-        new_face_indices = clip_mask.data_vars['new_face_index'].values
+        new_fill_value = clip_mask.data_vars['new_node_index'].encoding['_FillValue']
+        new_node_indices = integer_indices(clip_mask.data_vars['new_node_index'])
+        new_face_indices = integer_indices(clip_mask.data_vars['new_face_index'])
         has_edges = 'new_edge_index' in clip_mask.data_vars
         if has_edges:
-            new_edge_indices = clip_mask.data_vars['new_edge_index'].values
-
-        def update_connectivity(
-            connectivity: xr.DataArray,
-            row_indices: np.ndarray,
-            column_values: np.ndarray,
-        ) -> xr.DataArray:
-            logger.debug("Reindexing %r", connectivity.name)
-            old_fill_value = connectivity.attrs.get('_FillValue', None)
-            values = np.array([
-                [column_values[item] if item != old_fill_value else fill_value for item in row]
-                for row_index, row in enumerate(connectivity.values)
-                if row_indices[row_index] != new_fill_value
-            ], dtype=connectivity.dtype)
-            return xr.DataArray(
-                data=values, dims=connectivity.dims,
-                name=connectivity.name, attrs={'_FillValue': fill_value}
-            )
+            new_edge_indices = integer_indices(clip_mask.data_vars['new_edge_index'])
 
         # Re-index the face_node_connectivity variable
         topology_variables.append(update_connectivity(
-            topology.face_node_connectivity,
-            new_face_indices, new_node_indices))
+            topology.face_node_connectivity, topology.face_node_array,
+            new_face_indices, new_node_indices,
+            primary_dimension=topology.face_dimension, fill_value=new_fill_value))
 
         # Re-index each of the optional connectivity variables
         if has_edges and topology.has_valid_face_edge_connectivity:
             topology_variables.append(update_connectivity(
-                topology.face_edge_connectivity,
-                new_face_indices, new_edge_indices))
+                topology.face_edge_connectivity, topology.face_edge_array,
+                new_face_indices, new_edge_indices,
+                primary_dimension=topology.edge_dimension, fill_value=new_fill_value))
 
         if topology.has_valid_face_face_connectivity:
             topology_variables.append(update_connectivity(
-                topology.face_face_connectivity,
-                new_face_indices, new_face_indices))
+                topology.face_face_connectivity, topology.face_face_array,
+                new_face_indices, new_face_indices,
+                primary_dimension=topology.face_dimension, fill_value=new_fill_value))
 
         if has_edges and topology.has_valid_edge_face_connectivity:
             topology_variables.append(update_connectivity(
-                topology.edge_face_connectivity,
-                new_edge_indices, new_face_indices))
+                topology.edge_face_connectivity, topology.edge_face_array,
+                new_edge_indices, new_face_indices,
+                primary_dimension=topology.face_dimension, fill_value=new_fill_value))
 
         if has_edges and topology.has_valid_edge_node_connectivity:
             topology_variables.append(update_connectivity(
-                topology.edge_node_connectivity,
-                new_edge_indices, new_node_indices))
+                topology.edge_node_connectivity, topology.edge_node_array,
+                new_edge_indices, new_node_indices,
+                primary_dimension=topology.edge_dimension, fill_value=new_fill_value))
 
         # Save all the topology variables to one combined dataset
         topology_path = work_path / (str(topology.mesh_variable.name) + ".nc")
@@ -1034,11 +1216,11 @@ class UGrid(Format[UGridKind, UGridIndex]):
 
         logger.debug("Slicing data variables...")
         dimension_masks: Dict[Hashable, np.ndarray] = {
-            topology.node_dimension: new_node_indices != new_fill_value,
-            topology.face_dimension: new_face_indices != new_fill_value,
+            topology.node_dimension: ~np.ma.getmask(new_node_indices),
+            topology.face_dimension: ~np.ma.getmask(new_face_indices),
         }
         if has_edges:
-            dimension_masks[topology.edge_dimension] = new_edge_indices != new_fill_value
+            dimension_masks[topology.edge_dimension] = ~np.ma.getmask(new_edge_indices)
         mesh_dimensions = set(dimension_masks.keys())
 
         for name, data_array in dataset.data_vars.items():
@@ -1077,5 +1259,5 @@ class UGrid(Format[UGridKind, UGridIndex]):
                 del values
 
         logger.debug("Merging individual variables...")
-        new_dataset = xr.open_mfdataset(mfdataset_paths, mask_and_scale=False, lock=False)
+        new_dataset = xr.open_mfdataset(mfdataset_paths, lock=False)
         return utils.dataset_like(dataset, new_dataset)

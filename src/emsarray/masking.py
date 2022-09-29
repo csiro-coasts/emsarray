@@ -37,8 +37,7 @@ def mask_grid_dataset(
         this directory.
     kwargs
         Any extra kwargs are passed to `open_mfdataset` when assembling the
-        new, clipped dataset. This can be used to pass `mask_and_scale=False`,
-        for example.
+        new, clipped dataset.
 
     Returns
     -------

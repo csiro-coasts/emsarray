@@ -29,9 +29,6 @@ import pytz
 import xarray as xr
 from packaging.version import Version
 from xarray.coding import times
-from xarray.coding.variables import (
-    CFMaskCoder, CFScaleOffsetCoder, UnsignedIntegerCoder
-)
 from xarray.core.common import contains_cftime_datetimes
 
 from emsarray.types import Pathish
@@ -338,31 +335,6 @@ def _update_no_clobber(source: Mapping[Hashable, Any], dest: MutableMapping[Hash
     for key, value in source.items():
         if key not in dest:
             dest[key] = value
-
-
-def maybe_mask_and_scale(variable: xr.Variable, name: Optional[str] = None) -> xr.Variable:
-    """Mask and scale a variable, if it appears to not have been masked and
-    scaled already. Does nothing if the data is already masked or scaled.
-    """
-    mask_and_scale_keys = ['_FillValue', 'missing_value', 'scale_factor', 'add_offset']
-    if (
-        # Check if `values` is already masked
-        np.ma.isarray(variable.values)
-        # Look for telltale attributes
-        or not any(key in variable.attrs for key in mask_and_scale_keys)
-    ):
-        return variable
-    return mask_and_scale(variable)
-
-
-def mask_and_scale(variable: xr.Variable, name: Optional[str] = None) -> xr.Variable:
-    """Mask and scale a variable by running the relevant xarray Coders.
-    Does the same thing as if `mask_and_scale=True` had been passed when
-    opening the dataset.
-    """
-    for coder in [UnsignedIntegerCoder(), CFMaskCoder(), CFScaleOffsetCoder()]:
-        variable = coder.decode(variable, name=name)
-    return variable
 
 
 def extract_vars(

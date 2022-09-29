@@ -30,6 +30,9 @@ Topology
 .. autoclass:: NoEdgeDimensionException
     :members:
 
+.. autoclass:: NoConnectivityVariableException
+    :members:
+
 Masking
 =======
 

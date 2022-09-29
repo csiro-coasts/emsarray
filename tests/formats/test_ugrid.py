@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pathlib
 from typing import Tuple
 
 import geojson
@@ -10,7 +11,7 @@ import pytest
 import xarray as xr
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, box
 
 from emsarray.formats import get_file_format
 from emsarray.formats.ugrid import (
@@ -34,7 +35,9 @@ def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndar
     square_edges = 2 * square_rows * square_columns + square_rows + square_columns
     total_edges = triangle_edges + square_edges - width
 
-    face_node = np.full((total_faces, 4), fill_value=fill_value, dtype=np.int32)
+    face_node = np.ma.masked_array(
+        np.full((total_faces, 4), fill_value, dtype=np.int32),
+        mask=True, fill_value=fill_value)
     edge_node = np.zeros((total_edges, 2), dtype=np.int32)
 
     for row in range(1, width + 1):
@@ -150,7 +153,6 @@ def make_dataset(
         dims=[face_dimension, max_node_dimension],
         name="Mesh2_face_nodes",
         attrs={
-            "_FillValue": fill_value,
             "cf_role": "face_node_connectivity",
             "long_name": "Maps every face to its corner nodes.",
             "start_index": 0,
@@ -263,7 +265,7 @@ def make_dataset(
     if make_face_coordinates:
         face_x = xr.DataArray(
             data=[
-                np.average(coordinate_values[face_nodes[face_nodes != fill_value], 0])
+                np.average(coordinate_values[face_nodes.compressed(), 0])
                 for face_nodes in face_node_values
             ],
             dims=[face_dimension],
@@ -276,7 +278,7 @@ def make_dataset(
 
         face_y = xr.DataArray(
             data=[
-                np.average(coordinate_values[face_nodes[face_nodes != fill_value], 1])
+                np.average(coordinate_values[face_nodes.compressed(), 1])
                 for face_nodes in face_node_values
             ],
             dims=[face_dimension],
@@ -316,28 +318,13 @@ def test_make_dataset():
 
     # Check the mesh generation worked
     face_node = dataset.variables["Mesh2_face_nodes"]
-    fill_value = face_node.attrs["_FillValue"]
-    assert_equal(face_node.values[0], [0, 1, 2, fill_value])
-    assert_equal(face_node.values[1], [1, 3, 4, fill_value])
-    assert_equal(face_node.values[2], [2, 1, 4, fill_value])
-    assert_equal(face_node.values[3], [2, 4, 5, fill_value])
-    assert_equal(face_node.values[9], [6, 10, 11, 7])
-    assert_equal(face_node.values[10], [7, 11, 12, 8])
-    assert_equal(face_node.values[12], [10, 14, 15, 11])
-
-
-def test_requires_mask_and_scale(datasets):
-    path = datasets / "ugrid_mesh2d.nc"
-
-    # Opening it without mask_and_scale should raise an error
-    dataset = xr.open_dataset(path)
-    with pytest.raises(Exception, match="mask_and_scale=False"):
-        dataset.ems
-    del dataset
-
-    # Opening the same path with mask_and_scale=False should work fine
-    dataset = xr.open_dataset(path, mask_and_scale=False)
-    assert isinstance(dataset.ems, UGrid)
+    assert_equal(face_node.values[0], [0., 1., 2., np.nan])
+    assert_equal(face_node.values[1], [1., 3., 4., np.nan])
+    assert_equal(face_node.values[2], [2., 1., 4., np.nan])
+    assert_equal(face_node.values[3], [2., 4., 5., np.nan])
+    assert_equal(face_node.values[9], [6., 10., 11., 7.])
+    assert_equal(face_node.values[10], [7., 11., 12., 8.])
+    assert_equal(face_node.values[12], [10., 14., 15., 11.])
 
 
 def test_varnames():
@@ -550,11 +537,11 @@ def test_mask_from_face_indices_without_edges():
         'old_face_index': topology.face_count,
     }
 
-    expected_face = np.full(topology.face_count, fill_value=topology.sensible_fill_value)
+    expected_face = np.full(topology.face_count, fill_value=np.nan)
     expected_face[face_indices] = np.arange(len(face_indices))
     assert_equal(expected_face, mask.data_vars['new_face_index'].values)
 
-    expected_node = np.full(topology.node_count, fill_value=topology.sensible_fill_value)
+    expected_node = np.full(topology.node_count, fill_value=np.nan)
     expected_node[node_indices] = np.arange(len(node_indices))
     assert_equal(expected_node, mask.data_vars['new_node_index'].values)
 
@@ -574,15 +561,15 @@ def test_mask_from_face_indices_with_edges():
         'old_face_index': topology.face_count,
     }
 
-    expected_face = np.full(topology.face_count, fill_value=topology.sensible_fill_value)
+    expected_face = np.full(topology.face_count, fill_value=np.nan)
     expected_face[face_indices] = np.arange(len(face_indices))
     assert_equal(expected_face, mask.data_vars['new_face_index'].values)
 
-    expected_edge = np.full(topology.edge_count, fill_value=topology.sensible_fill_value)
+    expected_edge = np.full(topology.edge_count, fill_value=np.nan)
     expected_edge[edge_indices] = np.arange(len(edge_indices))
     assert_equal(expected_edge, mask.data_vars['new_edge_index'].values)
 
-    expected_node = np.full(topology.node_count, fill_value=topology.sensible_fill_value)
+    expected_node = np.full(topology.node_count, fill_value=np.nan)
     expected_node[node_indices] = np.arange(len(node_indices))
     assert_equal(expected_node, mask.data_vars['new_node_index'].values)
 
@@ -649,7 +636,9 @@ def test_make_and_apply_clip_mask(tmp_path):
     # selected some faces. Open the geojson files that are generated in qgis
     # and inspect the index attributes. This list is built from that.
     face_indices = [6, 7, 8, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 27, 28, 29, 32, 33, 34]
-    new_face_indices = np.full(topology.face_count, fill_value=topology.sensible_fill_value, dtype=np.int32)
+    fill_value = topology.sensible_fill_value
+    new_face_indices = np.ma.masked_array(
+        np.full(topology.face_count, fill_value, dtype=np.float64), mask=True)
     new_face_indices[face_indices] = np.arange(len(face_indices))
     assert_equal(clip_mask.data_vars['new_face_index'].values, new_face_indices)
 
@@ -676,17 +665,16 @@ def test_derive_connectivity():
     assert not topology.has_valid_face_edge_connectivity
     assert not topology.has_valid_face_face_connectivity
 
-    fv = topology.sensible_fill_value
+    fv = np.ma.masked
 
     with pytest.raises(NoEdgeDimensionException):
-        edge_node = topology.edge_node_connectivity
+        edge_node = topology.edge_node_array
         # WHoops ok lets fix that...
     dataset.variables['Mesh2'].attrs['edge_dimension'] = 'nMesh2_edge'
 
     # The actual order of these edges, and the order of the nodes in the pair,
     # is irrelevant to us. They just need to all exist
-    edge_node = topology.edge_node_connectivity
-    assert edge_node.attrs['cf_role'] == 'edge_node_connectivity'
+    edge_node = topology.edge_node_array
     expected_edge_node = [
         # Triangle edges
         (0, 1), (1, 2), (2, 0),
@@ -696,67 +684,96 @@ def test_derive_connectivity():
         (6, 9), (9, 10), (7, 10), (10, 11), (8, 11),
     ]
     expected_edge_node = sorted(tuple(sorted(pair)) for pair in expected_edge_node)
-    actual_edge_node = sorted(tuple(sorted(pair)) for pair in edge_node.values.tolist())
+    actual_edge_node = sorted(tuple(sorted(pair)) for pair in edge_node.tolist())
     assert expected_edge_node == actual_edge_node
 
     # Again the actual order here is irrelevant, as long as the edge maps to
     # the correct pair of faces. An edge index names a node pair, so using
     # a node pair as an index gives a stable method of addressing edges.
-    edge_face = topology.edge_face_connectivity
-    assert edge_face.attrs['cf_role'] == 'edge_face_connectivity'
+    edge_face = topology.edge_face_array
     expected_edge_face = {
-        (0, 1): {0, fv}, (0, 2): {0, fv}, (1, 2): {0, 2},
-        (1, 3): {1, fv}, (3, 4): {1, 4}, (1, 4): {1, 2},
-        (2, 4): {2, 3}, (4, 5): {3, 5}, (2, 5): {3, fv},
-        (3, 6): {4, fv}, (6, 7): {4, 6}, (4, 7): {4, 5}, (7, 8): {5, 7}, (5, 8): {5, fv},
-        (6, 9): {6, fv}, (9, 10): {6, fv}, (7, 10): {6, 7}, (10, 11): {7, fv}, (8, 11): {7, fv},
+        (0, 1): (0, fv), (0, 2): (0, fv), (1, 2): (0, 2),
+        (1, 3): (1, fv), (3, 4): (1, 4), (1, 4): (1, 2),
+        (2, 4): (2, 3), (4, 5): (3, 5), (2, 5): (3, fv),
+        (3, 6): (4, fv), (6, 7): (4, 6), (4, 7): (4, 5), (7, 8): (5, 7), (5, 8): (5, fv),
+        (6, 9): (6, fv), (9, 10): (6, fv), (7, 10): (6, 7), (10, 11): (7, fv), (8, 11): (7, fv),
     }
     actual_edge_face = {
-        tuple(sorted(edge_node.values[edge_index])): set(face_indices)
-        for edge_index, face_indices in enumerate(edge_face.values)
+        tuple(sorted(edge_node[edge_index])): tuple(sorted(face_indices))
+        for edge_index, face_indices in enumerate(edge_face)
     }
     assert expected_edge_face == actual_edge_face
 
     # face_edge is a little tedious. It helps if we build up a mapping of
     # node_pair: edge_index
-    face_edge = topology.face_edge_connectivity
+    face_edge = topology.face_edge_array
     edge_indices = {
         tuple(sorted(node_indices)): edge_index
-        for edge_index, node_indices in enumerate(edge_node.values.tolist())
+        for edge_index, node_indices in enumerate(edge_node.tolist())
     }
     expected_face_edge = [
-        sorted(edge_indices[pair] if pair is not None else fv for pair in row)
+        sorted(edge_indices[pair] for pair in row)
         for row in [
-            [(0, 1), (1, 2), (0, 2), None],
-            [(1, 3), (3, 4), (1, 4), None],
-            [(1, 2), (1, 4), (2, 4), None],
-            [(2, 4), (2, 5), (4, 5), None],
+            [(0, 1), (1, 2), (0, 2)],
+            [(1, 3), (3, 4), (1, 4)],
+            [(1, 2), (1, 4), (2, 4)],
+            [(2, 4), (2, 5), (4, 5)],
             [(3, 4), (3, 6), (4, 7), (6, 7)],
             [(4, 5), (4, 7), (5, 8), (7, 8)],
             [(6, 7), (6, 9), (7, 10), (9, 10)],
             [(7, 8), (7, 10), (8, 11), (10, 11)],
         ]
     ]
-    actual_face_edge = [sorted(row) for row in face_edge.values.tolist()]
+    actual_face_edge = [sorted(row.compressed()) for row in face_edge]
     assert expected_face_edge == actual_face_edge
 
     # This one is fairly straight forward at least. This lists which faces
     # border a particular face
-    face_face = topology.face_face_connectivity
+    face_face = topology.face_face_array
     expected_face_face = [
-        [2, fv, fv, fv],
-        [2, 4, fv, fv],
-        [0, 1, 3, fv],
-        [2, 5, fv, fv],
-        [1, 5, 6, fv],
-        [3, 4, 7, fv],
-        [4, 7, fv, fv],
-        [5, 6, fv, fv],
+        [2],
+        [2, 4],
+        [0, 1, 3],
+        [2, 5],
+        [1, 5, 6],
+        [3, 4, 7],
+        [4, 7],
+        [5, 6],
     ]
     actual_face_face = [
-        list(sorted(face_indices))
-        for face_indices in face_face.values.tolist()
+        sorted(face_indices.compressed())
+        for face_indices in face_face
     ]
     assert expected_face_face == actual_face_face
 
     assert topology.edge_count == 19
+
+
+def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
+    """
+    Open and check a UGrid dataset that uses one-based indexing,
+    as indicated by the 'start_index' attribute.
+    """
+    dataset = UGrid.open_dataset(datasets / 'ugrid_mesh2d_one_indexed.nc')
+    helper: UGrid = dataset.ems
+    topology = helper.topology
+
+    assert topology.has_valid_face_node_connectivity
+    assert topology.face_node_connectivity.attrs['start_index'] == 1
+    assert_equal(topology.face_node_connectivity.values[0], [1, 10, 9])
+    assert np.min(topology.face_node_connectivity.values) == 1
+    assert np.max(topology.face_node_connectivity.values) == topology.node_count
+
+    assert_equal(topology.face_node_array[0], [0, 9, 8])
+    assert_equal(topology.face_node_array, topology.face_node_connectivity.values - 1)
+
+    assert len(helper.polygons) == topology.face_count
+
+    clipped = helper.clip(box(0.1, 0.1, 4, 4), work_dir=tmp_path)
+    clipped.to_netcdf(tmp_path / 'clipped.nc')
+
+    assert isinstance(clipped.ems, UGrid)
+    assert clipped.ems.topology.face_count == 6
+    assert clipped.ems.topology.face_node_connectivity.attrs['start_index'] == 1
+
+    assert len(clipped.ems.polygons) == 6
