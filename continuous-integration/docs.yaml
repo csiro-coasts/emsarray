@@ -1,12 +1,10 @@
-name: emsarray-docs
 channels:
   - conda-forge
+
 dependencies:
-  - python=3.9
-  - pip
-  - cartopy =0.20.2
-  - shapely =1.8.0
-  - pandoc
+  - geos ~=3.10.2
+  - python =3.10
+  - wheel
   - pip:
-    - -r ../requirements.txt
+    - -r ./requirements.txt
     - -e ..
