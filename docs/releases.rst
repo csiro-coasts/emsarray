@@ -14,7 +14,7 @@ Release notes
 * Fix error when UGRID `start_index` is the string `"0"` or `"1"`.
   The conventions imply this should be an integer type,
   however real datasets use a string value here so a tolerant implementation is useful
-  (:pr:`26`).
+  (:pr:`26`, :pr:`csiro-coasts/emsarray-data#1`).
 
 0.2.0
 =====
