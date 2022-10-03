@@ -11,7 +11,7 @@ from __future__ import annotations
 import enum
 import logging
 from functools import cached_property
-from typing import Dict, Optional, Tuple, cast
+from typing import Dict, Hashable, Optional, Tuple, cast
 
 import numpy as np
 import xarray as xr
@@ -36,13 +36,13 @@ class ArakawaCGridTopology:
     ----------
     dataset : xarray.Dataset
         The Arakawa C gridded :class:`~xarray.Dataset` to introspect.
-    latitude : str
+    latitude : Hashable
         The name of the latitude coordinate variable.
-    longitude : str
+    longitude : Hashable
         The name of the longitude coordinate variable.
     """
     def __init__(
-        self, dataset: xr.Dataset, *, latitude: str, longitude: str
+        self, dataset: xr.Dataset, *, latitude: Hashable, longitude: Hashable
     ) -> None:
         self.dataset = dataset
         self.latitude_name = latitude
@@ -59,14 +59,14 @@ class ArakawaCGridTopology:
         return self.dataset[self.longitude_name]
 
     @cached_property
-    def j_dimension(self) -> str:
+    def j_dimension(self) -> Hashable:
         """The name of the ``j`` dimension for this grid kind."""
-        return str(self.latitude.dims[0])
+        return self.latitude.dims[0]
 
     @cached_property
-    def i_dimension(self) -> str:
+    def i_dimension(self) -> Hashable:
         """The name of the ``i`` dimension for this grid kind."""
-        return str(self.latitude.dims[1])
+        return self.latitude.dims[1]
 
     @cached_property
     def shape(self) -> Tuple[int, int]:
@@ -126,8 +126,8 @@ class ArakawaCGridKind(str, enum.Enum):
 #:
 #: :meta hide-value:
 ArakawaCIndex = Tuple[ArakawaCGridKind, int, int]
-ArakawaCCoordinates = Dict[ArakawaCGridKind, Tuple[str, str]]
-ArakawaCDimensions = Dict[ArakawaCGridKind, Tuple[str, str]]
+ArakawaCCoordinates = Dict[ArakawaCGridKind, Tuple[Hashable, Hashable]]
+ArakawaCDimensions = Dict[ArakawaCGridKind, Tuple[Hashable, Hashable]]
 
 
 class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
@@ -168,7 +168,7 @@ class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
         self,
         dataset: xr.Dataset,
         *,
-        coordinate_names: Optional[Dict[str, Tuple[str, str]]] = None,
+        coordinate_names: Optional[Dict[Hashable, Tuple[Hashable, Hashable]]] = None,
     ):
         super().__init__(dataset)
 
@@ -194,7 +194,7 @@ class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
     @cached_property
     def _dimensions_for_grid_kind(self) -> ArakawaCDimensions:
         return {
-            kind: cast(Tuple[str, str], self.dataset[coordinates[0]].dims)
+            kind: cast(Tuple[Hashable, Hashable], self.dataset[coordinates[0]].dims)
             for kind, coordinates in self.coordinate_names.items()
         }
 
@@ -322,7 +322,7 @@ class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
         ))
         return cast(np.ndarray, centres)
 
-    def selector_for_index(self, index: ArakawaCIndex) -> Dict[str, int]:
+    def selector_for_index(self, index: ArakawaCIndex) -> Dict[Hashable, int]:
         kind, j, i = index
         topology = self._topology_for_grid_kind[kind]
         return {topology.j_dimension: j, topology.i_dimension: i}

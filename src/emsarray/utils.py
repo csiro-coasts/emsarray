@@ -373,7 +373,7 @@ def extract_vars(
     variables = set(variables)
 
     if errors == 'raise':
-        missing_variables = variables - set(cast(Iterable[str], dataset.variables.keys()))
+        missing_variables = variables - set(dataset.variables.keys())
         if missing_variables:
             raise ValueError(
                 f"Variables {sorted(missing_variables, key=str)!r} "
@@ -478,7 +478,10 @@ def check_data_array_dimensions_match(dataset: xr.Dataset, data_array: xr.DataAr
             )
 
 
-def move_dimensions_to_end(data_array: xr.DataArray, dimensions: List[str]) -> xr.DataArray:
+def move_dimensions_to_end(
+    data_array: xr.DataArray,
+    dimensions: List[Hashable],
+) -> xr.DataArray:
     """
     Transpose the dimensions of a :class:`xarray.DataArray`
     such that the given dimensions appear as the last dimensions,
@@ -491,7 +494,7 @@ def move_dimensions_to_end(data_array: xr.DataArray, dimensions: List[str]) -> x
     ----------
     `data_array` : :class:`xarray.DataArray`
         The data array to transpose
-    `dimensions` : list of str
+    `dimensions` : list of Hashable
         The dimensions to move to the end
 
     Examples
@@ -505,12 +508,12 @@ def move_dimensions_to_end(data_array: xr.DataArray, dimensions: List[str]) -> x
         >>> transposed.dims
         ('a', 'd', 'c', 'b')
     """
-    current_dims = set(map(str, data_array.dims))
+    current_dims = set(data_array.dims)
     if not current_dims.issuperset(dimensions):
-        missing = set(dimensions) - set(current_dims)
-        raise ValueError(f"DataArray does not contain dimensions {sorted(missing)!r}")
+        missing = sorted(set(dimensions) - set(current_dims), key=str)
+        raise ValueError(f"DataArray does not contain dimensions {missing!r}")
 
-    new_order = [str(dim) for dim in data_array.dims if dim not in dimensions] + dimensions
+    new_order = [dim for dim in data_array.dims if dim not in dimensions] + dimensions
     if new_order == list(data_array.dims):
         # Don't bother transposing if the dimensions are already correct.
         return data_array.copy(deep=False)
@@ -520,8 +523,8 @@ def move_dimensions_to_end(data_array: xr.DataArray, dimensions: List[str]) -> x
 
 def linearise_dimensions(
     data_array: xr.DataArray,
-    dimensions: List[str],
-    linear_dimension: Optional[str] = None,
+    dimensions: List[Hashable],
+    linear_dimension: Optional[Hashable] = None,
 ) -> xr.DataArray:
     """
     Flatten the given dimensions of a :class:`~xarray.DataArray`.
@@ -534,10 +537,10 @@ def linearise_dimensions(
 
     `data_array` : :class:`xarray.DataArray`
         The data array to linearize
-    `dimensions` : list of str
+    `dimensions` : list of Hashable
         The dimensions to linearize, in the desired order.
         These dimensions can be in any order and any position in the input data array.
-    `linear_dimension` : str, optional
+    `linear_dimension` : Hashable, optional
         The name of the new dimension of flattened data.
         Defaults to `index`, or `index_0`, `index_1`, etc if not given.
 

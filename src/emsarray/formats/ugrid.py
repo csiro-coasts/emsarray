@@ -137,7 +137,7 @@ def update_connectivity(
     old_array: np.ndarray,
     row_indices: np.ndarray,
     column_values: np.ndarray,
-    primary_dimension: str,
+    primary_dimension: Hashable,
     fill_value: int,
 ) -> xr.DataArray:
     """
@@ -169,7 +169,7 @@ def update_connectivity(
         A one dimensional numpy masked array
         mapping values from ``old_array`` to their new values.
         Values to be excluded in the new array should be ``np.ma.masked``
-    primary_dimension : str
+    primary_dimension : Hashable
         The name of the primary dimension for this connectivity variable.
         This will be either :attr:`Mesh2DTopology.edge_dimension`
         or :attr:`Mesh2DTopology.face_dimension`.
@@ -305,9 +305,9 @@ class Mesh2DTopology:
     dataset: xr.Dataset
 
     #: The name of the mesh topology variable. Optional. If not provided, the
-    #: mesh topology dummy variable will be found by checking the `cf_role`
+    #: mesh topology dummy variable will be found by checking the ``cf_role``
     #: attribute.
-    topology_key: Optional[str] = None
+    topology_key: Optional[Hashable] = None
 
     #: The default dtype to use for index data arrays. Hard coded to ``int32``,
     #: which should be sufficient for all datasets. ``int16`` is too small for
@@ -375,16 +375,16 @@ class Mesh2DTopology:
         return int('9' * (len(str(max_count)) + 1))
 
     @cached_property
-    def _node_coordinates(self) -> Tuple[str, str]:
-        return _split_coord(cast(str, self.mesh_attributes['node_coordinates']))
+    def _node_coordinates(self) -> Tuple[Hashable, Hashable]:
+        return _split_coord(self.mesh_attributes['node_coordinates'])
 
     @cached_property
-    def _edge_coordinates(self) -> Tuple[str, str]:
-        return _split_coord(cast(str, self.mesh_attributes['edge_coordinates']))
+    def _edge_coordinates(self) -> Tuple[Hashable, Hashable]:
+        return _split_coord(self.mesh_attributes['edge_coordinates'])
 
     @cached_property
-    def _face_coordinates(self) -> Tuple[str, str]:
-        return _split_coord(cast(str, self.mesh_attributes['face_coordinates']))
+    def _face_coordinates(self) -> Tuple[Hashable, Hashable]:
+        return _split_coord(self.mesh_attributes['face_coordinates'])
 
     @property
     def node_x(self) -> xr.DataArray:
@@ -431,7 +431,7 @@ class Mesh2DTopology:
     def _to_index_array(
         self,
         data_array: xr.DataArray,
-        primary_dimension: str,
+        primary_dimension: Hashable,
     ) -> np.ndarray:
         """
         Convert a data array of node, edge, or face indices
@@ -827,7 +827,7 @@ class Mesh2DTopology:
             yield face_index, list(utils.pairwise(node_indices))
 
     @cached_property
-    def dimension_for_grid_kind(self) -> Dict[UGridKind, str]:
+    def dimension_for_grid_kind(self) -> Dict[UGridKind, Hashable]:
         """
         Get the dimension names for each of the grid types in this dataset.
         """
@@ -836,11 +836,11 @@ class Mesh2DTopology:
             UGridKind.node: self.node_dimension,
         }
         if self.has_edge_dimension:
-            dimensions[UGridKind.edge] = cast(str, self.edge_dimension)
+            dimensions[UGridKind.edge] = self.edge_dimension
         return dimensions
 
     @cached_property
-    def two_dimension(self) -> str:
+    def two_dimension(self) -> Hashable:
         """
         Get the name of the dimension with size two, for things like edge
         connectivity. The standard name for this dimension is 'Two'.
@@ -852,16 +852,16 @@ class Mesh2DTopology:
         # Check for any other dimension of size 2
         for name, size in self.dataset.dims.items():
             if size == 2:
-                return str(name)
+                return name
         # Make up a new dimension with the standard name
         return two
 
     @property
-    def node_dimension(self) -> str:
+    def node_dimension(self) -> Hashable:
         """The name of the dimension for the number of nodes."""
         # This is implicitly given by some of the required variables, such as
         # the variable for node x-coordinates.
-        return str(self.node_x.dims[0])
+        return self.node_x.dims[0]
 
     @property
     def has_edge_dimension(self) -> bool:
@@ -884,7 +884,7 @@ class Mesh2DTopology:
         )
 
     @cached_property
-    def edge_dimension(self) -> str:
+    def edge_dimension(self) -> Hashable:
         """
         The name of the dimension for the number of edges.
         """
@@ -904,30 +904,30 @@ class Mesh2DTopology:
         variables = (self.dataset.variables[name] for name in names if name in self.dataset.variables)
 
         try:
-            return next(str(variable.dims[0]) for variable in variables)
+            return next(variable.dims[0] for variable in variables)
         except StopIteration:
             # This should have already happened above, but just in case.
             raise NoEdgeDimensionException
 
     @cached_property
-    def face_dimension(self) -> str:
+    def face_dimension(self) -> Hashable:
         """The name of the dimension for the number of faces."""
         try:
             # By definition this is either the dimension named in this attribute ...
             return self.mesh_attributes['face_dimension']
         except KeyError:
             # ... Or the first dimension in this required variable
-            return str(self.face_node_connectivity.dims[0])
+            return self.face_node_connectivity.dims[0]
 
     @property
-    def max_node_dimension(self) -> str:
+    def max_node_dimension(self) -> Hashable:
         """The name of the dimension for the maximum nodes / edges per face."""
         # This dimension is not named as part of the UGRID spec, but it is
         # always the other dimension in the `face_node_connectivity` variable.
         dims = set(self.face_node_connectivity.dims)
         assert len(dims) == 2
         dims.remove(self.face_dimension)
-        return str(dims.pop())
+        return dims.pop()
 
     @property
     def node_count(self) -> int:
@@ -1061,7 +1061,7 @@ class UGrid(Format[UGridKind, UGridIndex]):
             return cast(np.ndarray, face_centres)
         return super().face_centres
 
-    def selector_for_index(self, index: UGridIndex) -> Dict[str, int]:
+    def selector_for_index(self, index: UGridIndex) -> Dict[Hashable, int]:
         kind, i = index
         if kind is UGridKind.face:
             return {self.topology.face_dimension: i}

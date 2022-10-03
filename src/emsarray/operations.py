@@ -121,12 +121,12 @@ def ocean_floor(
     non_spatial_dimensions = utils.dimensions_from_coords(dataset, non_spatial_variables)
 
     for depth_dimension in sorted(depth_dimensions, key=hash):
-        dimension_sets: Dict[FrozenSet[str], List[str]] = defaultdict(list)
+        dimension_sets: Dict[FrozenSet[Hashable], List[Hashable]] = defaultdict(list)
         for name, variable in dataset.data_vars.items():
             if depth_dimension not in variable.dims:
                 continue  # Skip data variables without this depth dimension
 
-            spatial_dimensions = frozenset(map(str, variable.dims)).difference(
+            spatial_dimensions = frozenset(variable.dims).difference(
                 {depth_dimension}, non_spatial_dimensions)
             if not spatial_dimensions:
                 continue  # Skip data variables with no other spatial dimenions

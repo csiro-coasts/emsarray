@@ -64,19 +64,19 @@ class ShocSimple(CFGrid2D):
     The latitude and longitude coordinate variables are named ``j`` and ``i``.
     Edge and node dimensions are dropped.
     """
-    _dimensions: Tuple[str, str] = ('j', 'i')
+    _dimensions: Tuple[Hashable, Hashable] = ('j', 'i')
 
     @cached_property
     def topology(self) -> CFGrid2DTopology:
         y_dimension, x_dimension = self._dimensions
         try:
             latitude = next(
-                str(name) for name, variable in self.dataset.variables.items()
+                name for name, variable in self.dataset.variables.items()
                 if variable.dims == self._dimensions
                 and variable.attrs["standard_name"] == "latitude"
             )
             longitude = next(
-                str(name) for name, variable in self.dataset.variables.items()
+                name for name, variable in self.dataset.variables.items()
                 if variable.dims == self._dimensions
                 and variable.attrs["standard_name"] == "longitude"
             )
