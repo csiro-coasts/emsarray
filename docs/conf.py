@@ -14,8 +14,10 @@ import importlib
 import pathlib
 import sys
 
-project_dir = pathlib.Path(__file__).parent.parent
+here = pathlib.Path(__file__).parent
+project_dir = here.parent
 sys.path.insert(0, str(project_dir / 'src'))
+sys.path.insert(0, str(here))
 
 
 # -- Project information -----------------------------------------------------
@@ -37,6 +39,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.napoleon',
+    'roles'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
