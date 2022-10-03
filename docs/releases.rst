@@ -11,6 +11,10 @@ Release notes
   NetCDF4 files always use string names,
   so this change should not affect you if you only use NetCDF4 datasets
   (:pr:`25`).
+* Fix error when UGRID `start_index` is the string `"0"` or `"1"`.
+  The conventions imply this should be an integer type,
+  however real datasets use a string value here so a tolerant implementation is useful
+  (:pr:`26`).
 
 0.2.0
 =====
