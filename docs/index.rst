@@ -43,5 +43,6 @@ Contents
     cli.rst
     developing/formats.rst
     testing.rst
+    releases.rst
 
 .. _xarray: https://xarray.pydata.org/
