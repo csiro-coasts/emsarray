@@ -2,6 +2,16 @@
 Release notes
 =============
 
+0.3.0
+=====
+
+* Use variable and dimension names as-is, instead of casting to strings.
+  :mod:`xarray` internally treats all variable and dimension names as Hashable,
+  without assuming they are strings.
+  NetCDF4 files always use string names,
+  so this change should not affect you if you only use NetCDF4 datasets
+  (:pr:`25`).
+
 0.2.0
 =====
 
