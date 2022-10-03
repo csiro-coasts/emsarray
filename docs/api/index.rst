@@ -19,3 +19,4 @@ API reference
     utils.rst
     tutorial.rst
     plot.rst
+    exceptions.rst

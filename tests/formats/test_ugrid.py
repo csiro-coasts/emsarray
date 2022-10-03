@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import warnings
 from typing import Tuple
 
 import geojson
@@ -13,10 +14,13 @@ from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import Polygon, box
 
+from emsarray.exceptions import (
+    ConventionViolationError, ConventionViolationWarning
+)
 from emsarray.formats import get_file_format
 from emsarray.formats.ugrid import (
-    Mesh2DTopology, NoEdgeDimensionException, UGrid, UGridKind, buffer_faces,
-    mask_from_face_indices
+    Mesh2DTopology, NoEdgeDimensionException, UGrid, UGridKind,
+    _get_start_index, buffer_faces, mask_from_face_indices
 )
 
 
@@ -788,3 +792,35 @@ def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
     assert clipped.ems.topology.face_node_connectivity.attrs['start_index'] == 1
 
     assert len(clipped.ems.polygons) == 6
+
+
+def test_get_start_index():
+    def da(attrs: dict) -> xr.DataArray:
+        return xr.DataArray(
+            data=[1, 2, 3],
+            dims=['index'],
+            name='connectivity_array',
+            attrs=attrs,
+        )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+
+        # No start_index defaults to 0
+        assert 0 == _get_start_index(da({}))
+
+        # Integer 0 or 1 are valid values
+        assert 0 == _get_start_index(da({'start_index': 0}))
+        assert 1 == _get_start_index(da({'start_index': 1}))
+
+    with pytest.warns(ConventionViolationWarning):
+        0 == _get_start_index(da({'start_index': '0'}))
+
+    with pytest.warns(ConventionViolationWarning):
+        1 == _get_start_index(da({'start_index': '1'}))
+
+    with pytest.raises(ConventionViolationError):
+        _get_start_index(da({'start_index': -1}))
+
+    with pytest.raises(ConventionViolationError):
+        _get_start_index(da({'start_index': 2}))
