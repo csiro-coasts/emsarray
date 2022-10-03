@@ -25,6 +25,9 @@ from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import utils
+from emsarray.exceptions import (
+    ConventionViolationError, ConventionViolationWarning
+)
 from emsarray.types import Pathish
 
 from ._base import Format
@@ -132,6 +135,40 @@ def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -
     })
 
 
+def _get_start_index(connectivity: xr.DataArray) -> int:
+    """
+    Get the ``start_index`` attribute from a connectivity data array,
+    while checking for common error cases.
+    """
+    # Default to 0 if there is no start_index attribute
+    if 'start_index' not in connectivity.attrs:
+        return 0
+
+    start_index = connectivity.attrs.get('start_index')
+
+    # These are the valid values
+    if start_index in {0, 1}:
+        return cast(int, start_index)
+
+    # Some datasets use the strings '0' or '1'.
+    # This does not adhere to the spec but is easy to interpret
+    if start_index in {'0', '1'}:
+        warnings.warn(
+            f"Connectivity data array {connectivity.name!r} "
+            f"had string-typed start index {start_index!r}. "
+            f"This attribute should be the integer {int(start_index)}, "
+            f"not a string.",
+            ConventionViolationWarning,
+        )
+        return int(start_index)
+
+    # Anything else is incorrect
+    raise ConventionViolationError(
+        f"Connectivity data array {connectivity.name!r} "
+        f"had invalid start index {start_index!r}"
+    )
+
+
 def update_connectivity(
     connectivity: xr.DataArray,
     old_array: np.ndarray,
@@ -186,7 +223,7 @@ def update_connectivity(
     logger.debug("Reindexing %r", connectivity.name)
 
     # Offset the column_values for one-based indexing.
-    start_index = connectivity.attrs.get('start_index', 0)
+    start_index = _get_start_index(connectivity)
     if start_index != 0:
         column_values = column_values + start_index
 
@@ -441,8 +478,9 @@ class Mesh2DTopology:
         """
         # Ensure the dimensions are in the correct order first
         if primary_dimension not in data_array.dims:
-            raise ValueError(
-                f"Data array did not contain primary dimension {primary_dimension!r}")
+            raise ConventionViolationError(
+                f"Data array {data_array.name!r} did not contain "
+                f"primary dimension {primary_dimension!r}")
         if data_array.dims[0] != primary_dimension:
             data_array = data_array.transpose()
 
@@ -466,7 +504,7 @@ class Mesh2DTopology:
 
         # UGRID conventions allow for zero based or one based indexing.
         # To be consistent we convert all indices to zero based.
-        start_index = data_array.attrs.get('start_index', 0)
+        start_index = _get_start_index(data_array)
         if start_index != 0:
             values = values - start_index
 
@@ -493,7 +531,8 @@ class Mesh2DTopology:
         if actual != expected:
             warnings.warn(
                 f"Got a edge_node_connectivity variable {data_array.name!r} with "
-                f"unexpected dimensions {actual}, expecting {expected}"
+                f"unexpected dimensions {actual}, expecting {expected}",
+                ConventionViolationWarning,
             )
             return False
 
@@ -581,7 +620,8 @@ class Mesh2DTopology:
         if actual != expected:
             warnings.warn(
                 f"Got a face_face_connectivity variable {data_array.name!r} with "
-                f"unexpected dimensions {actual}, expecting {expected}"
+                f"unexpected dimensions {actual}, expecting {expected}",
+                ConventionViolationWarning,
             )
             return False
 
@@ -648,7 +688,8 @@ class Mesh2DTopology:
         if actual != expected:
             warnings.warn(
                 f"Got a face_face_connectivity variable {data_array.name!r} with "
-                f"unexpected dimensions {actual}, expecting {expected}"
+                f"unexpected dimensions {actual}, expecting {expected}",
+                ConventionViolationWarning,
             )
             return False
 
@@ -692,7 +733,8 @@ class Mesh2DTopology:
         if actual != expected:
             warnings.warn(
                 f"Got a face_edge_connectivity variable {data_array.name!r} with "
-                f"unexpected dimensions {actual}, expecting {expected}"
+                f"unexpected dimensions {actual}, expecting {expected}",
+                ConventionViolationWarning,
             )
             return False
 
@@ -762,7 +804,8 @@ class Mesh2DTopology:
         if actual != expected:
             warnings.warn(
                 f"Got a face_face_connectivity variable {data_array.name!r} with "
-                f"unexpected dimensions {actual}, expecting {expected}"
+                f"unexpected dimensions {actual}, expecting {expected}",
+                ConventionViolationWarning,
             )
             return False
 

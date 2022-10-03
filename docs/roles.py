@@ -1,8 +1,19 @@
+import re
 from typing import Any, Callable, Tuple
 
 from docutils import nodes, utils
 from docutils.parsers.rst import roles
 from docutils.parsers.rst.states import Inliner
+
+_GITHUB_NAME = r'[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*'
+GITHUB_FULL_REF = re.compile(
+    r'^'
+    r'(?P<repo>' + _GITHUB_NAME + '/' + _GITHUB_NAME + ')'
+    r'#(?P<num>[1-9][\d]*)'
+    r'$'
+)
+
+GITHUB_DEFAULT_REPO = 'csiro-coasts/emsarray'
 
 
 def _github_link(
@@ -18,23 +29,32 @@ def _github_link(
         options: dict = {},
         content: list = [],
     ) -> Tuple[list, list]:
-        try:
-            num = int(utils.unescape(text))
-            if num <= 0:
-                raise ValueError
-        except ValueError:
-            msg = inliner.reporter.error(
-                f'PR number must be a positive integer, not {text!r}',
-                line=lineno)
-            prb = inliner.problematic(rawtext, rawtext, msg)
-            return [prb], [msg]
+        match = GITHUB_FULL_REF.match(utils.unescape(text))
+        if match is not None:
+            repo = match.group('repo')
+            num = int(match.group('num'))
+        else:
+            try:
+                repo = GITHUB_DEFAULT_REPO
+                num = int(utils.unescape(text))
+                if num <= 0:
+                    raise ValueError
+            except ValueError:
+                msg = inliner.reporter.error(
+                    'Github issue reference must be a positive integer, '
+                    'or a full user/repo#num reference',
+                    line=lineno)
+                prb = inliner.problematic(rawtext, rawtext, msg)
+                return [prb], [msg]
 
-        # Base URL mainly used by inliner.pep_reference; so this is correct:
-        repo = 'https://github.com/csiro-coasts/emsarray'
-        refuri = f'{repo}/{url_part}/{num}'
+        refuri = f'https://github.com/{repo}/{url_part}/{num}'
+        if repo == GITHUB_DEFAULT_REPO:
+            display = f'{prefix} #{num}'
+        else:
+            display = f'{prefix} {repo}#{num}'
 
         roles.set_classes(options)
-        ref = nodes.reference(rawtext, f'{prefix} #{text}', refuri=refuri, **options)
+        ref = nodes.reference(rawtext, display, refuri=refuri, **options)
 
         return [ref], []
     return role_fn
