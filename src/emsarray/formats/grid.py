@@ -11,7 +11,9 @@ import logging
 import warnings
 from contextlib import suppress
 from functools import cached_property
-from typing import Dict, Generic, Optional, Tuple, Type, TypeVar, cast
+from typing import (
+    Dict, Generic, Hashable, Optional, Tuple, Type, TypeVar, cast
+)
 
 import numpy as np
 import xarray as xr
@@ -45,8 +47,8 @@ class CFGridTopology(abc.ABC):
     def __init__(
         self,
         dataset: xr.Dataset,
-        longitude: Optional[str] = None,
-        latitude: Optional[str] = None,
+        longitude: Optional[Hashable] = None,
+        latitude: Optional[Hashable] = None,
     ):
         """
         Construct a new :class:`CFGridTopology` instance for a dataset.
@@ -64,7 +66,7 @@ class CFGridTopology(abc.ABC):
             self.latitude_name = latitude
 
     @cached_property
-    def latitude_name(self) -> str:
+    def latitude_name(self) -> Hashable:
         """
         The name of the latitude coordinate variable.
         Found by looking for a variable with either a
@@ -74,7 +76,7 @@ class CFGridTopology(abc.ABC):
         """
         try:
             return next(
-                str(name)
+                name
                 for name, variable in self.dataset.variables.items()
                 if variable.attrs.get('standard_name') == 'latitude'
                 or variable.attrs.get('coordinate_type') == 'latitude'
@@ -84,7 +86,7 @@ class CFGridTopology(abc.ABC):
             raise ValueError("Could not find latitude coordinate")
 
     @cached_property
-    def longitude_name(self) -> str:
+    def longitude_name(self) -> Hashable:
         """
         The name of the longitude coordinate variable.
         Found by looking for a variable with either a
@@ -94,7 +96,7 @@ class CFGridTopology(abc.ABC):
         """
         try:
             return next(
-                str(name) for name, variable in self.dataset.variables.items()
+                name for name, variable in self.dataset.variables.items()
                 if variable.attrs.get('standard_name') == 'longitude'
                 or variable.attrs.get('coordinate_type') == 'longitude'
                 or variable.attrs.get('units') == 'degree_east'
@@ -114,7 +116,7 @@ class CFGridTopology(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def y_dimension(self) -> str:
+    def y_dimension(self) -> Hashable:
         """
         The name of the 'y' dimension.
         For 1D coordinates, this is the the latitude dimension.
@@ -124,7 +126,7 @@ class CFGridTopology(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def x_dimension(self) -> str:
+    def x_dimension(self) -> Hashable:
         """
         The name of the 'x' dimension.
         For 1D coordinates, this is the the longitude dimension.
@@ -166,8 +168,8 @@ class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
         self,
         dataset: xr.Dataset,
         *,
-        latitude: Optional[str] = None,
-        longitude: Optional[str] = None,
+        latitude: Optional[Hashable] = None,
+        longitude: Optional[Hashable] = None,
         topology: Optional[Topology] = None,
     ) -> None:
         """
@@ -178,11 +180,11 @@ class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
         dataset : :class:`xarray.Dataset`
             A :class:`~xarray.Dataset` that follows the CF conventions.
             The grid coordinates must be one-dimensional.
-        latitude : str, optional
+        latitude : Hashable, optional
             The name of the latitude coordinate variable on this dataset. Optional.
             By default the coordinate variables are found by introspecting the dataset.
             You can use this parameter to override this behaviour.
-        longitude : str, optional
+        longitude : Hashable, optional
             The name of the longitude coordinate variable on this dataset. Optional.
             By default the coordinate variables are found by introspecting the dataset.
             You can use this parameter to override this behaviour.
@@ -223,9 +225,10 @@ class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
         if dims.issuperset(expected):
             return (CFGridKind.face, self.topology.size)
 
-        raise ValueError(f"Data array did not have dimensions {sorted(expected)!r}")
+        expected_sorted = sorted(expected, key=str)
+        raise ValueError(f"Data array did not have dimensions {expected_sorted!r}")
 
-    def selector_for_index(self, index: CFGridIndex) -> Dict[str, int]:
+    def selector_for_index(self, index: CFGridIndex) -> Dict[Hashable, int]:
         y, x = index
         return {self.topology.y_dimension: y, self.topology.x_dimension: x}
 
@@ -278,14 +281,14 @@ class CFGrid1DTopology(CFGridTopology):
     """
 
     @cached_property
-    def y_dimension(self) -> str:
+    def y_dimension(self) -> Hashable:
         """The name of the latitude dimension, taken from the latitude coordinate"""
-        return str(self.latitude.dims[0])
+        return self.latitude.dims[0]
 
     @cached_property
-    def x_dimension(self) -> str:
+    def x_dimension(self) -> Hashable:
         """The name of the latitude dimension, taken from the latitude coordinate"""
-        return str(self.longitude.dims[0])
+        return self.longitude.dims[0]
 
     def _calculate_bounds(self, values: np.ndarray) -> np.ndarray:
         first_gap = values[1] - values[0]
@@ -381,20 +384,20 @@ class CFGrid2DTopology(CFGridTopology):
     such as ``lat(y, x)`` and ``lon(y, x)``
     """
     @property
-    def y_dimension(self) -> str:
+    def y_dimension(self) -> Hashable:
         """
         The name of the first dimension of the coordinate variables.
         This is nominally called the ``y`` dimension.
         """
-        return str(self.latitude.dims[0])
+        return self.latitude.dims[0]
 
     @property
-    def x_dimension(self) -> str:
+    def x_dimension(self) -> Hashable:
         """
         The name of the second dimension of the coordinate variables.
         This is nominally called the ``x`` dimension.
         """
-        return str(self.latitude.dims[1])
+        return self.latitude.dims[1]
 
 
 class CFGrid2D(CFGrid[CFGrid2DTopology]):

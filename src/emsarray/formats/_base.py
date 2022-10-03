@@ -240,7 +240,7 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         """Get the name of the time variable in this dataset."""
         for name, variable in self.dataset.variables.items():
             if variable.attrs.get('standard_name') == 'time':
-                return str(name)
+                return name
         raise KeyError("Dataset does not have a time dimension")
 
     def get_depth_name(self) -> Hashable:
@@ -716,7 +716,7 @@ class Format(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        data_array : str or :class:`xarray.DataArray`, optional
+        data_array : Hashable or :class:`xarray.DataArray`, optional
             A data array, or the name of a data variable in this dataset. Optional.
             If given, the data array is :meth:`linearised <.make_linear>`
             and passed to :meth:`PatchCollection.set_array() <matplotlib.cm.ScalarMappable.set_array>`.
@@ -961,7 +961,7 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         return None
 
     @abc.abstractmethod
-    def selector_for_index(self, index: Index) -> Dict[str, int]:
+    def selector_for_index(self, index: Index) -> Dict[Hashable, int]:
         """
         Convert a format native index into a selector
         that can be passed to :meth:`Dataset.isel <xarray.Dataset.isel>`.
