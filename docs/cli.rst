@@ -41,7 +41,7 @@ Or clip a dataset to some geographic bounds:
 See ``emsarray clip --help`` for a full list of options.
 
 ``emsarray extract-points``
------------------
+---------------------------
 
 Extract the data at some points given in a CSV file:
 

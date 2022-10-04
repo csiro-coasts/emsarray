@@ -9,8 +9,8 @@ import emsarray
 
 from ._operation import Operation
 from .clip import Clip
-from .extract_points import ExtractPoints
 from .exceptions import CommandException
+from .extract_points import ExtractPoints
 from .utils import console_entrypoint
 
 __all__ = ['main', 'CommandException', 'Operation']

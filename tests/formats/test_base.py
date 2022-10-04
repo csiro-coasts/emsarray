@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import enum
 from functools import cached_property
-from typing import Dict, List, Optional, Tuple, Hashable
+from typing import Dict, Hashable, List, Optional, Tuple
 
 import numpy as np
 import pytest

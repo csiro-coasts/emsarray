@@ -4,6 +4,8 @@ import pandas as pd
 import xarray as xr
 from shapely.geometry import Point
 
+from emsarray.formats import Format
+
 
 def _dataframe_to_dataset(
     dataframe: pd.DataFrame,
@@ -29,10 +31,11 @@ def extract_points(
     *,
     point_dimension: Hashable = 'point',
 ) -> xr.Dataset:
-    helper = dataset.ems
+    helper: Format = dataset.ems
 
     # Find the indexer for each given point
     indexes = list(map(helper.get_index_for_point, points))
+
     # TODO It would be nicer if out-of-bounds points were represented in the
     # output by masked values, rather than raising an error.
     out_of_bounds = [i for i, index in enumerate(indexes) if index is None]
@@ -43,11 +46,12 @@ def extract_points(
     # Make a DataFrame out of all point indexers
     selector_df = pd.DataFrame([
         helper.selector_for_index(index.index)
-        for index in indexes])
+        for index in indexes
+        if index is not None])
 
     # Subset the dataset to the points
     selector_ds = _dataframe_to_dataset(selector_df, dimension_name=point_dimension)
-    return dataset.ems.drop_geometry().isel(selector_ds)
+    return helper.drop_geometry().isel(selector_ds)
 
 
 def extract_dataframe(
