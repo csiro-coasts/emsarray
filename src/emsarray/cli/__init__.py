@@ -9,6 +9,7 @@ import emsarray
 
 from ._operation import Operation
 from .clip import Clip
+from .extract_points import ExtractPoints
 from .exceptions import CommandException
 from .utils import console_entrypoint
 
@@ -22,6 +23,7 @@ def command_line_flags(parser: argparse.ArgumentParser) -> None:
 
     subparsers = parser.add_subparsers(title="Operations")
     Clip().add_parser(subparsers)
+    ExtractPoints().add_parser(subparsers)
 
 
 @console_entrypoint(command_line_flags)

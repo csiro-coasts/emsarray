@@ -22,6 +22,7 @@ Release notes
   (:pr:`28`).
 * Add :meth:`.Format.drop_geometry()` method.
 * Add :mod:`emsarray.operations.point_extraction` module
+  and `emsarray extract-points` command line entry point
   which can extract point data from a dataset.
 
 0.2.0

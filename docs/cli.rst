@@ -39,3 +39,14 @@ Or clip a dataset to some geographic bounds:
     $ emsarray clip "./input-file.nc" "147.08,-43.67,147.30,-43.45" "./output-file.nc"
 
 See ``emsarray clip --help`` for a full list of options.
+
+``emsarray extract-points``
+-----------------
+
+Extract the data at some points given in a CSV file:
+
+.. code-block:: shell-session
+
+    $ emsarray extract-points gbr4.nc gbr4-points.csv gbr4-points.nc
+
+See ``emsarray extract-points --help`` for a full list of options.
