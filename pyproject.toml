@@ -40,6 +40,7 @@ module = [
 	"netCDF4.*",
 	"pooch.*",
 	"pytest.*",
+	"shapefile.*",
 	"shapely.*",
 	"traitlets.*",
 ]

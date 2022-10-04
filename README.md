@@ -37,6 +37,7 @@ export geometry, and select subsets of data:
 ```python
 from emsarray.operations import geometry
 geometry.write_geojson(dataset, './gbr4.geojson')
+geometry.write_shapefile(dataset, './gbr4.shp')
 ```
 
 ## Examples
