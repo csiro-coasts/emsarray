@@ -15,6 +15,7 @@ from shapely.geometry.polygon import Polygon, orient
 from emsarray.formats import get_file_format
 from emsarray.formats.arakawa_c import c_mask_from_centres
 from emsarray.formats.shoc import ArakawaCGridKind, ShocStandard
+from emsarray.operations import geometry
 from tests.utils import (
     DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator, mask_from_strings
 )
@@ -260,7 +261,7 @@ def test_face_centres():
 
 def test_make_geojson_geometry():
     dataset = make_dataset(j_size=10, i_size=10, corner_size=3)
-    out = json.dumps(dataset.ems.make_geojson_geometry())
+    out = json.dumps(geometry.to_geojson(dataset))
     assert isinstance(out, str)
 
 

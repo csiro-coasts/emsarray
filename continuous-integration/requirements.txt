@@ -176,7 +176,9 @@ pyparsing==3.0.9
 pyproj==3.4.0
     # via cartopy
 pyshp==2.3.1
-    # via cartopy
+    # via
+    #   cartopy
+    #   emsarray (setup.cfg)
 pytest==7.1.3
     # via
     #   emsarray (setup.cfg)

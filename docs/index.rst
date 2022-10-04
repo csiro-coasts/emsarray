@@ -14,14 +14,20 @@ and use the :ref:`dataset.ems <accessor>` attribute:
 
 .. code-block:: python
 
-    import emsarray
     import json
+
+    import emsarray
+    from emsarray.operations import geometry
+    from shapely.geometry import Point
 
     dataset = emsarray.tutorial.open_dataset('gbr4')
 
-    # Export dataset geometry as geojson
-    with open("geometry.geojson", "w") as f:
-        json.dump(dataset.ems.make_geojson_geometry(), f)
+    # Select a single Point of data
+    capricorn_group = Point(151.869, -23.386)
+    point_data = dataset.ems.select_point(capricorn_group)
+
+    # Export dataset geometry
+    geometry.write_geojson(dataset, "gbr4.geojson")
 
     # Plot the sea surface temperature for time = 0
     temp = dataset['temp'].isel(time=0, k=-1)

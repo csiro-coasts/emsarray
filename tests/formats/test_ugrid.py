@@ -22,6 +22,7 @@ from emsarray.formats.ugrid import (
     Mesh2DTopology, NoEdgeDimensionException, UGrid, UGridKind,
     _get_start_index, buffer_faces, mask_from_face_indices
 )
+from emsarray.operations import geometry
 
 
 def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -416,7 +417,7 @@ def test_selector_for_index(index, selector):
 
 def test_make_geojson_geometry():
     dataset = make_dataset(width=3)
-    feature_collection = dataset.ems.make_geojson_geometry()
+    feature_collection = geometry.to_geojson(dataset)
     assert len(feature_collection.features) == len(dataset.ems.polygons)
     out = json.dumps(feature_collection)
     assert isinstance(out, str)
@@ -629,8 +630,7 @@ def test_apply_clip_mask(tmp_path):
 def test_make_and_apply_clip_mask(tmp_path):
     dataset = make_dataset(width=5)
     dataset.ems.to_netcdf(tmp_path / "original.nc")
-    with open(tmp_path / 'original.geojson', 'w') as f:
-        json.dump(dataset.ems.make_geojson_geometry(), f)
+    geometry.write_geojson(dataset, tmp_path / 'original.geojson')
 
     polygon = Polygon([[3.4, 1], [3.4, -1], [6, -1], [6, 1], [3.4, 1]])
     with open(tmp_path / 'clip.geojson', 'w') as f:
@@ -662,8 +662,7 @@ def test_make_and_apply_clip_mask(tmp_path):
     work_dir.mkdir()
     clipped = dataset.ems.apply_clip_mask(clip_mask, work_dir)
     clipped.ems.to_netcdf(tmp_path / "clipped.nc")
-    with open(tmp_path / 'clipped.geojson', 'w') as f:
-        json.dump(clipped.ems.make_geojson_geometry(), f)
+    geometry.write_geojson(dataset, tmp_path / 'clipped.geojson')
 
 
 def test_derive_connectivity():

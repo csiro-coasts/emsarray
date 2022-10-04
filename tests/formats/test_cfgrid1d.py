@@ -12,6 +12,7 @@ from shapely.geometry import Polygon, box
 
 from emsarray.formats import get_file_format
 from emsarray.formats.grid import CFGrid1D, CFGridKind, CFGridTopology
+from emsarray.operations import geometry
 from tests.utils import mask_from_strings
 
 
@@ -180,7 +181,7 @@ def test_selector_for_index():
 
 def test_make_geojson_geometry():
     dataset = make_dataset(width=3, height=3)
-    out = json.dumps(dataset.ems.make_geojson_geometry())
+    out = json.dumps(geometry.to_geojson(dataset))
     assert isinstance(out, str)
 
 

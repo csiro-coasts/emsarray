@@ -17,6 +17,10 @@ and behave the same across all supported formats.
     These operations manipulate datasets with a depth axis,
     such as the output of ocean models.
 
+:mod:`emsarray.operations.geometry`
+    These operations export the geometry of a dataset
+    in a variety of different formats.
+
 :mod:`emsarray.operations.triangulate`
     These operations triangulate the polygonal mesh of a dataset.
     This is useful in combination with visualisation packages such as
