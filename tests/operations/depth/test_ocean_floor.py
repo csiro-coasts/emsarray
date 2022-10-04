@@ -5,7 +5,7 @@ import xarray as xr
 from numpy.testing import assert_equal
 
 import emsarray
-from emsarray.operations import ocean_floor
+from emsarray.operations.depth import ocean_floor
 
 
 def test_ocean_floor():

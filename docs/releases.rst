@@ -15,6 +15,8 @@ Release notes
   The conventions imply this should be an integer type,
   however real datasets use a string value here so a tolerant implementation is useful
   (:pr:`26`, :pr:`csiro-coasts/emsarray-data#1`).
+* Split :mod:`emsarray.operations` in to separate modules
+  (:pr:`27`).
 
 0.2.0
 =====

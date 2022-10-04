@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from numpy.testing import assert_equal
 
-from emsarray.operations import normalize_depth_variables
+from emsarray.operations.depth import normalize_depth_variables
 
 
 @pytest.mark.parametrize(

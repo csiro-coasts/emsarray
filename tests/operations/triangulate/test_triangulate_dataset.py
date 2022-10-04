@@ -8,7 +8,9 @@ import xarray as xr
 from shapely.geometry import Polygon
 
 import emsarray
-from emsarray.operations import _triangulate_polygon, triangulate_dataset
+from emsarray.operations.triangulate import (
+    _triangulate_polygon, triangulate_dataset
+)
 
 
 def test_triangulate_dataset_cfgrid1d(datasets):
