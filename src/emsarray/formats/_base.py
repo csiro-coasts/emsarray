@@ -15,8 +15,9 @@ import xarray as xr
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import operations, utils
+from emsarray import utils
 from emsarray.compat.shapely import SpatialIndex
+from emsarray.operations import depth
 from emsarray.plot import (
     _requires_plot, animate_on_figure, plot_on_figure,
     polygons_to_patch_collection
@@ -1201,15 +1202,15 @@ class Format(abc.ABC, Generic[GridKind, Index]):
     # Aliases for emsarray.operations
 
     def ocean_floor(self) -> xr.Dataset:
-        """An alias for :func:`.operations.ocean_floor`"""
-        return operations.ocean_floor(
+        """An alias for :func:`emsarray.operations.depth.ocean_floor`"""
+        return depth.ocean_floor(
             self.dataset, self.get_all_depth_names(),
             non_spatial_variables=[self.get_time_name()])
 
     def normalize_depth_variables(
         self, positive_down: bool = True, deep_to_shallow: bool = True,
     ) -> xr.Dataset:
-        """An alias for :func:`.operations.normalize_depth_variables`"""
-        return operations.normalize_depth_variables(
+        """An alias for :func:`emsarray.operations.depth.normalize_depth_variables`"""
+        return depth.normalize_depth_variables(
             self.dataset, self.get_all_depth_names(),
             positive_down=positive_down, deep_to_shallow=deep_to_shallow)
