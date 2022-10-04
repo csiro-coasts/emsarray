@@ -14,11 +14,11 @@ and use the `dataset.ems` attribute:
 
 ```python
 import emsarray
-import json
+from shapely.geometry import Point
 
 dataset = emsarray.tutorial.open_dataset('gbr4')
-with open("geometry.geojson", "w") as f:
-	json.dump(dataset.ems.make_geojson_geometry(), f)
+capricorn_group = Point(151.869, -23.386)
+point_data = dataset.ems.select_point(capricorn_group)
 ```
 
 Some methods take a DataArray as a parameter:
@@ -30,6 +30,14 @@ dataset.ems.plot(temp)
 ```
 
 ![Plot of sea surface temperature from the GBR4 example file](docs/_static/images/gbr4_temp.png)
+
+A number of operations provide further functionality to manipulate datasets,
+export geometry, and select subsets of data:
+
+```python
+from emsarray.operations import geometry
+geometry.write_geojson(dataset, './gbr4.geojson')
+```
 
 ## Examples
 

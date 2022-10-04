@@ -21,6 +21,7 @@ from shapely.geometry import Polygon
 from emsarray.formats import get_file_format
 from emsarray.formats.grid import CFGridKind
 from emsarray.formats.shoc import ShocSimple
+from emsarray.operations import geometry
 from tests.utils import DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator
 
 
@@ -217,7 +218,7 @@ def test_selector_for_index():
 
 def test_make_geojson_geometry():
     dataset = make_dataset(j_size=10, i_size=10, corner_size=3)
-    out = json.dumps(dataset.ems.make_geojson_geometry())
+    out = json.dumps(geometry.to_geojson(dataset))
     assert isinstance(out, str)
 
 

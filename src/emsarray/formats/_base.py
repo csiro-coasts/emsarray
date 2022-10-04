@@ -9,7 +9,6 @@ from typing import (
     Optional, Tuple, TypeVar, Union, cast
 )
 
-import geojson
 import numpy as np
 import xarray as xr
 from shapely.geometry import Point, Polygon
@@ -43,7 +42,7 @@ DataArrayOrName = Union[Hashable, xr.DataArray]
 #: This can be an :class:`enum.Enum` listing each different kind of grid.
 #:
 #: :data:`Index` values will be included in the feature properties
-#: of :meth:`Format.make_geojson_geometry`.
+#: of exported geometry from :mod:`emsarray.operations.geometry`.
 #: If the index type includes the grid kind,
 #: the grid kind needs to be JSON serializable.
 #: The easiest way to achieve this is to make your GridKind type subclass :class:`str`:
@@ -1054,27 +1053,6 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         if index is None:
             raise ValueError("Point did not intersect dataset")
         return self.select_index(index.index)
-
-    def make_geojson_geometry(self) -> geojson.FeatureCollection:
-        """Make a ``geojson.FeatureCollection`` out of the cells in this dataset,
-        one feature per cell.
-
-        Each feature will include the linear index and the native index
-        of the corresponding cell in its properties.
-
-        Returns
-        -------
-        ``geojson.FeatureCollection``
-            The geometry of this dataset
-        """
-        return geojson.FeatureCollection([
-            geojson.Feature(geometry=polygon, properties={
-                'linear_index': i,
-                'index': self.unravel_index(i),
-            })
-            for i, polygon in enumerate(self.polygons)
-            if polygon is not None
-        ])
 
     @abc.abstractmethod
     def make_clip_mask(
