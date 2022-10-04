@@ -17,7 +17,7 @@ __all__ = ['main', 'CommandException', 'Operation']
 
 
 def command_line_flags(parser: argparse.ArgumentParser) -> None:
-    parser.set_defaults(func=lambda: print(parser.format_help()))
+    parser.set_defaults(func=lambda x: print(parser.format_help()))
     parser.add_argument(
         '-V', '--version', action='version', version=f'%(prog)s {emsarray.__version__}')
 
