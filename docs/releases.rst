@@ -21,6 +21,8 @@ Release notes
   which can export dataset geometry to GeoJSON and Shapefiles
   (:pr:`28`).
 * Add :meth:`.Format.drop_geometry()` method.
+* Add :mod:`emsarray.operations.point_extraction` module
+  which can extract point data from a dataset.
 
 0.2.0
 =====
