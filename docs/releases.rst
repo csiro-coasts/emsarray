@@ -17,6 +17,9 @@ Release notes
   (:pr:`26`, :pr:`csiro-coasts/emsarray-data#1`).
 * Split :mod:`emsarray.operations` in to separate modules
   (:pr:`27`).
+* Add :mod:`emsarray.operations.geometry` module
+  which can export dataset geometry to GeoJSON and Shapefiles
+  (:pr:`28`).
 
 0.2.0
 =====
