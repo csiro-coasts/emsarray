@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import enum
 from functools import cached_property
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Hashable
 
 import numpy as np
 import pytest
@@ -40,13 +40,13 @@ class SimpleFormat(Format[SimpleGridKind, SimpleGridIndex]):
     def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
         return None
 
-    def get_time_name(self) -> str:
+    def get_time_name(self) -> Hashable:
         return 't'
 
-    def get_depth_name(self) -> str:
+    def get_depth_name(self) -> Hashable:
         return 'z'
 
-    def get_all_depth_names(self) -> List[str]:
+    def get_all_depth_names(self) -> List[Hashable]:
         return [self.get_depth_name()]
 
     @cached_property
@@ -71,11 +71,14 @@ class SimpleFormat(Format[SimpleGridKind, SimpleGridIndex]):
     def ravel_index(self, indices: SimpleGridIndex) -> int:
         return int(np.ravel_multi_index((indices.y, indices.x), self.shape))
 
-    def selector_for_index(self, index: SimpleGridIndex) -> Dict[str, int]:
+    def selector_for_index(self, index: SimpleGridIndex) -> Dict[Hashable, int]:
         return {'x': index.x, 'y': index.y}
 
     def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
         return utils.linearise_dimensions(data_array, ['y', 'x'])
+
+    def drop_geometry(self) -> xr.Dataset:
+        return self.dataset
 
     @cached_property
     def polygons(self) -> np.ndarray:

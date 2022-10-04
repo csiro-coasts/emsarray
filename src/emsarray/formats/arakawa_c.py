@@ -327,6 +327,19 @@ class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
         topology = self._topology_for_grid_kind[kind]
         return {topology.j_dimension: j, topology.i_dimension: i}
 
+    def drop_geometry(self) -> xr.Dataset:
+        variables = [
+            self.face.longitude.name,
+            self.face.latitude.name,
+            self.node.longitude.name,
+            self.node.latitude.name,
+            self.left.longitude.name,
+            self.left.latitude.name,
+            self.back.longitude.name,
+            self.back.latitude.name,
+        ]
+        return self.dataset.drop_vars(variables)
+
     def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
         kind, size = self.get_grid_kind_and_size(data_array)
         topology = self._topology_for_grid_kind[kind]
