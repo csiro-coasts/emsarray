@@ -56,6 +56,11 @@ class ShocStandard(ArakawaC):
     def get_time_name(self) -> Hashable:
         return 't'
 
+    def drop_geometry(self) -> xr.Dataset:
+        dataset = super().drop_geometry()
+        dataset.attrs.pop('Conventions', None)
+        return dataset
+
 
 class ShocSimple(CFGrid2D):
     """

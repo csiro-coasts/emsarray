@@ -480,6 +480,16 @@ def test_grid_kind_and_size():
     assert size == helper.topology.edge_count
 
 
+def test_drop_geometry(datasets: pathlib.Path):
+    dataset = xr.open_dataset(datasets / 'ugrid_mesh2d.nc')
+
+    dropped = dataset.ems.drop_geometry()
+    assert dropped.dims.keys() == {'face'}
+    for name in ['Mesh2D', 'node_x', 'node_y', 'mesh_face_node']:
+        assert name in dataset.variables
+        assert name not in dropped.variables
+
+
 def test_values():
     dataset = make_dataset(width=3)
     eta = dataset.data_vars["eta"].isel(record=0)

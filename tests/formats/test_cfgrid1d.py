@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pathlib
 
 import numpy as np
 import pandas as pd
@@ -208,6 +209,19 @@ def test_grid_kind_and_size():
     grid_kind, size = helper.get_grid_kind_and_size(dataset.data_vars['temp'])
     assert grid_kind is CFGridKind.face
     assert size == 3 * 5
+
+
+def test_drop_geometry(datasets: pathlib.Path):
+    dataset = xr.open_dataset(datasets / 'cfgrid1d.nc')
+
+    dropped = dataset.ems.drop_geometry()
+    assert dropped.dims.keys() == {'lon', 'lat'}
+
+    topology = dataset.ems.topology
+    assert topology.longitude_name in dataset.variables
+    assert topology.longitude_name in dataset.variables
+    assert topology.longitude_name not in dropped.variables
+    assert topology.longitude_name not in dropped.variables
 
 
 def test_values():
