@@ -2,6 +2,11 @@
 Release notes
 =============
 
+0.3.1
+=====
+
+* Fixed 'Release notes' URL in ``setup.cfg`` package metadata.
+
 0.3.0
 =====
 
