@@ -1291,3 +1291,34 @@ class UGrid(Format[UGridKind, UGridIndex]):
         logger.debug("Merging individual variables...")
         new_dataset = xr.open_mfdataset(mfdataset_paths, lock=False)
         return utils.dataset_like(dataset, new_dataset)
+
+    def drop_geometry(self) -> xr.Dataset:
+        dataset = self.dataset
+        topology = self.topology
+
+        geometry_variables = [
+            topology.mesh_variable.name,
+            topology.face_node_connectivity.name,
+            topology.node_x.name,
+            topology.node_y.name,
+        ]
+        if topology.has_valid_face_edge_connectivity:
+            geometry_variables.append(topology.face_edge_connectivity.name)
+        if topology.has_valid_face_face_connectivity:
+            geometry_variables.append(topology.face_face_connectivity.name)
+        if topology.has_valid_edge_node_connectivity:
+            geometry_variables.append(topology.edge_node_connectivity.name)
+        if topology.has_valid_edge_face_connectivity:
+            geometry_variables.append(topology.edge_face_connectivity.name)
+        if topology.edge_x is not None:
+            geometry_variables.append(topology.edge_x)
+        if topology.edge_y is not None:
+            geometry_variables.append(topology.edge_y)
+        if topology.face_x is not None:
+            geometry_variables.append(topology.face_x)
+        if topology.face_y is not None:
+            geometry_variables.append(topology.face_y)
+
+        dataset = dataset.drop_vars(geometry_variables)
+
+        return dataset

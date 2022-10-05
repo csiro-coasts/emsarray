@@ -1055,6 +1055,16 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         return self.select_index(index.index)
 
     @abc.abstractmethod
+    def drop_geometry(self) -> xr.Dataset:
+        """
+        Return a new :class:`xarray.Dataset`
+        with all geometry variables dropped.
+        Useful when significantly transforming the dataset,
+        such as :mod:`extracting point data <emsarray.operations.point_extraction>`.
+        """
+        pass
+
+    @abc.abstractmethod
     def make_clip_mask(
         self,
         clip_geometry: BaseGeometry,

@@ -21,6 +21,9 @@ and behave the same across all supported formats.
     These operations export the geometry of a dataset
     in a variety of different formats.
 
+:mod:`emsarray.operations.point_extraction`
+    Functions to extract data from a dataset at a collection of points.
+
 :mod:`emsarray.operations.triangulate`
     These operations triangulate the polygonal mesh of a dataset.
     This is useful in combination with visualisation packages such as

@@ -232,6 +232,13 @@ class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
         y, x = index
         return {self.topology.y_dimension: y, self.topology.x_dimension: x}
 
+    def drop_geometry(self) -> xr.Dataset:
+        variables = [
+            self.topology.longitude_name,
+            self.topology.latitude_name,
+        ]
+        return self.dataset.drop_vars(variables)
+
     def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
         surface_dims = [self.topology.y_dimension, self.topology.x_dimension]
         return utils.linearise_dimensions(data_array, surface_dims)

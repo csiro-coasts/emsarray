@@ -20,6 +20,12 @@ Release notes
 * Add :mod:`emsarray.operations.geometry` module
   which can export dataset geometry to GeoJSON and Shapefiles
   (:pr:`28`).
+* Add :meth:`.Format.drop_geometry()` method
+  (:pr:`29`).
+* Add :mod:`emsarray.operations.point_extraction` module
+  and `emsarray extract-points` command line entry point
+  which can extract point data from a dataset
+  (:pr:`29`).
 
 0.2.0
 =====
