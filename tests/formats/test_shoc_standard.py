@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import pathlib
 from typing import Type
 
 import numpy as np
@@ -416,6 +417,18 @@ def test_select_index_grid():
         'x_grid', 'y_grid'
     }
     assert node.dims == {'record': 4, 'k_centre': 5}
+
+
+def test_drop_geometry(datasets: pathlib.Path):
+    dataset = xr.open_dataset(datasets / 'shoc_standard.nc')
+
+    dropped = dataset.ems.drop_geometry()
+    assert dropped.dims.keys() == {'face_i', 'face_j'}
+    for topology in [dataset.ems.face, dataset.ems.back, dataset.ems.left, dataset.ems.node]:
+        assert topology.longitude_name in dataset.variables
+        assert topology.longitude_name in dataset.variables
+        assert topology.longitude_name not in dropped.variables
+        assert topology.longitude_name not in dropped.variables
 
 
 def test_values():

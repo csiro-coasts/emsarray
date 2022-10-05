@@ -1,10 +1,24 @@
+import dataclasses
 from typing import Hashable, List, Tuple
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 from shapely.geometry import Point
 
 from emsarray.formats import Format
+
+
+@dataclasses.dataclass
+class NonIntersectingPoints(ValueError):
+    """
+    Raised when a point to extract does not intersect the dataset geometry.
+    """
+    indices: np.ndarray
+    points: List[Point]
+
+    def __post_init__(self) -> None:
+        super().__init__(f"{self.points[0].wkt} does not intersect the dataset geometry")
 
 
 def _dataframe_to_dataset(
@@ -34,14 +48,15 @@ def extract_points(
     helper: Format = dataset.ems
 
     # Find the indexer for each given point
-    indexes = list(map(helper.get_index_for_point, points))
+    indexes = np.array([helper.get_index_for_point(point) for point in points])
 
     # TODO It would be nicer if out-of-bounds points were represented in the
     # output by masked values, rather than raising an error.
-    out_of_bounds = [i for i, index in enumerate(indexes) if index is None]
-    if out_of_bounds:
-        raise ValueError(
-            f"{points[out_of_bounds[0]].wkt} does not intersect the dataset geometry")
+    out_of_bounds = np.flatnonzero(np.equal(indexes, None))  # type: ignore
+    if len(out_of_bounds):
+        raise NonIntersectingPoints(
+            indices=out_of_bounds,
+            points=[points[i] for i in out_of_bounds])
 
     # Make a DataFrame out of all point indexers
     selector_df = pd.DataFrame([

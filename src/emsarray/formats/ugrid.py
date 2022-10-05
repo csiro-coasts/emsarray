@@ -1320,5 +1320,6 @@ class UGrid(Format[UGridKind, UGridIndex]):
             geometry_variables.append(topology.face_y)
 
         dataset = dataset.drop_vars(geometry_variables)
+        dataset.attrs.pop('Conventions', None)
 
         return dataset
