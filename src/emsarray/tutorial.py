@@ -26,7 +26,7 @@ BASE_URL = "https://github.com/csiro-coasts/emsarray-data/raw/{version}/{path}"
 
 # Bump this version as new datasets are added or as old datasets are updated.
 # Should be a tag name or commit hash, something immutable.
-VERSION = "22bca2cc55d5213e6efbc0656362d58485947fb1"
+VERSION = "v0.3.0"
 
 
 def _make_download_url(name: str) -> str:
