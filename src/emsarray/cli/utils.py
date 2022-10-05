@@ -24,11 +24,17 @@ command_exception_logger = error_logger.getChild('command')
 
 
 class MainCallable(Protocol):
-    def __call__(self, argv: Optional[List[str]] = None) -> None: ...
+    def __call__(
+        self,
+        argv: Optional[List[str]] = None,
+        handle_errors: bool = True,
+    ) -> None:
+        ...
 
 
 class NamespaceCallable(Protocol):
-    def __call__(self, options: argparse.Namespace) -> None: ...
+    def __call__(self, options: argparse.Namespace) -> None:
+        ...
 
 
 def console_entrypoint(
@@ -101,8 +107,10 @@ def console_entrypoint(
         fn: NamespaceCallable,
     ) -> MainCallable:
         @wraps(fn)
-        @nice_console_errors()
-        def wrapper(argv: Optional[List[str]] = None) -> None:
+        def wrapper(
+            argv: Optional[List[str]] = None,
+            handle_errors: bool = True,
+        ) -> None:
             parser = argparse.ArgumentParser()
             add_verbosity_group(parser)
             add_arguments(parser)
@@ -111,7 +119,13 @@ def console_entrypoint(
             cli_logger.debug("Command line options:")
             for name, value in sorted(vars(options).items(), key=lambda i: i[0]):
                 cli_logger.debug("%s = %r", name, value)
-            fn(options)
+
+            if handle_errors:
+                with nice_console_errors():
+                    fn(options)
+            else:
+                fn(options)
+
         return wrapper
     return decorator
 

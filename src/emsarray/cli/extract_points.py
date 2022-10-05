@@ -9,6 +9,7 @@ from emsarray.operations import point_extraction
 from emsarray.utils import to_netcdf_with_fixes
 
 from ._operation import Operation
+from .exceptions import CommandException
 
 logger = logging.getLogger(__name__)
 
@@ -20,18 +21,21 @@ class ExtractPoints(Operation):
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
             "input_path", type=Path,
+            metavar='input-dataset',
             help="Path to input netCDF4 file")
         parser.add_argument(
-            'points', type=Path, metavar='csv',
+            'points', type=Path, metavar='points',
             help=(
                 "Path to a CSV file with the points to extract"
             ))
         parser.add_argument(
             "output_path", type=Path,
+            metavar='output-dataset',
             help="Path to output netCDF4 file")
 
         parser.add_argument(
             "-c", "--coordinate-columns", type=str, nargs=2,
+            metavar=('LON', 'LAT'),
             default=("lon", "lat"),
             help=(
                 "Names of the longitude and latitude columns in the CSV file. "
@@ -40,6 +44,7 @@ class ExtractPoints(Operation):
 
         parser.add_argument(
             "-d", "--point-dimension", type=str,
+            metavar=('DIM'),
             default="point",
             help=(
                 "Name of the new dimension to index the point data"
@@ -50,9 +55,17 @@ class ExtractPoints(Operation):
         dataset = emsarray.open_dataset(options.input_path)
         dataframe = pd.read_csv(options.points)
 
-        point_data = point_extraction.extract_dataframe(
-            dataset, dataframe, options.coordinate_columns,
-            point_dimension=options.point_dimension)
+        try:
+            point_data = point_extraction.extract_dataframe(
+                dataset, dataframe, options.coordinate_columns,
+                point_dimension=options.point_dimension)
+        except point_extraction.NonIntersectingPoints as err:
+            rows = dataframe.iloc[err.indices]
+            raise CommandException(
+                f"Error extracting points: the points in the following rows "
+                f"did not intersect the dataset geometry:\n"
+                f"{rows.head()}\n"
+                f"(total rows: {len(rows)})")
         try:
             time_name = dataset.ems.get_time_name()
         except KeyError:
