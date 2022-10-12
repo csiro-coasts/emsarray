@@ -137,13 +137,29 @@ def extract_dataframe(
         Attributes: (12/14)
             ...
     """
+    lon_coord, lat_coord = coordinate_columns
+
+    # Extract the points from the dataset
     points = [
-        Point(row[coordinate_columns[0]], row[coordinate_columns[1]])
+        Point(row[lon_coord], row[lat_coord])
         for i, row in dataframe.iterrows()]
     point_dataset = extract_points(dataset, points, point_dimension=point_dimension)
 
+    # Merge in the dataframe
     point_dataset = point_dataset.merge(_dataframe_to_dataset(
         dataframe, dimension_name=point_dimension))
     point_dataset = point_dataset.set_coords(coordinate_columns)
+
+    # Add CF attributes to the new coordinate variables
+    point_dataset[lon_coord].attrs.update({
+        "long_name": "longitude",
+        "units": "degrees_east",
+        "standard_name": "longitude",
+    })
+    point_dataset[lat_coord].attrs.update({
+        "long_name": "latitude",
+        "units": "degrees_north",
+        "standard_name": "latitude",
+    })
 
     return point_dataset
