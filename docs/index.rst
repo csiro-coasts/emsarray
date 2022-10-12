@@ -47,7 +47,7 @@ Contents
     examples.rst
     api/index.rst
     cli.rst
-    developing/formats.rst
+    developing/index.rst
     testing.rst
     releases.rst
 
