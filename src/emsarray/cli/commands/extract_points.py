@@ -5,16 +5,14 @@ from pathlib import Path
 import pandas as pd
 
 import emsarray
+from emsarray.cli import BaseCommand, CommandException
 from emsarray.operations import point_extraction
 from emsarray.utils import to_netcdf_with_fixes
-
-from ._operation import Operation
-from .exceptions import CommandException
 
 logger = logging.getLogger(__name__)
 
 
-class ExtractPoints(Operation):
+class Command(BaseCommand):
     name = 'extract-points'
     description = "Extract points from a dataset"
 

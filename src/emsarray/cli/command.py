@@ -3,7 +3,7 @@ import argparse
 from typing import Optional
 
 
-class Operation(abc.ABC):
+class BaseCommand(abc.ABC):
     """
     Base class for writing :mod:`emsarray` command line tools.
     Subclasses of this can be added to the :mod:`emsarray` entry point :func:`.main`.

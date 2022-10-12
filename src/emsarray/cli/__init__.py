@@ -4,16 +4,18 @@ and a set of tools to make writing your own command line scripts easier.
 """
 
 import argparse
+import importlib
+import pkgutil
+from typing import Iterable, Type
 
 import emsarray
 
-from ._operation import Operation
-from .clip import Clip
+from . import commands
+from .command import BaseCommand
 from .exceptions import CommandException
-from .extract_points import ExtractPoints
 from .utils import console_entrypoint
 
-__all__ = ['main', 'CommandException', 'Operation']
+__all__ = ['main', 'CommandException', 'BaseCommand']
 
 
 def command_line_flags(parser: argparse.ArgumentParser) -> None:
@@ -21,9 +23,9 @@ def command_line_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         '-V', '--version', action='version', version=f'%(prog)s {emsarray.__version__}')
 
-    subparsers = parser.add_subparsers(title="Operations")
-    Clip().add_parser(subparsers)
-    ExtractPoints().add_parser(subparsers)
+    subparsers = parser.add_subparsers(title="operations", metavar='OPERATION')
+    for command_cls in _find_all_commands():
+        command_cls().add_parser(subparsers)
 
 
 @console_entrypoint(command_line_flags)
@@ -36,3 +38,12 @@ def main(options: argparse.Namespace) -> None:
     :ref:`cli`
     """
     options.func(options)
+
+
+def _find_all_commands() -> Iterable[Type[BaseCommand]]:
+    for moduleinfo in pkgutil.iter_modules(commands.__path__):
+        if moduleinfo.name.startswith('_'):
+            continue
+        command_path = commands.__name__ + '.' + moduleinfo.name
+        command_module = importlib.import_module(command_path)
+        yield command_module.Command
