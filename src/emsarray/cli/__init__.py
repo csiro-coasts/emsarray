@@ -15,7 +15,7 @@ from .command import BaseCommand
 from .exceptions import CommandException
 from .utils import console_entrypoint
 
-__all__ = ['main', 'CommandException', 'BaseCommand']
+__all__ = ['main', 'CommandException', 'BaseCommand', 'console_entrypoint']
 
 
 def command_line_flags(parser: argparse.ArgumentParser) -> None:

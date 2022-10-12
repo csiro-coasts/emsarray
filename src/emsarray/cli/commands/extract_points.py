@@ -13,8 +13,12 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    name = 'extract-points'
-    description = "Extract points from a dataset"
+    help = "Extract points from a dataset"
+    description = """
+    Extract points in a CSV file from a dataset
+    and save this point file to a new dataset.
+    All columns in the CSV are merged in to the new point dataset.
+    """
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
