@@ -40,6 +40,11 @@ def test_extract_points(
     assert_allclose(points_df['lon'], point_dataset['lon'].values)
     assert_allclose(points_df['lat'], point_dataset['lat'].values)
 
+    assert point_dataset['lon'].attrs['standard_name'] == 'longitude'
+    assert point_dataset['lon'].attrs['units'] == 'degrees_east'
+    assert point_dataset['lat'].attrs['standard_name'] == 'latitude'
+    assert point_dataset['lat'].attrs['units'] == 'degrees_north'
+
     assert 'values' in point_dataset.data_vars
     values = point_dataset.data_vars['values']
     assert values.dims == ('point',)

@@ -24,12 +24,29 @@ def test_extract_dataframe(
     point_dataset = point_extraction.extract_dataframe(
         in_dataset, points_df, coordinate_columns=('lon', 'lat'))
 
+    # There should be a new dimension named 'points'
+    # with the same size as the number of rows in the CSV
     assert 'point' in point_dataset.dims
     assert point_dataset.dims['point'] == num_points
+
+    # All the columns from the CSV should have been merged in
     assert_equal(points_df['name'], point_dataset['name'].values)
     assert_equal(points_df['lon'], point_dataset['lon'].values)
     assert_equal(points_df['lat'], point_dataset['lat'].values)
 
+    # The new point coordinate variables should have the relevant CF attributes
+    assert point_dataset['lon'].attrs == {
+        "long_name": "longitude",
+        "units": "degrees_east",
+        "standard_name": "longitude",
+    }
+    assert point_dataset['lat'].attrs == {
+        "long_name": "latitude",
+        "units": "degrees_north",
+        "standard_name": "latitude",
+    }
+
+    # The values should be extracted from the dataset, one per point
     assert 'values' in point_dataset.data_vars
     values = point_dataset.data_vars['values']
     assert values.dims == ('point',)
