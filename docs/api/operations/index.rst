@@ -13,18 +13,18 @@ and behave the same across all supported formats.
 
    ./*
 
-:mod:`emsarray.operations.depth`
+:doc:`depth`
     These operations manipulate datasets with a depth axis,
     such as the output of ocean models.
 
-:mod:`emsarray.operations.geometry`
+:doc:`geometry`
     These operations export the geometry of a dataset
     in a variety of different formats.
 
-:mod:`emsarray.operations.point_extraction`
+:doc:`point_extraction`
     Functions to extract data from a dataset at a collection of points.
 
-:mod:`emsarray.operations.triangulate`
+:doc:`triangulate`
     These operations triangulate the polygonal mesh of a dataset.
     This is useful in combination with visualisation packages such as
     Trimesh or Holoviews.
