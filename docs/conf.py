@@ -63,6 +63,9 @@ html_theme = 'sphinx_book_theme'
 html_static_path = ['_static']
 
 
+add_module_names = False
+
+
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_use_param = False
