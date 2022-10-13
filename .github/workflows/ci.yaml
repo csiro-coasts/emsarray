@@ -84,12 +84,12 @@ jobs:
 
       - run: |
           cd docs/
-          sphinx-build -b html -aEW . _build/html
+          sphinx-build -b dirhtml -aEW . _build/dirhtml
 
       - uses: actions/upload-artifact@v3
         with:
           name: Docs
-          path: docs/_build/html
+          path: docs/_build/dirhtml
 
   package:
     runs-on: ubuntu-latest

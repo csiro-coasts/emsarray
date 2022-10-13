@@ -7,6 +7,7 @@ build:
 
 sphinx:
   configuration: "docs/conf.py"
+  builder: "dirhtml"
 
 conda:
   environment: continuous-integration/docs.yaml
