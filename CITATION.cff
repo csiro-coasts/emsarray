@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+title: emsarray
+version: 0.4.0
+date-released: 2023-02-08
+type: software
+authors:
+  - given-names: Tim
+    family-names: Heap
+    email: tim.heap@csiro.au
+    affiliation: Commonwealth Scientific and Industrial Research Organisation
+  - given-names: Farhan
+    family-names: Rizwi
+    affiliation: Commonwealth Scientific and Industrial Research Organisation
+    email: farhan.rizwi@csiro.au
+references:
+  - type: generic
+    publisher:
+      name: CSIRO
+url: 'http://hdl.handle.net/102.100.100/482171?index=1'
+license: BSD-3-Clause
