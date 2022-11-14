@@ -40,6 +40,13 @@ geometry.write_geojson(dataset, './gbr4.geojson')
 geometry.write_shapefile(dataset, './gbr4.shp')
 ```
 
+## Links
+
+* [Source code on Github][emsarray-source-code]
+* [Documentation on Read The Docs][emsarray-documentation]
+* [emsarray on PyPI][emsarray-pypi]
+* [emsarray on conda-forge][emsarray-conda-forge]
+
 ## Examples
 
 Examples of using `emsarray` are available in the [emsarray-notebooks][emsarray-notebooks] repository.
@@ -70,6 +77,8 @@ $ tox
 
 ## Documentation
 
+[The documentation for the current stable version of emsarray is available on Read The Docs][emsarray-documentation].
+
 To build the documentation, install the development requirements as above and invoke Sphinx:
 
 ```shell
@@ -86,7 +95,11 @@ $ make -C docs/ live
 
 You can the view the docs at <http://localhost:5500>
 
-[emsarray-notebooks]: https://github.com/csiro-coasts/emsarray-notebooks
 [emsarray-binder]: https://mybinder.org/v2/gh/csiro-coasts/emsarray-notebooks/HEAD
-[xarray]: https://xarray.pydata.org/
+[emsarray-conda-forge]: https://anaconda.org/conda-forge/emsarray/
+[emsarray-documentation]: https://emsarray.readthedocs.io
+[emsarray-notebooks]: https://github.com/csiro-coasts/emsarray-notebooks
+[emsarray-pypi]: https://pypi.org/project/emsarray/
+[emsarray-source-code]: https://github.com/csiro-coasts/emsarray
 [livereload]: https://livereload.readthedocs.io/en/latest/
+[xarray]: https://xarray.pydata.org/
