@@ -1,3 +1,8 @@
+"""
+Common functions for working with dataset masks.
+Masks are used when clipping datasets to a smaller geographic subset,
+such as :meth:`.Format.clip`.
+"""
 from __future__ import annotations
 
 import functools
@@ -22,7 +27,9 @@ def mask_grid_dataset(
     work_dir: Pathish,
     **kwargs: Any,
 ) -> xr.Dataset:
-    """Apply a mask to a grid dataset.
+    """Apply a mask to a two-dimensional grid dataset,
+    such as :class:`.CFGrid1D` and :class:`.CFGrid2D`,
+    or datasets with multiple grids such as :class:`.ArakawaC`
 
     Parameters
     ----------
@@ -96,12 +103,27 @@ def mask_grid_dataset(
 
 def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataArray:
     """
-    Apply one mask from a dataset to a data array. The mask to apply is
-    selected by comparing dimensions - the first mask found which has
-    dimensions that are a subset of the data array dimensions is used.
+    Apply a mask to a single data array.
+    A mask dataset contains one or more mask data arrays.
+    The mask to apply is selected by comparing dimensions
+    - the first mask found which has dimensions
+    that are a subset of the data array dimensions is used.
 
-    The returned data array is not trimmed to the size of the mask. If no
-    appropriate mask is found, the original data array is returned unmodified.
+    Parameters
+    ----------
+    mask : xarray.Dataset
+        The mask dataset
+    data_array : xarray.DataArray
+        The :class:`~xarray.DataArray` to mask
+
+    Returns
+    -------
+    xarray.DataArray
+        A new :class:`~xarray.DataArray`
+        with any masked values replaced with _FillValue.
+        The returned data array will be the same shape as the input data array.
+        If no appropriate mask is found,
+        the original data array is returned unmodified.
     """
     dimensions = set(data_array.dims)
 
@@ -130,6 +152,30 @@ def find_fill_value(data_array: xr.DataArray) -> Any:
     a fill value, they can be masked using `NaN` without issue.
     However there are some `int`-typed variables without a fill value that
     _cant_ be automatically masked.
+
+    Parameters
+    ----------
+    data_array : xarray.DataArray
+        The :class:`~xarray.DataArray` to find an appropriate ``_FillValue`` for.
+
+    Returns
+    -------
+    fill value
+        A numpy scalar value appropriate to use
+        as the fill value in the data array.
+
+        * For masked arrays, this will be :data:`numpy.ma.masked` ---
+          note that xarray itself does not use masked arrays, but is compatible with them.
+        * For data arrays that already have a ``_FillValue`` used by xarray,
+          :data:`numpy.nan` is returned.
+          xarray will substitute in all ``_FillValue``
+          with :data:`numpy.nan` when opening files.
+        * For data arrays that have been opened with ``mask_and_scale=False``,
+          the existing ``_FillValue`` is returned.
+        * If the data array has a float ``dtype``,
+          :data:`numpy.nan` is returned.
+        * If none of the above are true, a :exc:`ValueError` is raised.
+
     """
     if np.ma.is_masked(data_array.values):
         # xarray does not use masked arrays, but just in case someone has
@@ -161,10 +207,18 @@ def find_fill_value(data_array: xr.DataArray) -> Any:
 def calculate_grid_mask_bounds(mask: xr.Dataset) -> Dict[Hashable, slice]:
     """
     Calculate the included bounds of a mask dataset for each dimension.
-    The mask dataset should contain one or more boolean data arrays.
-    A dict of ``{dimension_name: slice(min_index, max_index)}`` will be returned.
-    This dict can be passed directly in to a :meth:`xarray.Dataset.isel` call
-    to trim a dataset to the bounds of a mask.
+
+    Parameters
+    ----------
+    mask : xarray.Dataset
+        The mask dataset should contain one or more boolean data arrays.
+
+    Returns
+    -------
+    dict
+        A dict of ``{dimension_name: slice(min_index, max_index)}`` will be returned.
+        This dict can be passed directly in to a :meth:`xarray.Dataset.isel` call
+        to crop a dataset to the bounds of a mask.
     """
     bounds = {}
     for name, mask_data_array in mask.data_vars.items():
@@ -196,7 +250,27 @@ def smear_mask(arr: np.ndarray, pad_axes: List[bool]) -> np.ndarray:
     """
     Take a boolean numpy array and a list indicating which axes to smear along.
     Return a new array, expanded along the axes, with the boolean values
-    smeared accordingly:
+    smeared accordingly.
+
+    This is a half baked convolution operator where the `pad_axes` parameter is
+    used to build the kernel.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        A boolean numpy :class:`numpy.ndarray`.
+    pad_axes : list of bool
+        A list of booleans, indicating which axes to smear along.
+
+    Returns
+    -------
+    numpy.ndarray
+        The smeared array.
+        For every axis where ``pad_axes`` was True,
+        the array will be one element larger.
+
+    Examples
+    --------
 
     .. code-block:: pycon
 
@@ -223,16 +297,6 @@ def smear_mask(arr: np.ndarray, pad_axes: List[bool]) -> np.ndarray:
                [0, 1, 1, 1, 1, 0],
                [1, 1, 1, 1, 1, 1],
                [1, 1, 0, 0, 1, 1])
-
-    This is a half baked convolution operator where the `pad_axes` parameter is
-    used to build the kernel.
-
-    Parameters
-    ----------
-    arr
-        A boolean numpy :class:`numpy.ndarray`.
-    pad_axes
-        A list of booleans, indicating which axes to smear along.
     """
     paddings = itertools.product(*(
         [(1, 0), (0, 1)] if pad_axis else [(0, 0)]
@@ -246,6 +310,25 @@ def blur_mask(arr: np.ndarray, size: int = 1) -> np.ndarray:
     Take a boolean numpy array and blur it, such that all indices neighbouring
     a True value in the input array are True in the output array. The output
     array will have the same shape as the input array.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        A boolean array to blur
+    size : int
+        The kernel size to use when blurring.
+        In the output array,
+        any cell that has a true value
+        within its `size` neighbours along any axis
+        is true.
+
+    Returns
+    -------
+    numpy.ndarray
+        The blurred array
+
+    Examples
+    --------
 
     .. code-block:: python
 

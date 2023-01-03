@@ -206,6 +206,10 @@ class Format(abc.ABC, Generic[GridKind, Index]):
             some integer greater than zero is returned.
             The higher the number, the more specific the support.
             If the dataset does not match this format, None is returned.
+            Values on the :class:`~emsarray.formats.Specificity` enum
+            are used by :mod:`emsarray` itself to indicated specificity.
+            New format implementations are free to use these values,
+            or use any integer value.
 
         Example
         -------

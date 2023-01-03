@@ -10,7 +10,7 @@ It enhances `xarray`_ Datasets
 and provides a set of common operations for manipulating datasets.
 
 To use, open the dataset using either :func:`xarray.open_dataset` or :func:`emsarray.open_dataset`
-and use the :ref:`dataset.ems <accessor>` attribute:
+and use the :doc:`dataset.ems </api/accessors>` attribute:
 
 .. code-block:: python
 

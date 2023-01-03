@@ -1,5 +1,5 @@
 """
-:mod:`emsarray` provides both a command line interface,
+``emsarray`` provides both a command line interface,
 and a set of tools to make writing your own command line scripts easier.
 """
 

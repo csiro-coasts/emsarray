@@ -33,7 +33,7 @@ class Specificity(enum.IntEnum):
 
     The SHOC conventions extend the CF grid conventions,
     so a SHOC file will be detected as both CF Grid and SHOC.
-    :class:`ShocStandard` should return a higher specificity
+    :class:`.ShocStandard` should return a higher specificity
     so that the correct format implementation is used.
     """
     LOW = 10
@@ -158,9 +158,8 @@ def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
     setting any flags required by the format.
 
     Some dataset formats require certain flags to be set when opening a dataset.
-    For example, :class:`~.ugrid.UGrid` datasets must be opened with ``scale_and_mask=False``.
     :func:`emsarray.open_dataset` delegates to the correct
-    :class:`~emsarray.formats.Format` impelementation.
+    :class:`~emsarray.formats.Format` implementation.
 
     Parameters
     ----------
@@ -171,7 +170,7 @@ def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
 
     Returns
     -------
-    :class:`xarray.Dataset`
+    xarray.Dataset
         The opened dataset
 
     Example
