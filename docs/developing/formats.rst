@@ -20,7 +20,7 @@ called ``grass``.
 
 To add support for GRASS to ``emsarray``, make a new Format subclass.
 For this example, we will make a new module named ``grass.format``.
-The complete implementation of the :ref:`Grass class is available <grass_code>`.
+The complete implementation of the :download:`Grass class is available <./grass.py>`.
 The following is a guided walk through developing this class.
 
 We will need the following imports:

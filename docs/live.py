@@ -4,12 +4,13 @@ from livereload import Server, shell
 
 
 def main() -> None:
+    command = shell('make dirhtml')
     server = Server()
-    server.watch('**/*.rst', shell('make html'), delay=0.1)
-    server.watch('**/*.py', shell('make html'), delay=0.1)
-    server.watch('**/*.ipynb', shell('make html'), delay=0.1)
-    server.watch('../src', shell('make html'), delay=0.1)
-    server.serve(root='./_build/html')
+    server.watch('**/*.rst', command, delay=0.1)
+    server.watch('**/*.py', command, delay=0.1)
+    server.watch('**/*.ipynb', command, delay=0.1)
+    server.watch('../src', command, delay=0.1)
+    server.serve(root='./_build/dirhtml')
 
 
 if __name__ == '__main__':

@@ -28,5 +28,5 @@ WATCH_ARGS=-rq \
 	$(patsubst %,@%,$(WATCH_IGNORE))
 
 live:
-	$(MAKE) SPHINXOPTS="-j auto" html
+	$(MAKE) SPHINXOPTS="-j auto" dirhtml
 	python3 ./live.py
