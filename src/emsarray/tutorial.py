@@ -71,10 +71,33 @@ def open_dataset(name: str, **kwargs: Any) -> xarray.Dataset:
     Example datasets will be downloaded from
     the `dataset repository <https://github.com/csiro-coasts/emsarray-data/>`_
     and cached locally.
+    Refer to that repository for more information,
+    including where the datasets were sourced from
+    and full licensing details.
 
     The example datasets that are available are:
 
-    TODO
+    ``austen``
+        A day of the AUSTEn National Tidal model data.
+        This dataset is defined on an :class:`unstructured grid <.UGrid>`.
+
+    ``bran2020``
+        A small sample of the Bluelink Reanalysis 2020 (BRAN2020) ocean dataset.
+        This dataset is defined on a rectangular grid with one dimensional coordinates,
+        handled by the :class:`.CFGrid1D` format class.
+
+    ``fraser``
+        A subset of the Great Barrier Reef 4km (GBR4) v2.0 model, part of the eReefs data.
+        This subset is centred around K'gari / Fraser Island.
+        This dataset is defined on a curvilinear grid with two dimensional coordinates,
+        handled by the :class:`.CFGrid2D` format class.
+        Temperature, sea surface height, and current variables are included.
+
+    ``gbr4``
+        A subset of the Great Barrier Reef 4km (GBR4) v2.0 model, part of the eReefs data.
+        This dataset is defined on a curvilinear grid with two dimensional coordinates,
+        handled by the :class:`.CFGrid2D` format class.
+        Temperature, sea surface heigh, and salinity variables are included.
 
     Parameters
     ----------
@@ -87,6 +110,15 @@ def open_dataset(name: str, **kwargs: Any) -> xarray.Dataset:
     -------
     :class:`xarray.Dataset`
         The example dataset, after being downloaded and opened by xarray.
+
+    Example
+    -------
+
+    .. code-block:: python
+
+        import emsarray
+        fraser = emsarray.tutorial.open_dataset('fraser')
+        fraser.ems.plot(fraser['temp'].isel(time=0, k=-1))
     """
     local_path = _fetch(name)
     return emsarray.open_dataset(local_path, **kwargs)

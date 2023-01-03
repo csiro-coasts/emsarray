@@ -23,6 +23,8 @@ Available commands
 
 Print the installed version of ``emsarray``.
 
+.. _emsarray clip:
+
 ``emsarray clip``
 -----------------
 
@@ -39,6 +41,8 @@ Or clip a dataset to some geographic bounds:
     $ emsarray clip "./input-file.nc" "147.08,-43.67,147.30,-43.45" "./output-file.nc"
 
 See ``emsarray clip --help`` for a full list of options.
+
+.. _emsarray extract-points:
 
 ``emsarray extract-points``
 ---------------------------

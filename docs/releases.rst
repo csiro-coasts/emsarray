@@ -25,20 +25,20 @@ Release notes
   (:pr:`26`, :pr:`csiro-coasts/emsarray-data#1`).
 * Split :mod:`emsarray.operations` in to separate modules
   (:pr:`27`).
-* Add :mod:`emsarray.operations.geometry` module
+* Add :doc:`api/operations/geometry` module
   which can export dataset geometry to GeoJSON and Shapefiles
   (:pr:`28`).
 * Add :meth:`.Format.drop_geometry()` method
   (:pr:`29`).
-* Add :mod:`emsarray.operations.point_extraction` module
-  and `emsarray extract-points` command line entry point
+* Add :doc:`api/operations/point_extraction` module
+  and :ref:`emsarray extract-points` command line entry point
   which can extract point data from a dataset
   (:pr:`29`).
 
 0.2.0
 =====
 
-* Added support for :doc:`additional formats via plugins <../developing/formats>`
+* Added support for :doc:`additional formats via plugins </developing/formats>`
   (:pr:`11`).
 * Added support for one-based indexing in UGRID datasets
   (:pr:`14`).

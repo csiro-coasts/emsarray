@@ -4,9 +4,13 @@
 Format interface
 ================
 
+.. contents::
+   :local:
+
 Each supported format implements the :class:`~emsarray.formats.Format` interface.
 
-.. autofunction:: emsarray.formats.get_file_format
+.. autofunction:: emsarray.open_dataset
+.. autofunction:: emsarray.get_file_format
 
 .. autoclass:: emsarray.formats.Format
     :members:
@@ -16,3 +20,7 @@ Each supported format implements the :class:`~emsarray.formats.Format` interface
 
 .. autodata:: emsarray.formats._base.GridKind
 .. autodata:: emsarray.formats._base.Index
+
+.. autoclass:: emsarray.formats.Specificity
+   :members:
+   :undoc-members:

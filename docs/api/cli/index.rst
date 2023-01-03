@@ -55,5 +55,5 @@ in to useful Python values.
 Module content
 --------------
 
-.. autoclass:: emsarray.cli.CommandException
+.. autoexception:: emsarray.cli.CommandException
 .. autoclass:: emsarray.cli.Operation

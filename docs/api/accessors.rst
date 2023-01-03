@@ -4,8 +4,8 @@
 xarray accessor
 ===============
 
-Much of the functionality of :mod:`emsarray` is accessed
-using the ``.ems`` attribute on an xarray :class:`xarray.Dataset`.
+Much of the functionality of ``emsarray`` is accessed
+using the ``.ems`` attribute on an xarray :class:`~xarray.Dataset`.
 
 .. attribute:: dataset.ems
     :type: emsarray.formats.Format
