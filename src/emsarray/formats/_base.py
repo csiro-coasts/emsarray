@@ -21,6 +21,7 @@ from emsarray.plot import (
     _requires_plot, animate_on_figure, plot_on_figure,
     polygons_to_patch_collection
 )
+from emsarray.state import State
 from emsarray.types import Pathish
 
 if TYPE_CHECKING:
@@ -142,29 +143,6 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         self.dataset = dataset
 
     @classmethod
-    def open_dataset(cls, path: Pathish, **kwargs: Any) -> xr.Dataset:
-        """
-        Open the dataset at ``path``, setting any flags necessary for this format.
-
-        Parameters
-        ----------
-        path
-            The path to the dataset to open
-        kwargs
-            These are passed straight through to :func:`xarray.open_dataset`.
-
-        Returns
-        -------
-        :class:`xarray.Dataset`
-            The opened dataset
-
-        See also
-        --------
-        :func:`emsarray.open_dataset`
-        """
-        return cast(xr.Dataset, xr.open_dataset(path, **kwargs))
-
-    @classmethod
     def check_validity(cls, dataset: xr.Dataset) -> None:
         """Checks that the dataset is OK to use.
         Called during __init__, and raises exceptions if the dataset has problems.
@@ -223,6 +201,52 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         False
         """
         pass
+
+    def bind(self) -> None:
+        """
+        Bind this :class:`.Format` instance as the default format
+        for the :class:`xarray.Dataset`.
+        This format instance will be assigned to :attr:`dataset.ems`.
+
+        You can use a Format instance without binding it to a Dataset,
+        binding is only necessary if you need to use the :attr:`dataset.ems` accessor.
+
+        .. note::
+
+            If you use :func:`emsarray.open_dataset` or :attr:`dataset.ems`
+            to autodetect the dataset format you do not need to call this method.
+            :meth:`Format.bind` is only useful if you manually construct a :class:`Format`.
+
+        Example
+        -------
+
+        .. code-block:: python
+
+            # Open a dataset built using the GRASS format
+            dataset = xarray.open_dataset("grass-dataset.nc")
+
+            # Construct a GrassFormat instance for the dataset and bind it
+            format = GrassFormat(dataset)
+            format.bind()
+
+            # dataset.ems is now the bound format
+            assert dataset.ems is format
+
+        If the dataset already has a bound format, an error is raised.
+        To bind a new format to a dataset, make a copy of the dataset first:
+
+        .. code-block:: python
+
+            new_dataset = dataset.copy()
+            format = GrassFormat(new_dataset)
+            format.bind()
+        """
+        state = State.get(self.dataset)
+        if state.is_bound():
+            raise ValueError(
+                "A format has already been bound to this dataset, "
+                "cannot assign a new format.")
+        state.bind_format(self)
 
     def _get_data_array(self, data_array: DataArrayOrName) -> xr.DataArray:
         """

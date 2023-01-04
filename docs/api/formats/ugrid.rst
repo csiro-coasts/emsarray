@@ -5,7 +5,7 @@ emsarray.formats.ugrid
 .. automodule:: emsarray.formats.ugrid
 
 .. autoclass:: UGrid
-    :members: topology, open_dataset
+    :members: topology
 
 Indexing
 ========
