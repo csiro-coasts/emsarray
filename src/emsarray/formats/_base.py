@@ -142,29 +142,6 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         self.dataset = dataset
 
     @classmethod
-    def open_dataset(cls, path: Pathish, **kwargs: Any) -> xr.Dataset:
-        """
-        Open the dataset at ``path``, setting any flags necessary for this format.
-
-        Parameters
-        ----------
-        path
-            The path to the dataset to open
-        kwargs
-            These are passed straight through to :func:`xarray.open_dataset`.
-
-        Returns
-        -------
-        :class:`xarray.Dataset`
-            The opened dataset
-
-        See also
-        --------
-        :func:`emsarray.open_dataset`
-        """
-        return cast(xr.Dataset, xr.open_dataset(path, **kwargs))
-
-    @classmethod
     def check_validity(cls, dataset: xr.Dataset) -> None:
         """Checks that the dataset is OK to use.
         Called during __init__, and raises exceptions if the dataset has problems.

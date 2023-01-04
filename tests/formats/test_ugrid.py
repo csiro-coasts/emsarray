@@ -778,7 +778,7 @@ def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
     Open and check a UGrid dataset that uses one-based indexing,
     as indicated by the 'start_index' attribute.
     """
-    dataset = UGrid.open_dataset(datasets / 'ugrid_mesh2d_one_indexed.nc')
+    dataset = xr.open_dataset(datasets / 'ugrid_mesh2d_one_indexed.nc')
     helper: UGrid = dataset.ems
     topology = helper.topology
 

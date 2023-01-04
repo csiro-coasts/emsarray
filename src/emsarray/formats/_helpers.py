@@ -154,12 +154,8 @@ def get_file_format(dataset: xr.Dataset) -> Optional[Type[Format]]:
 
 def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
     """
-    Determine the format of a dataset and then open it,
-    setting any flags required by the format.
-
-    Some dataset formats require certain flags to be set when opening a dataset.
-    :func:`emsarray.open_dataset` delegates to the correct
-    :class:`~emsarray.formats.Format` implementation.
+    Open a dataset and determine the correct Format implementation for it.
+    If a valid Format implementation can not be found, an error is raised.
 
     Parameters
     ----------
@@ -188,11 +184,13 @@ def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
 
     """
     dataset = xr.open_dataset(path, **kwargs)
-    file_format = get_file_format(dataset)
-    if file_format is None:
+    format_class = get_file_format(dataset)
+    if format_class is None:
         raise ValueError("Could not determine format of dataset {str(path)!r}")
-    logger.debug("Opening dataset %r with %s", str(path), file_format.__name__)
-    return file_format.open_dataset(path, **kwargs)
+    logger.debug(
+        "Using format %s.%s for dataset %r",
+        format_class.__module__, format_class.__name__, str(path))
+    return dataset
 
 
 def entry_point_formats() -> Iterable[Type[Format]]:
