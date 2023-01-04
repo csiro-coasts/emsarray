@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import logging
+
 import xarray as xr
 
 from .formats import Format, get_file_format
+from .state import State
+
+logger = logging.getLogger(__name__)
 
 
 @xr.register_dataset_accessor("ems")
@@ -15,7 +20,17 @@ def ems_accessor(dataset: xr.Dataset) -> Format:
     -------
     :class:`~emsarray.formats.Format`
     """
+    state = State.get(dataset)
+    if state.format is not None:
+        return state.format
+
     format_class = get_file_format(dataset)
     if format_class is None:
         raise RuntimeError("Could not determine format of dataset")
-    return format_class(dataset)
+
+    format = format_class(dataset)
+    format.bind()
+    return format
+
+
+xr.register_dataset_accessor(State.accessor_name)(State)

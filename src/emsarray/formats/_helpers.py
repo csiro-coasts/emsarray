@@ -181,15 +181,16 @@ def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
     --------
     :meth:`emsarray.formats.Format.open_dataset`
     :func:`xarray.open_dataset`
-
     """
     dataset = xr.open_dataset(path, **kwargs)
-    format_class = get_file_format(dataset)
-    if format_class is None:
-        raise ValueError("Could not determine format of dataset {str(path)!r}")
+
+    # Determine the correct format. All the magic happens in the accessor.
+    format = dataset.ems
+    format_class = type(format)
     logger.debug(
         "Using format %s.%s for dataset %r",
         format_class.__module__, format_class.__name__, str(path))
+
     return dataset
 
 
