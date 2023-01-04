@@ -1,3 +1,22 @@
+"""
+Subset a dataset at a set of points.
+
+:func:`.extract_dataframe` takes a pandas :class:`~pandas.DataFrame`,
+subsets the dataset at the point specified in each row,
+and merges the dataset with the dataframe.
+The points extracted will form the coordinates for the new dataset.
+
+:func:`.extract_points` takes a list of Shapely :class:`Points <Point>`,
+subsets the dataset at these points,
+and returns a new dataset with out any associated geometry.
+This is useful if you want to add your own metadata to the subset dataset.
+
+If any of the supplied points does not intersect the dataset geometry,
+a :exc:`.NonIntersectingPoints` exception is raised.
+This will include the indices of the points that do not intersect.
+
+:ref:`emsarray extract-points` is a command line interface to :func:`.extract_dataframe`.
+"""
 import dataclasses
 from typing import Hashable, List, Tuple
 
@@ -14,7 +33,11 @@ class NonIntersectingPoints(ValueError):
     """
     Raised when a point to extract does not intersect the dataset geometry.
     """
+
+    #: The indices of the points that do not intersect
     indices: np.ndarray
+
+    #: The non-intersecting points
     points: List[Point]
 
     def __post_init__(self) -> None:
@@ -45,6 +68,34 @@ def extract_points(
     *,
     point_dimension: Hashable = 'point',
 ) -> xr.Dataset:
+    """
+    Drop all data except for cells that intersect the given points.
+    Return a new dataset with a new dimension named ``point_dimension``,
+    with the same size as the nubmer of ``points``,
+    containing only data at those points.
+
+    The returned dataset has no coordinate information.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        The dataset to extract point data from.
+    points : list of :class:`Point`
+        The points to select.
+    point_dimension : Hashable, optional
+        The name of the new dimension to index points along.
+        Defaults to ``"point"``.
+
+    Returns
+    -------
+    xarray.Dataset
+        A subset of the input dataset that only contains data at the given points.
+        The dataset will only contain the values, without any coordinate information.
+
+    See also
+    --------
+    :func:`extract_dataframe`
+    """
     helper: Format = dataset.ems
 
     # Find the indexer for each given point
@@ -137,13 +188,29 @@ def extract_dataframe(
         Attributes: (12/14)
             ...
     """
+    lon_coord, lat_coord = coordinate_columns
+
+    # Extract the points from the dataset
     points = [
-        Point(row[coordinate_columns[0]], row[coordinate_columns[1]])
+        Point(row[lon_coord], row[lat_coord])
         for i, row in dataframe.iterrows()]
     point_dataset = extract_points(dataset, points, point_dimension=point_dimension)
 
+    # Merge in the dataframe
     point_dataset = point_dataset.merge(_dataframe_to_dataset(
         dataframe, dimension_name=point_dimension))
     point_dataset = point_dataset.set_coords(coordinate_columns)
+
+    # Add CF attributes to the new coordinate variables
+    point_dataset[lon_coord].attrs.update({
+        "long_name": "longitude",
+        "units": "degrees_east",
+        "standard_name": "longitude",
+    })
+    point_dataset[lat_coord].attrs.update({
+        "long_name": "latitude",
+        "units": "degrees_north",
+        "standard_name": "latitude",
+    })
 
     return point_dataset
