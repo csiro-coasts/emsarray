@@ -8,6 +8,7 @@ import json
 import logging.config
 import re
 import sys
+import textwrap
 from functools import wraps
 from pathlib import Path
 from typing import Callable, Iterator, List, Optional, Protocol
@@ -99,7 +100,7 @@ def console_entrypoint(
     See also
     --------
 
-    :func:`.console_entrypoint`
+    :func:`.nice_console_errors`
     :func:`.set_verbosity`
     :func:`.add_verbosity_group`
     """
@@ -111,8 +112,14 @@ def console_entrypoint(
             argv: Optional[List[str]] = None,
             handle_errors: bool = True,
         ) -> None:
-            parser = argparse.ArgumentParser()
-            add_verbosity_group(parser)
+            parser = argparse.ArgumentParser(
+                formatter_class=DoubleNewlineDescriptionFormatter,
+                add_help=False)
+            logging_group = parser.add_argument_group('logging options')
+            logging_group.add_argument(
+                '-h', '--help', action='help',
+                help="Show this help message and quit")
+            add_verbosity_group(logging_group)
             add_arguments(parser)
             options = parser.parse_args(argv)
             set_verbosity(options.verbosity)
@@ -160,7 +167,19 @@ def nice_console_errors() -> Iterator:
         sys.exit(1)
 
 
-def add_verbosity_group(parser: argparse.ArgumentParser) -> None:
+class DoubleNewlineDescriptionFormatter(argparse.HelpFormatter):
+    def _fill_text(self, text: str, width: int, indent: str) -> str:
+        fill_text = super(DoubleNewlineDescriptionFormatter, self)._fill_text
+
+        return '\n\n'.join(
+            fill_text(paragraph, width, indent)
+            if not paragraph.startswith(' ')
+            else paragraph
+            for paragraph in textwrap.dedent(text).split('\n\n')
+        )
+
+
+def add_verbosity_group(parser: argparse._ActionsContainer) -> None:
     """
     Add ``--verbose`` and ``--silent`` mutually exclusive flags to an
     :class:`~argparse.ArgumentParser`.

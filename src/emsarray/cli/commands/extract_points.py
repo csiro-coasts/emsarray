@@ -5,18 +5,20 @@ from pathlib import Path
 import pandas as pd
 
 import emsarray
+from emsarray.cli import BaseCommand, CommandException
 from emsarray.operations import point_extraction
 from emsarray.utils import to_netcdf_with_fixes
-
-from ._operation import Operation
-from .exceptions import CommandException
 
 logger = logging.getLogger(__name__)
 
 
-class ExtractPoints(Operation):
-    name = 'extract-points'
-    description = "Extract points from a dataset"
+class Command(BaseCommand):
+    help = "Extract points from a dataset"
+    description = """
+    Extract points in a CSV file from a dataset
+    and save this point file to a new dataset.
+    All columns in the CSV are merged in to the new point dataset.
+    """
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(

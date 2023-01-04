@@ -6,17 +6,15 @@ from pathlib import Path
 from typing import ContextManager
 
 import emsarray
+from emsarray.cli import BaseCommand
+from emsarray.cli.utils import geometry_argument
 from emsarray.types import Pathish
-
-from ._operation import Operation
-from .utils import geometry_argument
 
 logger = logging.getLogger(__name__)
 
 
-class Clip(Operation):
-    name = 'clip'
-    description = "Clip a dataset to the given geographic bounds"
+class Command(BaseCommand):
+    help = "Clip a dataset to the given geographic bounds"
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
