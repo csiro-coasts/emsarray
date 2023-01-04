@@ -2,8 +2,17 @@
 Release notes
 =============
 
-0.4.0
-=====
+0.4.0 (in development)
+======================
+
+* Allow manual binding of formats to datasets (:pr:`45`)
+* Add CF Convention attributes to coordinate variables when extracting points
+  (:pr:`34`)
+* Reworked how command line entrypoints are discovered (:pr:`35`)
+* Added brief tutorial on writing command line Python scripts
+  using ``emsarray`` (:pr:`35`)
+* Added Python 3.11 support to CI (:pr:`44`)
+* Various documentation fixes (:pr:`42`, :pr:`43`)
 
 0.3.1
 =====
