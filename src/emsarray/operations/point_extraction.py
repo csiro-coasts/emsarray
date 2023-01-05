@@ -25,7 +25,7 @@ import pandas as pd
 import xarray as xr
 from shapely.geometry import Point
 
-from emsarray.formats import Format
+from emsarray.conventions import Convention
 
 
 @dataclasses.dataclass
@@ -96,10 +96,10 @@ def extract_points(
     --------
     :func:`extract_dataframe`
     """
-    helper: Format = dataset.ems
+    convention: Convention = dataset.ems
 
     # Find the indexer for each given point
-    indexes = np.array([helper.get_index_for_point(point) for point in points])
+    indexes = np.array([convention.get_index_for_point(point) for point in points])
 
     # TODO It would be nicer if out-of-bounds points were represented in the
     # output by masked values, rather than raising an error.
@@ -111,13 +111,13 @@ def extract_points(
 
     # Make a DataFrame out of all point indexers
     selector_df = pd.DataFrame([
-        helper.selector_for_index(index.index)
+        convention.selector_for_index(index.index)
         for index in indexes
         if index is not None])
 
     # Subset the dataset to the points
     selector_ds = _dataframe_to_dataset(selector_df, dimension_name=point_dimension)
-    return helper.drop_geometry().isel(selector_ds)
+    return convention.drop_geometry().isel(selector_ds)
 
 
 def extract_dataframe(

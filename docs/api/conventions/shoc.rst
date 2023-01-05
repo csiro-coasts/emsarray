@@ -1,8 +1,8 @@
-=====================
-emsarray.formats.shoc
-=====================
+=========================
+emsarray.conventions.shoc
+=========================
 
-.. automodule:: emsarray.formats.shoc
+.. automodule:: emsarray.conventions.shoc
 
 SHOC standard files
 -------------------

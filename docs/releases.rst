@@ -5,7 +5,7 @@ Release notes
 0.4.0 (in development)
 ======================
 
-* Allow manual binding of formats to datasets (:pr:`45`)
+* Allow manual binding of conventions to datasets (:pr:`45`)
 * Add CF Convention attributes to coordinate variables when extracting points
   (:pr:`34`)
 * Reworked how command line entrypoints are discovered (:pr:`35`)
@@ -13,6 +13,7 @@ Release notes
   using ``emsarray`` (:pr:`35`)
 * Added Python 3.11 support to CI (:pr:`44`)
 * Various documentation fixes (:pr:`42`, :pr:`43`)
+* Renamed ``Format`` to :class:`~emsarray.conventions.Convention` (:pr:`46`)
 
 0.3.1
 =====
@@ -37,7 +38,7 @@ Release notes
 * Add :doc:`api/operations/geometry` module
   which can export dataset geometry to GeoJSON and Shapefiles
   (:pr:`28`).
-* Add :meth:`.Format.drop_geometry()` method
+* Add :meth:`.Convention.drop_geometry()` method
   (:pr:`29`).
 * Add :doc:`api/operations/point_extraction` module
   and :ref:`emsarray extract-points` command line entry point
@@ -47,11 +48,11 @@ Release notes
 0.2.0
 =====
 
-* Added support for :doc:`additional formats via plugins </developing/formats>`
+* Added support for :doc:`additional conventions via plugins </developing/conventions>`
   (:pr:`11`).
 * Added support for one-based indexing in UGRID datasets
   (:pr:`14`).
-* Buffering around clip regions in :meth:`.Format.make_clip_mask` is now optional
+* Buffering around clip regions in :meth:`.Convention.make_clip_mask` is now optional
   (:issue:`12`, :pr:`20`).
 * Removed dependency on SciPy, added missing dependency to conda package.
 

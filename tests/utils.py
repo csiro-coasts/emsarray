@@ -8,7 +8,9 @@ from typing import Dict, Hashable, List, Optional, Tuple
 import numpy as np
 import xarray as xr
 
-from emsarray.formats.arakawa_c import ArakawaCGridKind, c_mask_from_centres
+from emsarray.conventions.arakawa_c import (
+    ArakawaCGridKind, c_mask_from_centres
+)
 
 
 def reduce_axes(arr: np.ndarray, axes: Optional[Tuple[bool, ...]] = None) -> np.ndarray:

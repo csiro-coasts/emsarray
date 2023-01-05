@@ -22,7 +22,7 @@ from xarray.core.dataset import DatasetCoordinates
 from emsarray import masking, utils
 from emsarray.types import Pathish
 
-from ._base import Format
+from ._base import Convention
 from ._helpers import Specificity
 
 logger = logging.getLogger(__name__)
@@ -130,7 +130,7 @@ ArakawaCCoordinates = Dict[ArakawaCGridKind, Tuple[Hashable, Hashable]]
 ArakawaCDimensions = Dict[ArakawaCGridKind, Tuple[Hashable, Hashable]]
 
 
-class ArakawaC(Format[ArakawaCGridKind, ArakawaCIndex]):
+class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
     """
     An Arakawa C grid is a curvilinear orthogonal grid
     with data defined on grid faces, edges, and nodes.

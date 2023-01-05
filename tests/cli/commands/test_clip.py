@@ -3,7 +3,7 @@ import pathlib
 
 import emsarray
 from emsarray.cli import main
-from emsarray.formats import UGrid
+from emsarray.conventions import UGrid
 
 
 def test_clip(

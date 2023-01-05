@@ -1,8 +1,8 @@
-======================
-emsarray.formats.ugrid
-======================
+==========================
+emsarray.conventions.ugrid
+==========================
 
-.. automodule:: emsarray.formats.ugrid
+.. automodule:: emsarray.conventions.ugrid
 
 .. autoclass:: UGrid
     :members: topology
@@ -13,7 +13,7 @@ Indexing
 UGRID datasets have three :ref:`grids <grids>`: *face*, *edge* and *node*.
 :class:`UGridKind` represents this.
 Each grid is :ref:`indexed <indexing>` by a single integer.
-The format native index type is :data:`UGridIndex`.
+The convention native index type is :data:`UGridIndex`.
 
 .. autoclass:: UGridKind
    :members:

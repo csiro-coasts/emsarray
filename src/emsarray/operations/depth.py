@@ -27,12 +27,12 @@ def ocean_floor(
         The dataset to reduce.
     depth_variables
         The names of depth coordinate variables.
-        For supported formats, use :meth:`.Format.get_all_depth_names()`.
+        For supported conventions, use :meth:`.Convention.get_all_depth_names()`.
     non_spatial_variables
         Optional.
         A list of the names of any non-spatial coordinate variables, such as time.
         The ocean floor is assumed to be static across non-spatial dimensions.
-        For supported formats, use :meth:`.Format.get_time_name()`.
+        For supported conventions, use :meth:`.Convention.get_time_name()`.
 
     Returns
     -------
@@ -85,8 +85,8 @@ def ocean_floor(
 
     See also
     --------
-    :meth:`.Format.ocean_floor`
-    :meth:`.Format.get_all_depth_names`
+    :meth:`.Convention.ocean_floor`
+    :meth:`.Convention.get_all_depth_names`
     :func:`.normalize_depth_variables`
     :func:`.utils.extract_vars`
     """
@@ -230,8 +230,8 @@ def normalize_depth_variables(
     See also
     --------
 
-    :meth:`.Format.normalize_depth_variables`
-    :meth:`.Format.get_all_depth_names`
+    :meth:`.Convention.normalize_depth_variables`
+    :meth:`.Convention.get_all_depth_names`
     """
     new_dataset = dataset.copy()
     for name in depth_variables:

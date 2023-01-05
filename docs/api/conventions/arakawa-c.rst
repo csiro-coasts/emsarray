@@ -1,8 +1,8 @@
-==========================
-emsarray.formats.arakawa_c
-==========================
+==============================
+emsarray.conventions.arakawa_c
+==============================
 
-.. automodule:: emsarray.formats.arakawa_c
+.. automodule:: emsarray.conventions.arakawa_c
 
 .. autoclass:: ArakawaC
    :members: face, left, back, node
@@ -14,7 +14,7 @@ Arakawa C grid datasets have four :ref:`grids <grids>`:
 *face*, *left*, *back*, and *node*.
 :class:`ArakawaCGridKind` represents this.
 Each grid is :ref:`indexed <indexing>` by a grid kind and two integers *i* and *j*.
-The format native index type is :data:`ArakawaCGridKind`.
+The convention native index type is :data:`ArakawaCGridKind`.
 
 .. autoclass:: ArakawaCGridKind
    :members:

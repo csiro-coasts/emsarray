@@ -102,7 +102,7 @@ and is equivalent to ``emsarray[complete]``.
 
    $ pip install emsarray[plot]
 
-Allows ``emsarray`` to produce plots, using :meth:`.Format.plot`.
+Allows ``emsarray`` to produce plots, using :meth:`.Convention.plot`.
 
 ``tutorial``
 ------------

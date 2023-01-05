@@ -2,11 +2,11 @@
 SHOC (Sparse Hydrodynamic Ocean Code) is the hydrodynamic model used by the
 `Coastal Environmental Modelling Team <https://research.csiro.au/cem/>`_
 at `CSIRO <https://www.csiro.au/>`_.
-There are two related formats: SHOC standard and SHOC simple.
+There are two related conventions: SHOC standard and SHOC simple.
 
 SHOC standard is an :mod:`Arakawa C grid <.arakawa_c>` dataset
 with known coordinate names.
-SHOC standard datasets can be simplified in to a SHOC simple format,
+SHOC standard datasets can be simplified in to a SHOC simple dataset,
 which is a :class:`curvilinear CF grid <.grid.CFGrid2D>`
 with known coordinate names.
 

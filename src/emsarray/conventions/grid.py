@@ -24,7 +24,7 @@ from shapely.geometry.polygon import Polygon, orient
 from emsarray import masking, utils
 from emsarray.types import Pathish
 
-from ._base import Format
+from ._base import Convention
 from ._helpers import Specificity
 
 logger = logging.getLogger(__name__)
@@ -154,7 +154,7 @@ class CFGridTopology(abc.ABC):
 Topology = TypeVar('Topology', bound=CFGridTopology)
 
 
-class CFGrid(Generic[Topology], Format[CFGridKind, CFGridIndex]):
+class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
     """
     A base class for CF grid datasets.
     There are two concrete subclasses: :class:`CFGrid1D` and :class:`CFGrid2D`.
@@ -331,7 +331,7 @@ class CFGrid1DTopology(CFGridTopology):
 
 
 class CFGrid1D(CFGrid[CFGrid1DTopology]):
-    """A :class:`.Format` subclass representing datasets on an axis-aligned grid
+    """A :class:`.Convention` subclass representing datasets on an axis-aligned grid
     that follows the CF metadata conventions
     and has one dimensional coordinates.
     """
@@ -343,7 +343,7 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
         A dataset is a 1D CF grid if it has one dimensional
         latitude and longitude coordinate variables.
 
-        Many other formats extend the CF conventions,
+        Many other conventions extend the CF conventions,
         so this matches with low specificity.
         """
         topology = cls.topology_class(dataset)
@@ -410,7 +410,7 @@ class CFGrid2DTopology(CFGridTopology):
 
 
 class CFGrid2D(CFGrid[CFGrid2DTopology]):
-    """A :class:`.Format` subclass representing datasets on a curvilinear grid
+    """A :class:`.Convention` subclass representing datasets on a curvilinear grid
     that follows the CF metadata conventions
     and has two dimensional coordinates.
     """
@@ -422,7 +422,7 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
         A dataset is a 2D CF grid if it has two dimensional
         latitude and longitude coordinate variables.
 
-        Many other formats extend the CF conventions,
+        Many other conventions extend the CF conventions,
         so this matches with low specificity.
         """
         topology = cls.topology_class(dataset)

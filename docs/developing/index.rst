@@ -5,5 +5,5 @@ Developing with ``emsarray``
 .. toctree::
     :maxdepth: 1
 
-    formats.rst
+    conventions.rst
     scripts.rst

@@ -11,7 +11,7 @@ import xarray as xr
 from emsarray.utils import requires_extra
 
 if TYPE_CHECKING:
-    from .formats import Format
+    from .conventions import Convention
 
 try:
     import cartopy.crs
@@ -134,7 +134,7 @@ def polygons_to_patch_collection(
 @_requires_plot
 def plot_on_figure(
     figure: Figure,
-    format: Format,
+    convention: Convention,
     *,
     scalar: Optional[xr.DataArray] = None,
     vector: Optional[Tuple[xr.DataArray, xr.DataArray]] = None,
@@ -149,23 +149,23 @@ def plot_on_figure(
     ----------
     figure
         The :class:`~matplotlib.figure.Figure` instace to plot on.
-    format
-        The :class:`~emsarray.formats.Format` instance of the dataset.
+    convention
+        The :class:`~emsarray.conventions.Convention` instance of the dataset.
         This is used to build the polygons and vector quivers.
     scalar : :class:`xarray.DataArray`, optional
         The data to plot as an :class:`xarray.DataArray`.
-        This will be passed to :meth:`.Format.make_patch_collection`.
+        This will be passed to :meth:`.Convention.make_patch_collection`.
     vector : tuple of :class:`numpy.ndarray`, optional
         The *u* and *v* components of a vector field
         as a tuple of :class:`xarray.DataArray`.
-        These will be passed to :meth:`.Format.make_quiver`.
+        These will be passed to :meth:`.Convention.make_quiver`.
     title : str, optional
         The title of the plot. Optional.
     projection : :class:`~cartopy.crs.Projection`
         The projection to use when plotting.
         Optional, defaults to :class:`~cartopy.crs.PlateCarree`.
         This is different to the coordinate reference system for the data,
-        which is defined in :attr:`.Format.data_crs`.
+        which is defined in :attr:`.Convention.data_crs`.
     """
     if projection is None:
         projection = cartopy.crs.PlateCarree()
@@ -175,14 +175,14 @@ def plot_on_figure(
 
     if scalar is None and vector is None:
         # Plot the polygon shapes for want of anything else to draw
-        patches = format.make_patch_collection()
+        patches = convention.make_patch_collection()
         axes.add_collection(patches)
         if title is None:
             title = 'Geometry'
 
     if scalar is not None:
         # Plot a scalar variable on the polygons using a colour map
-        patches = format.make_patch_collection(
+        patches = convention.make_patch_collection(
             scalar, cmap='jet', edgecolor='face')
         axes.add_collection(patches)
         units = scalar.attrs.get('units')
@@ -190,7 +190,7 @@ def plot_on_figure(
 
     if vector is not None:
         # Plot a vector variable using a quiver
-        quiver = format.make_quiver(axes, *vector)
+        quiver = convention.make_quiver(axes, *vector)
         axes.add_collection(quiver)
 
     if title:
@@ -204,7 +204,7 @@ def plot_on_figure(
 @_requires_plot
 def animate_on_figure(
     figure: Figure,
-    format: Format,
+    convention: Convention,
     *,
     coordinate: xr.DataArray,
     scalar: Optional[xr.DataArray] = None,
@@ -223,21 +223,21 @@ def animate_on_figure(
     ----------
     figure : :class:`matplotlib.figure.Figure`
         The :class:`~matplotlib.figure.Figure` instace to plot on.
-    format
-        The :class:`~emsarray.formats.Format` instance of the dataset.
+    convention
+        The :class:`~emsarray.conventions.Convention` instance of the dataset.
         This is used to build the polygons and vector quivers.
     coordinate : :class:`xarray.DataArray`
         The coordinate values to vary across frames in the animation.
     scalar : :class:`xarray.DataArray`, optional
         The data to plot as an :class:`xarray.DataArray`.
-        This will be passed to :meth:`.Format.make_patch_collection`.
-        It should have horizontal dimensions appropriate for this format,
+        This will be passed to :meth:`.Convention.make_patch_collection`.
+        It should have horizontal dimensions appropriate for this convention,
         and a dimension matching the ``coordinate`` parameter.
     vector : tuple of :class:`numpy.ndarray`, optional
         The *u* and *v* components of a vector field
         as a tuple of :class:`xarray.DataArray`.
-        These will be passed to :meth:`.Format.make_quiver`.
-        These should have horizontal dimensions appropriate for this format,
+        These will be passed to :meth:`.Convention.make_quiver`.
+        These should have horizontal dimensions appropriate for this convention,
         and a dimension matching the ``coordinate`` parameter.
     title : str or callable, optional
         The title for each frame of animation.
@@ -253,7 +253,7 @@ def animate_on_figure(
         The projection to use when plotting.
         Optional, defaults to :class:`~cartopy.crs.PlateCarree`.
         This is different to the coordinate reference system for the data,
-        which is defined in :attr:`.Format.data_crs`.
+        which is defined in :attr:`.Convention.data_crs`.
     interval : int
         The interval between frames of animation
     repeat : {True, False, 'cycle', 'bounce'}
@@ -276,8 +276,8 @@ def animate_on_figure(
     patches = None
     if scalar is not None:
         # Plot a scalar variable on the polygons using a colour map
-        scalar_values = format.make_linear(scalar).values[:, format.mask]
-        patches = format.make_patch_collection(
+        scalar_values = convention.make_linear(scalar).values[:, convention.mask]
+        patches = convention.make_patch_collection(
             cmap='jet', edgecolor='face',
             clim=(np.nanmin(scalar_values), np.nanmax(scalar_values)))
         axes.add_collection(patches)
@@ -289,7 +289,7 @@ def animate_on_figure(
     if vector is not None:
         # Plot a vector variable using a quiver
         vector_u_values, vector_v_values = (
-            format.make_linear(vec).values
+            convention.make_linear(vec).values
             for vec in vector)
         # Quivers must start with some data.
         # Vector arrows are scaled using this initial data.
@@ -299,7 +299,7 @@ def animate_on_figure(
         initial_u, initial_v = (
             abs(vec).max(dim=coordinate_dim, skipna=True)
             for vec in vector)
-        quiver = format.make_quiver(axes, initial_u, initial_v)
+        quiver = convention.make_quiver(axes, initial_u, initial_v)
         quiver.set_animated(True)
         axes.add_collection(quiver)
 

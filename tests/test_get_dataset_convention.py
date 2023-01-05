@@ -2,10 +2,10 @@ import pytest
 import xarray as xr
 
 import emsarray
-from emsarray.formats import get_file_format
-from emsarray.formats.grid import CFGrid1D, CFGrid2D
-from emsarray.formats.shoc import ShocSimple, ShocStandard
-from emsarray.formats.ugrid import UGrid
+from emsarray.conventions import get_dataset_convention
+from emsarray.conventions.grid import CFGrid1D, CFGrid2D
+from emsarray.conventions.shoc import ShocSimple, ShocStandard
+from emsarray.conventions.ugrid import UGrid
 
 
 @pytest.mark.parametrize(['dataset', 'expected_class'], [
@@ -16,7 +16,7 @@ from emsarray.formats.ugrid import UGrid
 ])
 def test_files(datasets, dataset, expected_class):
     dataset = xr.open_dataset(datasets / dataset)
-    assert get_file_format(dataset) is expected_class
+    assert get_dataset_convention(dataset) is expected_class
 
 
 @pytest.mark.tutorial
@@ -27,4 +27,4 @@ def test_files(datasets, dataset, expected_class):
 ])
 def test_tutorial_datasets(dataset, expected_class):
     dataset = emsarray.tutorial.open_dataset(dataset)
-    assert get_file_format(dataset) is expected_class
+    assert get_dataset_convention(dataset) is expected_class

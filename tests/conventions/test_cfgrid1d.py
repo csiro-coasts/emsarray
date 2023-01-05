@@ -11,8 +11,8 @@ from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import Polygon, box
 
-from emsarray.formats import get_file_format
-from emsarray.formats.grid import CFGrid1D, CFGridKind, CFGridTopology
+from emsarray.conventions import get_dataset_convention
+from emsarray.conventions.grid import CFGrid1D, CFGridKind, CFGridTopology
 from emsarray.operations import geometry
 from tests.utils import mask_from_strings
 
@@ -137,9 +137,9 @@ def test_make_dataset():
     dataset = make_dataset(width=11, height=7, depth=5)
 
     # Check that this is recognised as a UGrid dataset
-    assert get_file_format(dataset) is CFGrid1D
+    assert get_dataset_convention(dataset) is CFGrid1D
 
-    # Check that the correct format helper is made
+    # Check that the correct convention class is used
     assert isinstance(dataset.ems, CFGrid1D)
 
     # Check the coordinate generation worked.
@@ -173,11 +173,11 @@ def test_polygons():
 
 def test_selector_for_index():
     dataset = make_dataset(width=11, height=7, depth=5)
-    helper: CFGrid1D = dataset.ems
+    convention: CFGrid1D = dataset.ems
 
     index = (3, 4)
     selector = {'lat': 3, 'lon': 4}
-    assert selector == helper.selector_for_index(index)
+    assert selector == convention.selector_for_index(index)
 
 
 def test_make_geojson_geometry():
@@ -188,25 +188,25 @@ def test_make_geojson_geometry():
 
 def test_ravel():
     dataset = make_dataset(width=3, height=5)
-    helper = CFGrid1D(dataset)
+    convention = CFGrid1D(dataset)
     for index in range(3 * 5):
         y, x = divmod(index, 3)
-        assert helper.ravel_index((y, x)) == index
-        assert helper.unravel_index(index) == (y, x)
+        assert convention.ravel_index((y, x)) == index
+        assert convention.unravel_index(index) == (y, x)
 
 
 def test_grid_kinds():
     dataset = make_dataset(width=3, height=3)
-    helper: CFGrid1D = dataset.ems
+    convention: CFGrid1D = dataset.ems
 
-    assert helper.grid_kinds == frozenset({CFGridKind.face})
-    assert helper.default_grid_kind == CFGridKind.face
+    assert convention.grid_kinds == frozenset({CFGridKind.face})
+    assert convention.default_grid_kind == CFGridKind.face
 
 
 def test_grid_kind_and_size():
     dataset = make_dataset(width=3, height=5)
-    helper = CFGrid1D(dataset)
-    grid_kind, size = helper.get_grid_kind_and_size(dataset.data_vars['temp'])
+    convention = CFGrid1D(dataset)
+    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['temp'])
     assert grid_kind is CFGridKind.face
     assert size == 3 * 5
 
@@ -250,15 +250,15 @@ def test_plot_on_figure():
 
 def test_make_clip_mask():
     dataset = make_dataset(width=10, height=11)
-    helper = CFGrid1D(dataset)
-    topology = helper.topology
+    convention = CFGrid1D(dataset)
+    topology = convention.topology
 
     # The dataset will have cells with centres from 0-.5 longitude, 0-.7 latitude
     clip_geometry = Polygon([
         (0.18, .30), (.40, .30), (.60, .51), (.60, .64), (.18, .64), (.18, .30),
     ])
 
-    mask = helper.make_clip_mask(clip_geometry)
+    mask = convention.make_clip_mask(clip_geometry)
     expected_cells = mask_from_strings([
         "0000000000",
         "0000000000",
@@ -282,7 +282,7 @@ def test_make_clip_mask():
     assert list(mask.data_vars.keys()) == ['cell_mask']
 
     # Test adding a buffer also
-    mask = helper.make_clip_mask(clip_geometry, buffer=1)
+    mask = convention.make_clip_mask(clip_geometry, buffer=1)
     expected_cells = mask_from_strings([
         "0000000000",
         "0000000000",
@@ -301,13 +301,13 @@ def test_make_clip_mask():
 
 def test_apply_clip_mask(tmp_path):
     dataset = make_dataset(width=10, height=11)
-    helper = CFGrid1D(dataset)
+    convention = CFGrid1D(dataset)
 
     # Clip it!
     clip_geometry = Polygon([
         (0.18, .30), (.40, .30), (.60, .51), (.60, .64), (.18, .64), (.18, .30),
     ])
-    mask = helper.make_clip_mask(clip_geometry)
+    mask = convention.make_clip_mask(clip_geometry)
     clipped = dataset.ems.apply_clip_mask(mask, tmp_path)
 
     assert isinstance(clipped.ems, CFGrid1D)

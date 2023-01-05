@@ -14,13 +14,13 @@ from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import Polygon, box
 
-from emsarray.exceptions import (
-    ConventionViolationError, ConventionViolationWarning
-)
-from emsarray.formats import get_file_format
-from emsarray.formats.ugrid import (
+from emsarray.conventions import get_dataset_convention
+from emsarray.conventions.ugrid import (
     Mesh2DTopology, NoEdgeDimensionException, UGrid, UGridKind,
     _get_start_index, buffer_faces, mask_from_face_indices
+)
+from emsarray.exceptions import (
+    ConventionViolationError, ConventionViolationWarning
 )
 from emsarray.operations import geometry
 
@@ -318,9 +318,9 @@ def test_make_dataset():
     dataset = make_dataset(width=3, depth_size=5)
 
     # Check that this is recognised as a UGrid dataset
-    assert get_file_format(dataset) is UGrid
+    assert get_dataset_convention(dataset) is UGrid
 
-    # Check that the correct format helper is made
+    # Check that the correct convention is used
     assert isinstance(dataset.ems, UGrid)
 
     # Check the coordinate generation worked.
@@ -377,26 +377,26 @@ def test_polygons():
 
 def test_face_centres_from_variables():
     dataset = make_dataset(width=3, make_face_coordinates=True)
-    helper: UGrid = dataset.ems
+    convention: UGrid = dataset.ems
 
-    face_centres = helper.face_centres
+    face_centres = convention.face_centres
     lons = dataset['face_x'].values
     lats = dataset['face_y'].values
     for face in range(dataset.dims['nMesh2_face']):
         lon = lons[face]
         lat = lats[face]
-        linear_index = helper.ravel_index((UGridKind.face, face))
+        linear_index = convention.ravel_index((UGridKind.face, face))
         np.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
 
 def test_face_centres_from_centroids():
     dataset = make_dataset(width=3, make_face_coordinates=False)
-    helper: UGrid = dataset.ems
+    convention: UGrid = dataset.ems
 
-    face_centres = helper.face_centres
+    face_centres = convention.face_centres
     for face in range(dataset.dims['nMesh2_face']):
-        linear_index = helper.ravel_index((UGridKind.face, face))
-        polygon = helper.polygons[linear_index]
+        linear_index = convention.ravel_index((UGridKind.face, face))
+        polygon = convention.polygons[linear_index]
         lon, lat = polygon.centroid.coords[0]
         np.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
@@ -411,8 +411,8 @@ def test_face_centres_from_centroids():
 )
 def test_selector_for_index(index, selector):
     dataset = make_dataset(width=4, make_edges=True)
-    helper: UGrid = dataset.ems
-    assert selector == helper.selector_for_index(index)
+    convention: UGrid = dataset.ems
+    assert selector == convention.selector_for_index(index)
 
 
 def test_make_geojson_geometry():
@@ -425,59 +425,59 @@ def test_make_geojson_geometry():
 
 def test_ravel():
     dataset = make_dataset(width=3)
-    helper: UGrid = dataset.ems
+    convention: UGrid = dataset.ems
     for linear_index in range(dataset.dims['nMesh2_face']):
         index = (UGridKind.face, linear_index)
-        assert helper.ravel_index(index) == linear_index
-        assert helper.unravel_index(linear_index) == index
+        assert convention.ravel_index(index) == linear_index
+        assert convention.unravel_index(linear_index) == index
 
     for linear_index in range(dataset.ems.topology.edge_count):
         index = (UGridKind.edge, linear_index)
-        assert helper.ravel_index(index) == linear_index
-        assert helper.unravel_index(linear_index, UGridKind.edge) == index
+        assert convention.ravel_index(index) == linear_index
+        assert convention.unravel_index(linear_index, UGridKind.edge) == index
 
     for linear_index in range(dataset.ems.topology.node_count):
         index = (UGridKind.node, linear_index)
-        assert helper.ravel_index(index) == linear_index
-        assert helper.unravel_index(linear_index, UGridKind.node) == index
+        assert convention.ravel_index(index) == linear_index
+        assert convention.unravel_index(linear_index, UGridKind.node) == index
 
 
 def test_grid_kinds_with_edges():
     dataset = make_dataset(width=3, make_edges=True)
-    helper: UGrid = dataset.ems
+    convention: UGrid = dataset.ems
 
-    assert helper.grid_kinds == frozenset({
+    assert convention.grid_kinds == frozenset({
         UGridKind.face,
         UGridKind.edge,
         UGridKind.node,
     })
 
-    assert helper.default_grid_kind == UGridKind.face
+    assert convention.default_grid_kind == UGridKind.face
 
 
 def test_grid_kinds_without_edges():
     dataset = make_dataset(width=3, make_edges=False)
-    helper: UGrid = dataset.ems
+    convention: UGrid = dataset.ems
 
-    assert helper.grid_kinds == frozenset({
+    assert convention.grid_kinds == frozenset({
         UGridKind.face,
         UGridKind.node,
     })
 
-    assert helper.default_grid_kind == UGridKind.face
+    assert convention.default_grid_kind == UGridKind.face
 
 
 def test_grid_kind_and_size():
     dataset = make_dataset(width=3, make_edges=True)
-    helper: UGrid = dataset.ems
+    convention: UGrid = dataset.ems
 
-    grid_kind, size = helper.get_grid_kind_and_size(dataset.data_vars['temp'])
+    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['temp'])
     assert grid_kind is UGridKind.face
-    assert size == helper.topology.face_count
+    assert size == convention.topology.face_count
 
-    grid_kind, size = helper.get_grid_kind_and_size(dataset.data_vars['u1'])
+    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['u1'])
     assert grid_kind is UGridKind.edge
-    assert size == helper.topology.edge_count
+    assert size == convention.topology.edge_count
 
 
 def test_drop_geometry(datasets: pathlib.Path):
@@ -779,8 +779,8 @@ def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
     as indicated by the 'start_index' attribute.
     """
     dataset = xr.open_dataset(datasets / 'ugrid_mesh2d_one_indexed.nc')
-    helper: UGrid = dataset.ems
-    topology = helper.topology
+    convention: UGrid = dataset.ems
+    topology = convention.topology
 
     assert topology.has_valid_face_node_connectivity
     assert topology.face_node_connectivity.attrs['start_index'] == 1
@@ -791,9 +791,9 @@ def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
     assert_equal(topology.face_node_array[0], [0, 9, 8])
     assert_equal(topology.face_node_array, topology.face_node_connectivity.values - 1)
 
-    assert len(helper.polygons) == topology.face_count
+    assert len(convention.polygons) == topology.face_count
 
-    clipped = helper.clip(box(0.1, 0.1, 4, 4), work_dir=tmp_path)
+    clipped = convention.clip(box(0.1, 0.1, 4, 4), work_dir=tmp_path)
     clipped.to_netcdf(tmp_path / 'clipped.nc')
 
     assert isinstance(clipped.ems, UGrid)

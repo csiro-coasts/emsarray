@@ -1,8 +1,8 @@
-=====================
-emsarray.formats.grid
-=====================
+=========================
+emsarray.conventions.grid
+=========================
 
-.. automodule:: emsarray.formats.grid
+.. automodule:: emsarray.conventions.grid
 
 .. autoclass:: CFGrid
    :members: __init__, topology
@@ -17,7 +17,7 @@ Indexing
 CF grid datasets have one :ref:`grid <grids>`: *face*.
 :class:`CFGridKind` represents this.
 Each face is :ref:`indexed <indexing>` by two integers *x* and *y*.
-The format native index type is :data:`CFGridIndex`.
+The convention native index type is :data:`CFGridIndex`.
 
 .. autoclass:: CFGridKind
    :members:

@@ -2,14 +2,14 @@ import pathlib
 
 import netCDF4
 
-from emsarray import Format
+from emsarray import Convention
 
-from .formats.test_shoc_standard import make_dataset
+from .conventions.test_shoc_standard import make_dataset
 
 
 def test_ems_accessor():
     dataset = make_dataset(j_size=10, i_size=20)
-    assert isinstance(dataset.ems, Format)
+    assert isinstance(dataset.ems, Convention)
 
 
 def test_to_netcdf(tmp_path: pathlib.Path):

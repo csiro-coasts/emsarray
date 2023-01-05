@@ -85,7 +85,7 @@ autodoc_default_options = {
     'member-order': 'bysource',
 }
 autodoc_type_aliases = {
-    'IndexType': 'emsarray.formats.IndexType',
+    'IndexType': 'emsarray.conventions.IndexType',
 }
 
 

@@ -11,7 +11,9 @@ import xarray as xr
 from numpy.testing import assert_equal
 
 import emsarray
-from emsarray.formats.arakawa_c import ArakawaCGridKind, c_mask_from_centres
+from emsarray.conventions.arakawa_c import (
+    ArakawaCGridKind, c_mask_from_centres
+)
 from tests.utils import DiagonalShocGrid, ShocLayerGenerator, mask_from_strings
 
 
