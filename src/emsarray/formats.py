@@ -4,8 +4,9 @@ from typing import Any, Optional, Type
 
 import xarray as xr
 
-from .conventions import *  # noqa
-from .conventions import Convention, get_dataset_convention
+from emsarray import conventions
+
+from .conventions import Convention, GridKind, Index, get_dataset_convention
 
 
 def _warn_old_new(old: str, new: str, **kwargs: Any) -> None:
@@ -24,7 +25,7 @@ def get_file_format(dataset: xr.Dataset, **kwargs: Any) -> Optional[Type[Convent
     return get_dataset_convention(dataset, **kwargs)
 
 
-class Format(Convention):
+class Format(Convention[GridKind, Index]):
     def __init_subclass__(cls, *args: Any, **kwargs: Any) -> None:
         _warn_old_new(
             old="emsarray.formats.Format",
@@ -33,4 +34,14 @@ class Format(Convention):
         super().__init_subclass__(*args, **kwargs)
 
 
-_warn_old_new(old="emsarray.formats", new="emsarray.conventions", stacklevel=3)
+def __getattr__(name: str) -> Any:
+    # This takes the place of `from emsarray.conventions import *`,
+    # and will warn on any `from emsarray.formats import x, y, z` uses.
+    _warn_old_new(
+        old=f'emsarray.formats.{name}',
+        new=f'emsarray.conventions.{name}')
+    return getattr(conventions, name)
+
+
+# Even this module is deprecated! Warn about that too
+_warn_old_new(old='emsarray.formats', new='emsarray.conventions', stacklevel=1)
