@@ -37,11 +37,13 @@ class Format(Convention[GridKind, Index]):
 def __getattr__(name: str) -> Any:
     # This takes the place of `from emsarray.conventions import *`,
     # and will warn on any `from emsarray.formats import x, y, z` uses.
-    _warn_old_new(
-        old=f'emsarray.formats.{name}',
-        new=f'emsarray.conventions.{name}')
+    if not name.startswith('__'):
+        _warn_old_new(
+            old=f'emsarray.formats.{name}',
+            new=f'emsarray.conventions.{name}',
+            stacklevel=3)
     return getattr(conventions, name)
 
 
 # Even this module is deprecated! Warn about that too
-_warn_old_new(old='emsarray.formats', new='emsarray.conventions', stacklevel=1)
+_warn_old_new(old='emsarray.formats', new='emsarray.conventions', stacklevel=3)
