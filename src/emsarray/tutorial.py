@@ -84,19 +84,19 @@ def open_dataset(name: str, **kwargs: Any) -> xarray.Dataset:
     ``bran2020``
         A small sample of the Bluelink Reanalysis 2020 (BRAN2020) ocean dataset.
         This dataset is defined on a rectangular grid with one dimensional coordinates,
-        handled by the :class:`.CFGrid1D` format class.
+        handled by the :class:`.CFGrid1D` convenion.
 
     ``fraser``
         A subset of the Great Barrier Reef 4km (GBR4) v2.0 model, part of the eReefs data.
         This subset is centred around K'gari / Fraser Island.
         This dataset is defined on a curvilinear grid with two dimensional coordinates,
-        handled by the :class:`.CFGrid2D` format class.
+        handled by the :class:`.CFGrid2D` convention.
         Temperature, sea surface height, and current variables are included.
 
     ``gbr4``
         A subset of the Great Barrier Reef 4km (GBR4) v2.0 model, part of the eReefs data.
         This dataset is defined on a curvilinear grid with two dimensional coordinates,
-        handled by the :class:`.CFGrid2D` format class.
+        handled by the :class:`.CFGrid2D` convention.
         Temperature, sea surface heigh, and salinity variables are included.
 
     Parameters

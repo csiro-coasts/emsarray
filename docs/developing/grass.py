@@ -8,7 +8,7 @@ import xarray as xr
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 
-from emsarray.formats import Format, Specificity
+from emsarray.conventions import Convention, Specificity
 from emsarray.masking import blur_mask
 from emsarray.types import Pathish
 from emsarray.utils import linearise_dimensions
@@ -23,7 +23,7 @@ class GrassGridKind(enum.Enum):
 GrassIndex = Tuple[GrassGridKind, int, int]
 
 
-class Grass(Format[GrassGridKind, GrassIndex]):
+class Grass(Convention[GrassGridKind, GrassIndex]):
 
     #: All the grid kinds this dataset has
     grid_kinds = frozenset(GrassGridKind)

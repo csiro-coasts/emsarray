@@ -5,7 +5,7 @@ Coastal Environment Modelling dataset helper
 ============================================
 
 The `emsarray` package provides a common interface
-for working with the many model formats used at CSIRO.
+for working with the many model geometry conventions used at CSIRO.
 It enhances `xarray`_ Datasets
 and provides a set of common operations for manipulating datasets.
 

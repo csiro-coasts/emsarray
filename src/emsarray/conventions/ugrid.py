@@ -1,5 +1,5 @@
 """
-Unstructured grid format.
+Unstructured grid convention.
 
 See also
 --------
@@ -30,8 +30,7 @@ from emsarray.exceptions import (
 )
 from emsarray.types import Pathish
 
-from ._base import Format
-from ._helpers import Specificity
+from ._base import Convention, Specificity
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +72,7 @@ def buffer_faces(face_indices: np.ndarray, topology: Mesh2DTopology) -> np.ndarr
 def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -> xr.Dataset:
     """
     Make a mask dataset from a list of face indices.
-    This mask can later be applied using :meth:`~.Format.apply_clip_mask`.
+    This mask can later be applied using :meth:`~.Convention.apply_clip_mask`.
 
     A mask for a UGRID dataset indicates which nodes, edges, and faces
     (collectively 'elements') to include, and their new indices. When
@@ -1015,8 +1014,8 @@ class UGridKind(str, enum.Enum):
 UGridIndex = Tuple[UGridKind, int]
 
 
-class UGrid(Format[UGridKind, UGridIndex]):
-    """A :class:`.Format` subclass to handle unstructured grid datasets.
+class UGrid(Convention[UGridKind, UGridIndex]):
+    """A :class:`.Convention` subclass to handle unstructured grid datasets.
     """
 
     default_grid_kind = UGridKind.face

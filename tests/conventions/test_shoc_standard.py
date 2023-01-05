@@ -13,9 +13,9 @@ from matplotlib.figure import Figure
 from numpy.testing import assert_equal
 from shapely.geometry.polygon import Polygon, orient
 
-from emsarray.formats import get_file_format
-from emsarray.formats.arakawa_c import c_mask_from_centres
-from emsarray.formats.shoc import ArakawaCGridKind, ShocStandard
+from emsarray.conventions import get_dataset_convention
+from emsarray.conventions.arakawa_c import c_mask_from_centres
+from emsarray.conventions.shoc import ArakawaCGridKind, ShocStandard
 from emsarray.operations import geometry
 from tests.utils import (
     DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator, mask_from_strings
@@ -184,9 +184,9 @@ def test_make_dataset():
     dataset = make_dataset(j_size=5, i_size=9, corner_size=2)
 
     # Check that this is recognised as a ShocSimple dataset
-    assert get_file_format(dataset) is ShocStandard
+    assert get_dataset_convention(dataset) is ShocStandard
 
-    # Check that the correct format helper is made
+    # Check that the correct convention is used
     assert isinstance(dataset.ems, ShocStandard)
 
     # Check the coordinate generation worked.
@@ -247,16 +247,16 @@ def test_face_centres():
     # SHOC standard face centres are taken directly from the coordinates,
     # not calculated from polygon centres.
     dataset = make_dataset(j_size=10, i_size=20, corner_size=3)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
-    face_centres = helper.face_centres
+    face_centres = convention.face_centres
     lons = dataset['x_centre'].values
     lats = dataset['y_centre'].values
     for j in range(dataset.dims['j_centre']):
         for i in range(dataset.dims['i_centre']):
             lon = lons[j, i]
             lat = lats[j, i]
-            linear_index = helper.ravel_index((ArakawaCGridKind.face, j, i))
+            linear_index = convention.ravel_index((ArakawaCGridKind.face, j, i))
             np.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
 
@@ -268,76 +268,76 @@ def test_make_geojson_geometry():
 
 def test_ravel():
     dataset = make_dataset(j_size=5, i_size=7)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
     for ravelled, (j, i) in enumerate(itertools.product(range(5), range(7))):
         index = (ArakawaCGridKind.face, j, i)
-        assert helper.ravel_index(index) == ravelled
-        assert helper.unravel_index(ravelled) == index
-        assert helper.unravel_index(ravelled, ArakawaCGridKind.face) == index
+        assert convention.ravel_index(index) == ravelled
+        assert convention.unravel_index(ravelled) == index
+        assert convention.unravel_index(ravelled, ArakawaCGridKind.face) == index
 
 
 def test_ravel_left():
     dataset = make_dataset(j_size=5, i_size=7)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
     for ravelled, (j, i) in enumerate(itertools.product(range(5), range(8))):
         index = (ArakawaCGridKind.left, j, i)
-        assert helper.ravel_index(index) == ravelled
-        assert helper.unravel_index(ravelled, ArakawaCGridKind.left) == index
+        assert convention.ravel_index(index) == ravelled
+        assert convention.unravel_index(ravelled, ArakawaCGridKind.left) == index
 
 
 def test_ravel_back():
     dataset = make_dataset(j_size=5, i_size=7)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
     for ravelled, (j, i) in enumerate(itertools.product(range(6), range(7))):
         index = (ArakawaCGridKind.back, j, i)
-        assert helper.ravel_index(index) == ravelled
-        assert helper.unravel_index(ravelled, ArakawaCGridKind.back) == index
+        assert convention.ravel_index(index) == ravelled
+        assert convention.unravel_index(ravelled, ArakawaCGridKind.back) == index
 
 
 def test_ravel_grid():
     dataset = make_dataset(j_size=5, i_size=7)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
     for ravelled, (j, i) in enumerate(itertools.product(range(6), range(8))):
         index = (ArakawaCGridKind.node, j, i)
-        assert helper.ravel_index(index) == ravelled
-        assert helper.unravel_index(ravelled, ArakawaCGridKind.node) == index
+        assert convention.ravel_index(index) == ravelled
+        assert convention.unravel_index(ravelled, ArakawaCGridKind.node) == index
 
 
 def test_grid_kinds():
     dataset = make_dataset(j_size=3, i_size=5)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
-    assert helper.grid_kinds == frozenset({
+    assert convention.grid_kinds == frozenset({
         ArakawaCGridKind.face,
         ArakawaCGridKind.left,
         ArakawaCGridKind.back,
         ArakawaCGridKind.node,
     })
 
-    assert helper.default_grid_kind == ArakawaCGridKind.face
+    assert convention.default_grid_kind == ArakawaCGridKind.face
 
 
 def test_grid_kind_and_size():
     dataset = make_dataset(j_size=5, i_size=7)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
-    grid_kind, size = helper.get_grid_kind_and_size(dataset.data_vars['temp'])
+    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['temp'])
     assert grid_kind is ArakawaCGridKind.face
     assert size == 5 * 7
 
-    grid_kind, size = helper.get_grid_kind_and_size(dataset.data_vars['u1'])
+    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['u1'])
     assert grid_kind is ArakawaCGridKind.left
     assert size == 5 * 8
 
-    grid_kind, size = helper.get_grid_kind_and_size(dataset.data_vars['u2'])
+    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['u2'])
     assert grid_kind is ArakawaCGridKind.back
     assert size == 6 * 7
 
-    grid_kind, size = helper.get_grid_kind_and_size(dataset.data_vars['flag'])
+    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['flag'])
     assert grid_kind is ArakawaCGridKind.node
     assert size == 6 * 8
 
@@ -353,16 +353,16 @@ def test_grid_kind_and_size():
 )
 def test_selector_for_index(index, selector):
     dataset = make_dataset(j_size=5, i_size=7)
-    helper: ShocStandard = dataset.ems
-    assert selector == helper.selector_for_index(index)
+    convention: ShocStandard = dataset.ems
+    assert selector == convention.selector_for_index(index)
 
 
 # These select_index tests are not specifically about SHOC,
 # they are more about how select_index behaves with multiple grid kinds.
 def test_select_index_face():
     dataset = make_dataset(time_size=4, k_size=5, j_size=5, i_size=9)
-    helper: ShocStandard = dataset.ems
-    face = helper.select_index((ArakawaCGridKind.face, 3, 4))
+    convention: ShocStandard = dataset.ems
+    face = convention.select_index((ArakawaCGridKind.face, 3, 4))
 
     assert set(face.data_vars.keys()) == {
         # These are the data variables we expect to see
@@ -378,9 +378,9 @@ def test_select_index_face():
 
 def test_select_index_edge():
     dataset = make_dataset(time_size=4, k_size=5, j_size=5, i_size=9)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
-    left = helper.select_index((ArakawaCGridKind.left, 3, 4))
+    left = convention.select_index((ArakawaCGridKind.left, 3, 4))
     assert set(left.data_vars.keys()) == {
         # This is the only data variable we expect to see,
         # as it is the only one defined on left edges.
@@ -391,7 +391,7 @@ def test_select_index_edge():
     }
     assert left.dims == {'record': 4, 'k_centre': 5}
 
-    back = helper.select_index((ArakawaCGridKind.back, 3, 4))
+    back = convention.select_index((ArakawaCGridKind.back, 3, 4))
     assert set(back.data_vars.keys()) == {
         # This is the only data variable we expect to see,
         # as it is the only one defined on back edges.
@@ -405,9 +405,9 @@ def test_select_index_edge():
 
 def test_select_index_grid():
     dataset = make_dataset(time_size=4, k_size=5, j_size=5, i_size=9)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
-    node = helper.select_index((ArakawaCGridKind.node, 3, 4))
+    node = convention.select_index((ArakawaCGridKind.node, 3, 4))
     assert set(node.data_vars.keys()) == {
         # This is the only data variable we expect to see,
         # as it is the only one defined on the node.
@@ -457,14 +457,14 @@ def test_plot_on_figure():
 
 def test_make_clip_mask():
     dataset = make_dataset(j_size=10, i_size=8)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
     # The dataset will have cells with centres from 0-.5 longitude, 0-.7 latitude
     clip_geometry = Polygon([
         (.74, .84), (.86, .84), (.86, .96), (.74, .96), (.74, .84),
     ])
 
-    mask = helper.make_clip_mask(clip_geometry)
+    mask = convention.make_clip_mask(clip_geometry)
 
     assert mask.data_vars.keys() \
         == {'face_mask', 'left_mask', 'back_mask', 'node_mask'}
@@ -533,7 +533,7 @@ def test_make_clip_mask():
     )
 
     # Test adding a buffer also
-    mask = helper.make_clip_mask(clip_geometry, buffer=1)
+    mask = convention.make_clip_mask(clip_geometry, buffer=1)
     assert_equal(
         mask.data_vars['face_mask'].values,
         mask_from_strings([
@@ -569,13 +569,13 @@ def test_make_clip_mask():
 
 def test_apply_clip_mask(tmp_path):
     dataset = make_dataset(j_size=10, i_size=8)
-    helper: ShocStandard = dataset.ems
+    convention: ShocStandard = dataset.ems
 
     # Clip it!
     clip_geometry = Polygon([
         (.74, .84), (.86, .84), (.86, .96), (.74, .96), (.74, .84),
     ])
-    mask = helper.make_clip_mask(clip_geometry)
+    mask = convention.make_clip_mask(clip_geometry)
     clipped = dataset.ems.apply_clip_mask(mask, tmp_path)
 
     assert isinstance(clipped.ems, ShocStandard)
@@ -605,7 +605,7 @@ def test_apply_clip_mask(tmp_path):
     assert_equal(clipped.data_vars['temp'].values, clip_values(dataset.data_vars['temp'].values))
 
     # Check that the new geometry matches the relevant polygons in the old geometry
-    original_polygons = helper.polygons.reshape(10, 8)[3:6, 2:5].ravel()
+    original_polygons = convention.polygons.reshape(10, 8)[3:6, 2:5].ravel()
 
     assert len(clipped.ems.polygons) == 3 * 3
     assert clipped.ems.polygons[0] is None

@@ -102,9 +102,9 @@ def triangulate_dataset(
     # vertices in consistent ways. Float equality is tricky!
     vertex_indices = {vertex: index for index, vertex in enumerate(vertices)}
 
-    # Each cell polygon needs to be triangulated, while also recording the
-    # format-native index of the cell, so that we can later correlate cell data
-    # with the triangles.
+    # Each cell polygon needs to be triangulated,
+    # while also recording the convention native index of the cell,
+    # so that we can later correlate cell data with the triangles.
     polygons_with_index = [
         (polygon, index)
         for index, polygon in enumerate(polygons)

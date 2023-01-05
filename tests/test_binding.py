@@ -1,12 +1,12 @@
 """
-Test binding Format instances to datasets,
+Test binding Convention instances to datasets,
 whether implicitly through the accessor autodetection or manually.
 """
 import pytest
 import xarray as xr
 
 import emsarray
-from emsarray.formats import CFGrid2D, ShocStandard
+from emsarray.conventions import CFGrid2D, ShocStandard
 from emsarray.state import State
 
 
@@ -16,12 +16,12 @@ def test_automatic_binding_via_accessor(datasets):
 
     # Fresh datasets opened via xarray should be unbound initially
     assert not state.is_bound()
-    assert state.format is None
+    assert state.convention is None
 
-    # Autodetection via the accessor should bind the format
-    format = ds.ems
+    # Autodetection via the accessor should bind the convention
+    convention = ds.ems
     assert state.is_bound()
-    assert state.format is format
+    assert state.convention is convention
 
 
 def test_automatic_binding_via_open_dataset(datasets):
@@ -30,7 +30,7 @@ def test_automatic_binding_via_open_dataset(datasets):
 
     # Datasets opened via emsarray.open_dataset should be bound
     assert state.is_bound()
-    assert ds.ems is state.format
+    assert ds.ems is state.convention
 
 
 def test_manual_binding(datasets):
@@ -39,38 +39,38 @@ def test_manual_binding(datasets):
 
     # Fresh datasets opened via xarray should be unbound initially
     assert not state.is_bound()
-    assert state.format is None
+    assert state.convention is None
 
-    # Construct a format. Autodetection would use ShocStandard,
+    # Construct a convention. Autodetection would use ShocStandard,
     # but CFGrid2D is also compatible.
-    format = CFGrid2D(ds, longitude='x_centre', latitude='y_centre')
+    convention = CFGrid2D(ds, longitude='x_centre', latitude='y_centre')
 
-    # Merely constructing this format should not bind anything
+    # Merely constructing this convention should not bind anything
     assert not state.is_bound()
-    assert state.format is None
+    assert state.convention is None
 
     # Manually bind and check that it holds
-    format.bind()
+    convention.bind()
     assert state.is_bound()
-    assert state.format is format
-    assert ds.ems is format
+    assert state.convention is convention
+    assert ds.ems is convention
 
 
 def test_copy_rebind(datasets):
     ds_shoc = emsarray.open_dataset(datasets / 'shoc_standard.nc')
-    shoc_format = ds_shoc.ems
-    assert isinstance(shoc_format, ShocStandard)
+    shoc_convention = ds_shoc.ems
+    assert isinstance(shoc_convention, ShocStandard)
 
     # Binding an already bound dataset should raise an error
-    cfgrid_format = CFGrid2D(ds_shoc, longitude='x_centre', latitude='y_centre')
+    cfgrid_convention = CFGrid2D(ds_shoc, longitude='x_centre', latitude='y_centre')
     with pytest.raises(ValueError):
-        cfgrid_format.bind()
+        cfgrid_convention.bind()
 
     # Making a copy and binding that should work
     ds_cfgrid = ds_shoc.copy()
-    cfgrid_format = CFGrid2D(ds_cfgrid, longitude='x_centre', latitude='y_centre')
-    cfgrid_format.bind()
+    cfgrid_convention = CFGrid2D(ds_cfgrid, longitude='x_centre', latitude='y_centre')
+    cfgrid_convention.bind()
 
-    # Each dataset should have its own bound format
-    assert ds_cfgrid.ems is cfgrid_format
-    assert ds_shoc.ems is shoc_format
+    # Each dataset should have its own bound convention
+    assert ds_cfgrid.ems is cfgrid_convention
+    assert ds_shoc.ems is shoc_convention

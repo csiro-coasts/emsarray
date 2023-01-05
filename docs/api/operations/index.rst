@@ -4,8 +4,8 @@ emsarray.operations
 
 Operations are useful functions that
 transform datasets, extract subsets, manipulate geometry, or other useful actions.
-These functions do not depend on the specific format of the underlying dataset,
-and behave the same across all supported formats.
+These functions do not depend on the specific convention of the underlying dataset,
+and behave the same across all supported conventions.
 
 .. toctree::
    :hidden:

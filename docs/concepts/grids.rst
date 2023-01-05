@@ -4,7 +4,7 @@
 Grids
 =====
 
-Each :class:`format <.Format>` defines data across a geographic area.
+Each :class:`geometry convention <.Convention>` defines data across a geographic area.
 That area is divided up in to cells or *faces*.
 These faces define one grid.
 Dataset variables can represent data on this grid,
@@ -17,18 +17,18 @@ Water flowing from one face to its neighbour
 is commonly represented as flux through a shared *edge*,
 from one face to another.
 These edges represent another grid.
-Some formats also define variables on face vertices, called *nodes*.
+Some conventions also define variables on face vertices, called *nodes*.
 Nodes represent a third grid.
-This is represented by the :data:`~.formats._base.GridKind` type variable.
+This is represented by the :data:`~.conventions._base.GridKind` type variable.
 
 Each of the faces, edges, and nodes define an area, line, or point.
 These areas, lines, or points exist at some geographic location.
 In this sense they exist as horizontal or surface dimensions.
 
-Each format can represent data at multiple depth layers.
+Each convention can represent data at multiple depth layers.
 These depth layers add a third, vertical dimension to the cell, edge, or node grid.
 
-Each format can represent data at multiple time steps.
+Each convention can represent data at multiple time steps.
 Time is a fourth dimension.
 
 Examples

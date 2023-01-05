@@ -12,7 +12,7 @@ API reference
 
     accessors.rst
     emsarray.rst
-    formats/index.rst
+    conventions/index.rst
     operations/index.rst
     cli/index.rst
     masking.rst

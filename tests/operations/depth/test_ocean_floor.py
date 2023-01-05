@@ -78,5 +78,5 @@ def test_ocean_floor_from_files(name):
     # The new dataset should not have any depth dimensions
     assert floored_dimensions == original_dimensions - depth_dimensions
 
-    # The floored dataset should use the same format helper type
+    # The floored dataset should use the same convention type
     assert type(floored.ems) is type(dataset.ems)  # noqa: E721

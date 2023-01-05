@@ -91,7 +91,7 @@ def check_triangulation(
 ):
     """
     Check the triangulation of a dataset by reconstructing all polygons.
-    These checks are independent of the specific format type.
+    These checks are independent of the specific convention.
     """
     # Check that the cell indices are within bounds.
     assert len(cell_indices) == len(triangles)

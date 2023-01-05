@@ -1,9 +1,9 @@
 """
-Test the CFGrid2D format class.
+Test the CFGrid2D convention implementation
 
-The SHOC simple format is a specific implementation of CFGrid2D.
+The SHOC simple convention is a specific implementation of CFGrid2D.
 Instead of writing two identical test suites,
-the SHOC simple format is used to test both.
+the SHOC simple convention is used to test both.
 """
 from __future__ import annotations
 
@@ -19,9 +19,9 @@ import xarray as xr
 from matplotlib.figure import Figure
 from shapely.geometry import Polygon
 
-from emsarray.formats import get_file_format
-from emsarray.formats.grid import CFGridKind
-from emsarray.formats.shoc import ShocSimple
+from emsarray.conventions import get_dataset_convention
+from emsarray.conventions.grid import CFGridKind
+from emsarray.conventions.shoc import ShocSimple
 from emsarray.operations import geometry
 from tests.utils import DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator
 
@@ -133,9 +133,9 @@ def test_make_dataset():
     dataset = make_dataset(j_size=5, i_size=9)
 
     # Check that this is recognised as a ShocSimple dataset
-    assert get_file_format(dataset) is ShocSimple
+    assert get_dataset_convention(dataset) is ShocSimple
 
-    # Check that the correct format helper is made
+    # Check that the correct convention is used
     assert isinstance(dataset.ems, ShocSimple)
 
     # Check the coordinate generation worked.
@@ -194,27 +194,27 @@ def test_face_centres():
     # SHOC simple face centres are taken directly from the coordinates,
     # not calculated from polygon centres.
     dataset = make_dataset(j_size=10, i_size=20, corner_size=3)
-    helper: ShocSimple = dataset.ems
+    convention: ShocSimple = dataset.ems
 
-    face_centres = helper.face_centres
+    face_centres = convention.face_centres
     lons = dataset.variables['longitude'].values
     lats = dataset.variables['latitude'].values
     for j in range(dataset.dims['j']):
         for i in range(dataset.dims['i']):
             lon = lons[j, i]
             lat = lats[j, i]
-            linear_index = helper.ravel_index((j, i))
+            linear_index = convention.ravel_index((j, i))
             np.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
 
 def test_selector_for_index():
     dataset = make_dataset(j_size=5, i_size=7)
-    helper: ShocSimple = dataset.ems
+    convention: ShocSimple = dataset.ems
 
     # Shoc simple only has a single face grid
     index = (3, 4)
     selector = {'j': 3, 'i': 4}
-    assert selector == helper.selector_for_index(index)
+    assert selector == convention.selector_for_index(index)
 
 
 def test_make_geojson_geometry():
@@ -225,28 +225,28 @@ def test_make_geojson_geometry():
 
 def test_ravel():
     dataset = make_dataset(j_size=5, i_size=7)
-    helper: ShocSimple = dataset.ems
+    convention: ShocSimple = dataset.ems
 
     for linear_index, (j, i) in enumerate(itertools.product(range(5), range(7))):
         index = (j, i)
-        assert helper.ravel_index(index) == linear_index
-        assert helper.unravel_index(linear_index) == index
-        assert helper.unravel_index(linear_index, CFGridKind.face) == index
+        assert convention.ravel_index(index) == linear_index
+        assert convention.unravel_index(linear_index) == index
+        assert convention.unravel_index(linear_index, CFGridKind.face) == index
 
 
 def test_grid_kinds():
     dataset = make_dataset(j_size=3, i_size=5)
-    helper: ShocSimple = dataset.ems
+    convention: ShocSimple = dataset.ems
 
-    assert helper.grid_kinds == frozenset({CFGridKind.face})
-    assert helper.default_grid_kind == CFGridKind.face
+    assert convention.grid_kinds == frozenset({CFGridKind.face})
+    assert convention.default_grid_kind == CFGridKind.face
 
 
 def test_grid_kind_and_size():
     dataset = make_dataset(j_size=5, i_size=7)
-    helper: ShocSimple = dataset.ems
+    convention: ShocSimple = dataset.ems
 
-    grid_kind, size = helper.get_grid_kind_and_size(dataset.data_vars['temp'])
+    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['temp'])
     assert grid_kind is CFGridKind.face
     assert size == 5 * 7
 

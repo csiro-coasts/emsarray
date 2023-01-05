@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+import enum
 import logging
 from functools import cached_property
 from typing import (
@@ -55,17 +56,17 @@ DataArrayOrName = Union[Hashable, xr.DataArray]
 #:         edge = 'edge'
 #:         node = 'node'
 #:
-#: For cases where the format only supports a single grid,
+#: For cases where the convention only supports a single grid,
 #: a singleton enum can be used.
 #:
 #: More esoteric cases involving datasets with a potentially unbounded numbers of grids
 #: can use a type that supports this instead.
 GridKind = TypeVar("GridKind")
 
-#: An :ref:`index <indexing>` to a specific point on a grid in this format.
-#: For formats with :ref:`multiple grids <grids>` (e.g. cells, edges, and nodes),
+#: An :ref:`index <indexing>` to a specific point on a grid in this convention.
+#: For conventions with :ref:`multiple grids <grids>` (e.g. cells, edges, and nodes),
 #: this should be a tuple whos first element is :data:`.GridKind`.
-#: For formats with a single grid, :data:`.GridKind` is not required.
+#: For conventions with a single grid, :data:`.GridKind` is not required.
 Index = TypeVar("Index")
 
 
@@ -75,7 +76,7 @@ class SpatialIndexItem(Generic[Index]):
 
     See also
     --------
-    :attr:`.Format.spatial_index`
+    :attr:`.Convention.spatial_index`
     """
 
     #: The linear index of this cell
@@ -105,24 +106,42 @@ class SpatialIndexItem(Generic[Index]):
         return self.linear_index < other.linear_index
 
 
-class Format(abc.ABC, Generic[GridKind, Index]):
+class Specificity(enum.IntEnum):
     """
-    Each supported file format represents data differently.
-    The :class:`Format` class abstracts these differences away,
+    How specific a match is when autodetecting a convention.
+    Matches with higher specificity will be prioritised.
+
+    General conventions such as CF Grid are low specificity,
+    as many conventions extend and build on CF Grid conventions.
+
+    The SHOC conventions extend the CF grid conventions,
+    so a SHOC file will be detected as both CF Grid and SHOC.
+    :class:`.ShocStandard` should return a higher specificity
+    so that the correct convention implementation is used.
+    """
+    LOW = 10
+    MEDIUM = 20
+    HIGH = 30
+
+
+class Convention(abc.ABC, Generic[GridKind, Index]):
+    """
+    Each supported geometry convention represents data differently.
+    The :class:`Convention` class abstracts these differences away,
     allowing developers to query and manipulate datasets
     without worrying about the details.
-    See :ref:`Supported dataset formats <supported_formats>`
-    for a list of implemented formats.
+    See :ref:`Supported dataset conventions <supported_conventions>`
+    for a list of implemented conventions.
 
-    All formats have the concept of a cell at a geographic location,
+    All conventions have the concept of a cell at a geographic location,
     vertically stacked layers of cells,
     and multiple timesteps of data.
-    A format may support additional grids, such as face edges and vertices.
+    A convention may support additional grids, such as face edges and vertices.
     Refer to :ref:`grids` for more information.
 
     A cell can be addressed using a linear index or a native index.
     A linear index is always an :class:`int`,
-    while the native index type will depend on the specific format.
+    while the native index type will depend on the specific convention.
     You can convert between a linear and a native index
     using :meth:`.ravel_index` and :meth:`.unravel_index`.
     Refer to :ref:`indexing` for more information.
@@ -130,14 +149,12 @@ class Format(abc.ABC, Generic[GridKind, Index]):
     The depths of each layer can be found using :meth:`.get_depths`.
     The timesteps in a dataset can be found using :meth:`.get_times`.
     """
-    #: The :class:`xarray.Dataset` instance for this :class:`Format` helper.
+    #: The :class:`xarray.Dataset` instance for this :class:`Convention`
     dataset: xr.Dataset
 
     def __init__(self, dataset: xr.Dataset):
         """
-        Make a new format helper for this dataset.
-        Users should either use the :py:func:`emsarray.accessors.ems_accessor`
-        or create of the :class:`~Format` subclasses directly instead.
+        Make a new convention instance for this dataset.
         """
         self.check_validity(dataset)
         self.dataset = dataset
@@ -153,24 +170,24 @@ class Format(abc.ABC, Generic[GridKind, Index]):
     @abc.abstractmethod
     def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
         """
-        Check if a dataset is of this format.
+        Check if a dataset uses this convention.
 
         This may check for variables of the correct dimensions,
         the presence of specific attributes,
         or the layout of the dataset dimensions.
 
         Specific subclasses must implement this function.
-        It will be called by the format autodetector
-        when guessing the correct helper for a dataset.
+        It will be called by the convention autodetector
+        when guessing the correct convention for a dataset.
 
         If the dataset matches, the return value indicates how specific the match is.
-        When autodetecting the correct format helper
-        the helper with the highest specicifity will be used.
-        Many formats extend the CF grid conventions,
-        so the CF Grid format classes will match many datasets.
+        When autodetecting the correct convention implementation
+        the convention with the highest specicifity will be used.
+        Many conventions extend the CF grid conventions,
+        so the CF Grid convention classes will match many datasets.
         However this match is very generic.
         A more specific implementation such as SHOC may be supported.
-        The SHOC format helper should return a higher specicifity than the CF grid helper.
+        The SHOC convention implementation should return a higher specicifity than the CF grid convention.
 
         Parameters
         ----------
@@ -180,20 +197,20 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         Returns
         -------
         int, optional
-            If this format implementation can handle this dataset
+            If this convention implementation can handle this dataset
             some integer greater than zero is returned.
             The higher the number, the more specific the support.
-            If the dataset does not match this format, None is returned.
-            Values on the :class:`~emsarray.formats.Specificity` enum
+            If the dataset does not match this convention, None is returned.
+            Values on the :class:`~emsarray.conventions.Specificity` enum
             are used by :mod:`emsarray` itself to indicated specificity.
-            New format implementations are free to use these values,
+            New convention implementations are free to use these values,
             or use any integer value.
 
         Example
         -------
         >>> import xarray as xr
-        ... from emsarray.formats.shoc import ShocStandard
-        ... from emsarray.formats.ugrid import UGrid
+        ... from emsarray.conventions.shoc import ShocStandard
+        ... from emsarray.conventions.ugrid import UGrid
         ... dataset = xr.open_dataset("./tests/datasets/shoc_standard.nc")
         >>> ShocStandard.check_dataset(dataset)
         True
@@ -204,49 +221,49 @@ class Format(abc.ABC, Generic[GridKind, Index]):
 
     def bind(self) -> None:
         """
-        Bind this :class:`.Format` instance as the default format
+        Bind this :class:`.Convention` instance as the default convention
         for the :class:`xarray.Dataset`.
-        This format instance will be assigned to :attr:`dataset.ems`.
+        This convention instance will be assigned to :attr:`dataset.ems`.
 
-        You can use a Format instance without binding it to a Dataset,
+        You can use a Convention instance without binding it to a Dataset,
         binding is only necessary if you need to use the :attr:`dataset.ems` accessor.
 
         .. note::
 
             If you use :func:`emsarray.open_dataset` or :attr:`dataset.ems`
-            to autodetect the dataset format you do not need to call this method.
-            :meth:`Format.bind` is only useful if you manually construct a :class:`Format`.
+            to autodetect the dataset convention you do not need to call this method.
+            :meth:`Convention.bind` is only useful if you manually construct a :class:`Convention`.
 
         Example
         -------
 
         .. code-block:: python
 
-            # Open a dataset built using the GRASS format
+            # Open a dataset built using the GRASS convention
             dataset = xarray.open_dataset("grass-dataset.nc")
 
-            # Construct a GrassFormat instance for the dataset and bind it
-            format = GrassFormat(dataset)
-            format.bind()
+            # Construct a Grass instance for the dataset and bind it
+            convention = Grass(dataset)
+            convention.bind()
 
-            # dataset.ems is now the bound format
-            assert dataset.ems is format
+            # dataset.ems is now the bound convention
+            assert dataset.ems is convention
 
-        If the dataset already has a bound format, an error is raised.
-        To bind a new format to a dataset, make a copy of the dataset first:
+        If the dataset already has a bound convention, an error is raised.
+        To bind a new convention to a dataset, make a copy of the dataset first:
 
         .. code-block:: python
 
             new_dataset = dataset.copy()
-            format = GrassFormat(new_dataset)
-            format.bind()
+            convention = Grass(new_dataset)
+            convention.bind()
         """
         state = State.get(self.dataset)
         if state.is_bound():
             raise ValueError(
-                "A format has already been bound to this dataset, "
-                "cannot assign a new format.")
-        state.bind_format(self)
+                "A convention has already been bound to this dataset, "
+                "cannot assign a new convention.")
+        state.bind_convention(self)
 
     def _get_data_array(self, data_array: DataArrayOrName) -> xr.DataArray:
         """
@@ -332,17 +349,17 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         -------
         :class:`numpy.ndarray`
             An array of datetimes.
-            The datetimes will be in what ever native format the dataset uses,
+            The datetimes will be whatever native format the dataset uses,
             likely :class:`numpy.datetime64`.
         """
         return cast(np.ndarray, self.dataset.variables[self.get_time_name()].values)
 
     @abc.abstractmethod
     def ravel_index(self, index: Index) -> int:
-        """Convert a format native index to a linear index.
+        """Convert a convention native index to a linear index.
 
-        Each format has a different native index type,
-        read the specific format documentation for more information.
+        Each conventnion has a different native index type,
+        read the specific conventnion documentation for more information.
 
         Parameters
         ----------
@@ -391,10 +408,10 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         linear_index: int,
         grid_kind: Optional[GridKind] = None,
     ) -> Index:
-        """Convert a linear index to a format native index.
+        """Convert a linear index to a conventnion native index.
 
-        Each format has a different native index type,
-        read the specific format documentation for more information.
+        Each conventnion has a different native index type,
+        read the specific conventnion documentation for more information.
 
         Parameters
         ----------
@@ -402,13 +419,13 @@ class Format(abc.ABC, Generic[GridKind, Index]):
             The linear index to unravel.
         `grid_kind` : GridKind
             Used to indicate what kind of index is being unravelled,
-            for formats with multiple grids.
+            for conventions with multiple grids.
             Optional, if not provided this will return the unravelled face index.
 
         Returns
         -------
         ``Index``
-            The format native index for that same cell
+            The convention native index for that same cell
 
         Example
         -------
@@ -554,7 +571,7 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         on a :mod:`matplotlib` :class:`~matplotlib.figure.Figure`.
 
         The data array can either be passed in directly,
-        or the name of a data array on this :attr:`Format.dataset` instance.
+        or the name of a data array on this :attr:`Convention.dataset` instance.
         The data array does not have to come from the same dataset,
         as long as the dimensions are the same.
 
@@ -857,7 +874,7 @@ class Format(abc.ABC, Generic[GridKind, Index]):
 
         The order of the polygons in the list corresponds to the linear index of this dataset.
         Not all valid cell indices have a polygon, these holes are represented as :data:`None` in the list.
-        If you want a list of just polygons, apply the :attr:`mask <Format.mask>`:
+        If you want a list of just polygons, apply the :attr:`mask <Convention.mask>`:
 
         .. code-block:: python
 
@@ -876,11 +893,11 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         """
         A numpy :class:`~numpy.ndarray` of face centres, which are (x, y) pairs.
         The first dimension will be the same length and in the same order
-        as :attr:`Format.polygons`,
+        as :attr:`Convention.polygons`,
         while the second dimension will always be of size 2.
         """
         # This default implementation simply finds the centroid of each polygon.
-        # Subclasses are free to override this if the particular format and dataset
+        # Subclasses are free to override this if the particular convention and dataset
         # provides the cell centres as a data array.
         centres = np.array([
             polygon.centroid.coords[0] if polygon is not None else [np.nan, np.nan]
@@ -904,7 +921,7 @@ class Format(abc.ABC, Generic[GridKind, Index]):
 
         See also
         --------
-        :meth:`Format.make_linear`
+        :meth:`Convention.make_linear`
         """
         mask = np.fromiter((p is not None for p in self.polygons), dtype=bool)
         return cast(np.ndarray, mask)
@@ -991,13 +1008,13 @@ class Format(abc.ABC, Generic[GridKind, Index]):
     @abc.abstractmethod
     def selector_for_index(self, index: Index) -> Dict[Hashable, int]:
         """
-        Convert a format native index into a selector
+        Convert a convention native index into a selector
         that can be passed to :meth:`Dataset.isel <xarray.Dataset.isel>`.
 
         Parameters
         ----------
         index : :data:`Index`
-            A format native index
+            A convention native index
 
         Returns
         -------
@@ -1020,7 +1037,7 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         """
         Return a new dataset that contains values only from a single index.
         This is much like doing a :func:`xarray.Dataset.isel()` on an index,
-        but works with format native index types.
+        but works with convention native index types.
 
         An index is associated with a grid kind.
         The returned dataset will only contain variables that were defined on this grid,
@@ -1043,7 +1060,7 @@ class Format(abc.ABC, Generic[GridKind, Index]):
         -----
 
         The returned dataset will most likely not have sufficient coordinate data
-        to be used with a particular :class:`Format` any more.
+        to be used with a particular :class:`Convention` any more.
         The ``dataset.ems`` accessor will raise an error if accessed on the new dataset.
         """
         selector = self.selector_for_index(index)

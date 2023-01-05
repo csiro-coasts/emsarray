@@ -9,18 +9,18 @@ from typing import TYPE_CHECKING, Final, Optional, cast
 import xarray as xr
 
 if TYPE_CHECKING:
-    from emsarray.formats._base import Format
+    from emsarray.conventions._base import Convention
 
 
 @dataclasses.dataclass
 class State:
     """
     Keeps state for emsarray.
-    Currently only used to allow binding Format instances to datasets
-    to avoid format autodetection.
+    Currently only used to allow binding Convention instances to datasets
+    to avoid convention autodetection.
     """
     dataset: xr.Dataset
-    format: Optional[Format] = None
+    convention: Optional[Convention] = None
 
     accessor_name: Final[str] = "_emsarray_state"
 
@@ -32,15 +32,15 @@ class State:
         """
         return cast(State, getattr(dataset, State.accessor_name))
 
-    def bind_format(self, format: Format) -> None:
+    def bind_convention(self, convention: Convention) -> None:
         """
-        Bind a Format instance to this Dataset.
+        Bind a Convention instance to this Dataset.
         If the Dataset is already bound, an error is raised.
         """
-        self.format = format
+        self.convention = convention
 
     def is_bound(self) -> bool:
         """
-        Check if the Dataset has a bound format.
+        Check if the Dataset has a bound convention.
         """
-        return self.format is not None
+        return self.convention is not None

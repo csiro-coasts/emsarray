@@ -1,13 +1,17 @@
 """
-emsarray - xarray utilities for various non-CF grid data formats
+emsarray - xarray utilities for various non-CF grid data conventions
 """
 
 import importlib.metadata
 
 from . import tutorial
 from .accessors import ems_accessor
-from .formats import Format, get_file_format, open_dataset
+from .conventions import Convention, get_dataset_convention, open_dataset
 
 __version__ = importlib.metadata.version("emsarray")
 
-__all__ = ["Format", "ems_accessor", "get_file_format", "open_dataset", "tutorial"]
+__all__ = [
+    "tutorial",
+    "ems_accessor",
+    "Convention", "get_dataset_convention", "open_dataset",
+]

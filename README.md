@@ -5,7 +5,7 @@
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/emsarray.svg)](https://anaconda.org/conda-forge/emsarray)
 
 The `emsarray` package provides a common interface
-for working with the many model formats used at CSIRO.
+for working with the many model geometry conventions used at CSIRO.
 It enhances [`xarray`][xarray] Datasets
 and provides a set of common operations for manipulating datasets.
 
