@@ -2,8 +2,9 @@
 Test convention class registration by entry points or manual registration.
 """
 import sys
-import unittest.mock
-from typing import List, Tuple
+from typing import Dict, List, Tuple
+
+import pytest
 
 from emsarray.conventions import (
     ArakawaC, CFGrid1D, CFGrid2D, ShocSimple, ShocStandard, UGrid, _registry
@@ -60,56 +61,76 @@ def test_convention_registration():
 
 def monkeypatch_entrypoint(
     monkeypatch,
-    items: List[Tuple[str, str]],
-    group='emsarray.conventions',
+    entry_points: Dict[str, List[Tuple[str, str]]],
 ):
     if sys.version_info >= (3, 10):
         from importlib import metadata
     else:
         import importlib_metadata as metadata
 
-    entry_points = [
-        metadata.EntryPoint(group=group, name=name, value=value)
-        for name, value in items
-    ]
-    mock = unittest.mock.create_autospec(
-        metadata.entry_points, return_value=entry_points)
-    monkeypatch.setattr(metadata, 'entry_points', mock)
+    _entry_points = {
+        group: [
+            metadata.EntryPoint(group=group, name=name, value=value)
+            for name, value in entries
+        ] for group, entries in entry_points.items()
+    }
+
+    def mocked(group: str) -> List[metadata.EntryPoint]:
+        return _entry_points.get(group, [])
+
+    monkeypatch.setattr(metadata, 'entry_points', mocked)
     return entry_points
 
 
 def test_mock_entry_points(caplog, monkeypatch):
-    monkeypatch_entrypoint(monkeypatch, [
+    monkeypatch_entrypoint(monkeypatch, {'emsarray.conventions': [
         ('CFGrid1D', 'emsarray.conventions.grid:CFGrid1D'),
-    ])
+    ]})
     assert list(entry_point_conventions()) == [CFGrid1D]
     assert len(caplog.records) == 0
 
 
+def test_mock_entry_points_deprecated(caplog, monkeypatch):
+    monkeypatch_entrypoint(monkeypatch, {
+        'emsarray.conventions': [
+            ('CFGrid1D', 'emsarray.conventions.grid:CFGrid1D'),
+        ],
+        'emsarray.formats': [
+            ('CFGrid2D', 'emsarray.conventions.grid:CFGrid2D'),
+        ],
+    })
+    with pytest.warns(DeprecationWarning) as captured_warnings:
+        assert list(entry_point_conventions()) == [CFGrid1D, CFGrid2D]
+    assert str(captured_warnings[0].message) == (
+        '`emsarray.formats` entrypoint has been renamed to `emsarray.conventions`. '
+        'Update `CFGrid2D = emsarray.conventions.grid:CFGrid2D` to use the new entrypoint name.')
+    assert len(caplog.records) == 0
+
+
 def test_mock_entry_points_duplicate(caplog, monkeypatch):
-    monkeypatch_entrypoint(monkeypatch, [
+    monkeypatch_entrypoint(monkeypatch, {'emsarray.conventions': [
         ('CFGrid1D', 'emsarray.conventions.grid:CFGrid1D'),
         ('CFGrid1D', 'emsarray.conventions.grid:CFGrid1D'),
         ('CFGrid2D', 'emsarray.conventions.grid:CFGrid2D'),
-    ])
+    ]})
     assert list(entry_point_conventions()) == [CFGrid1D, CFGrid2D]
     assert len(caplog.records) == 0
 
 
 def test_mock_entry_points_irrelevant_name(caplog, monkeypatch):
-    monkeypatch_entrypoint(monkeypatch, [
+    monkeypatch_entrypoint(monkeypatch, {'emsarray.conventions': [
         ('IrrelevantName', 'emsarray.conventions.grid:CFGrid1D'),
         ('CFGrid2D', 'emsarray.conventions.grid:CFGrid2D'),
-    ])
+    ]})
     assert list(entry_point_conventions()) == [CFGrid1D, CFGrid2D]
     assert len(caplog.records) == 0
 
 
 def test_mock_entry_points_bad_module(caplog, monkeypatch):
-    monkeypatch_entrypoint(monkeypatch, [
+    monkeypatch_entrypoint(monkeypatch, {'emsarray.conventions': [
         ('CFGrid1D', 'emsarray.conventions.nope:CFGrid1D'),
         ('CFGrid2D', 'emsarray.conventions.grid:CFGrid2D'),
-    ])
+    ]})
     assert list(entry_point_conventions()) == [CFGrid2D]
 
     assert len(caplog.records) == 1
@@ -119,10 +140,10 @@ def test_mock_entry_points_bad_module(caplog, monkeypatch):
 
 
 def test_mock_entry_points_bad_attribute(caplog, monkeypatch):
-    monkeypatch_entrypoint(monkeypatch, [
+    monkeypatch_entrypoint(monkeypatch, {'emsarray.conventions': [
         ('CFGrid1D', 'emsarray.conventions.grid:Nope'),
         ('CFGrid2D', 'emsarray.conventions.grid:CFGrid2D'),
-    ])
+    ]})
     assert list(entry_point_conventions()) == [CFGrid2D]
 
     assert len(caplog.records) == 1
@@ -132,10 +153,10 @@ def test_mock_entry_points_bad_attribute(caplog, monkeypatch):
 
 
 def test_mock_entry_points_no_attr(caplog, monkeypatch):
-    monkeypatch_entrypoint(monkeypatch, [
+    monkeypatch_entrypoint(monkeypatch, {'emsarray.conventions': [
         ('CFGrid1D', 'emsarray.conventions.grid'),
         ('CFGrid2D', 'emsarray.conventions.grid:CFGrid2D'),
-    ])
+    ]})
     assert list(entry_point_conventions()) == [CFGrid2D]
 
     assert len(caplog.records) == 1

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import warnings
 from contextlib import suppress
 from functools import cached_property
 from itertools import chain
@@ -137,22 +138,32 @@ def entry_point_conventions() -> Iterable[Type[Convention]]:
     """
     seen = set()
 
-    for entry_point in metadata.entry_points(group='emsarray.conventions'):
-        try:
-            obj = entry_point.load()
-        except (AttributeError, ImportError):
-            logger.exception("Error loading entry point %s", entry_point)
-            continue
+    groups = [
+        ('emsarray.conventions', False),
+        ('emsarray.formats', True),
+    ]
+    for group, deprecated in groups:
+        for entry_point in metadata.entry_points(group=group):
+            if deprecated:
+                warnings.warn(
+                    '`emsarray.formats` entrypoint has been renamed to `emsarray.conventions`. '
+                    f'Update `{entry_point.name} = {entry_point.value}` to use the new entrypoint name.',
+                    category=DeprecationWarning)
+            try:
+                obj = entry_point.load()
+            except (AttributeError, ImportError):
+                logger.exception("Error loading entry point %s", entry_point)
+                continue
 
-        if not (isinstance(obj, type) and issubclass(obj, Convention)):
-            logger.error(
-                "Entry point `%s = %s` refers to %r not a Convention subclass",
-                entry_point.name, entry_point.value, obj)
-            continue
+            if not (isinstance(obj, type) and issubclass(obj, Convention)):
+                logger.error(
+                    "Entry point `%s = %s` refers to %r not a Convention subclass",
+                    entry_point.name, entry_point.value, obj)
+                continue
 
-        if obj not in seen:
-            yield obj
-            seen.add(obj)
+            if obj not in seen:
+                yield obj
+                seen.add(obj)
 
 
 def register_convention(convention: Type[Convention]) -> Type[Convention]:
