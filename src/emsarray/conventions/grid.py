@@ -24,8 +24,7 @@ from shapely.geometry.polygon import Polygon, orient
 from emsarray import masking, utils
 from emsarray.types import Pathish
 
-from ._base import Convention
-from ._helpers import Specificity
+from ._base import Convention, Specificity
 
 logger = logging.getLogger(__name__)
 

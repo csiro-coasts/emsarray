@@ -22,7 +22,7 @@ from typing import Hashable, List, Optional, Tuple
 
 import xarray as xr
 
-from ._helpers import Specificity
+from ._base import Specificity
 from .arakawa_c import ArakawaC, ArakawaCGridKind
 from .grid import CFGrid2D, CFGrid2DTopology
 

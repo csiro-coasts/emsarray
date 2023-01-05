@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+import enum
 import logging
 from functools import cached_property
 from typing import (
@@ -103,6 +104,24 @@ class SpatialIndexItem(Generic[Index]):
         # compare the linear indices. The polygon attribute is not orderable,
         # so comparing on that is going to be unpleasant.
         return self.linear_index < other.linear_index
+
+
+class Specificity(enum.IntEnum):
+    """
+    How specific a match is when autodetecting a convention.
+    Matches with higher specificity will be prioritised.
+
+    General conventions such as CF Grid are low specificity,
+    as many conventions extend and build on CF Grid conventions.
+
+    The SHOC conventions extend the CF grid conventions,
+    so a SHOC file will be detected as both CF Grid and SHOC.
+    :class:`.ShocStandard` should return a higher specificity
+    so that the correct convention implementation is used.
+    """
+    LOW = 10
+    MEDIUM = 20
+    HIGH = 30
 
 
 class Convention(abc.ABC, Generic[GridKind, Index]):

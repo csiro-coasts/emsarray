@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-import enum
 import logging
 import sys
 from contextlib import suppress
 from functools import cached_property
 from itertools import chain
-from typing import Any, Iterable, List, Optional, Tuple, Type
+from typing import Iterable, List, Optional, Tuple, Type
 
 import xarray as xr
-
-from emsarray.types import Pathish
 
 from ._base import Convention
 
@@ -21,24 +18,6 @@ else:
 
 
 logger = logging.getLogger(__name__)
-
-
-class Specificity(enum.IntEnum):
-    """
-    How specific a match is when autodetecting a convention.
-    Matches with higher specificity will be prioritised.
-
-    General conventions such as CF Grid are low specificity,
-    as many conventions extend and build on CF Grid conventions.
-
-    The SHOC conventions extend the CF grid conventions,
-    so a SHOC file will be detected as both CF Grid and SHOC.
-    :class:`.ShocStandard` should return a higher specificity
-    so that the correct convention implementation is used.
-    """
-    LOW = 10
-    MEDIUM = 20
-    HIGH = 30
 
 
 class ConventionRegistry:
@@ -150,48 +129,6 @@ def get_dataset_convention(dataset: xr.Dataset) -> Optional[Type[Convention]]:
         or None if nothing appropriate can be found.
     """
     return registry.guess_convention(dataset)
-
-
-def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
-    """
-    Open a dataset and determine the correct Convention implementation for it.
-    If a valid Convention implementation can not be found, an error is raised.
-
-    Parameters
-    ----------
-    path
-        The path to the dataset to open
-    kwargs
-        These are passed straight through to :func:`xarray.open_dataset`.
-
-    Returns
-    -------
-    xarray.Dataset
-        The opened dataset
-
-    Example
-    -------
-
-    .. code-block:: python
-
-        import emsarray
-        dataset = emsarray.open_dataset("./tests/datasets/ugrid_mesh2d.nc")
-
-    See also
-    --------
-    :meth:`emsarray.conventions.Convention.open_dataset`
-    :func:`xarray.open_dataset`
-    """
-    dataset = xr.open_dataset(path, **kwargs)
-
-    # Determine the correct convention. All the magic happens in the accessor.
-    convention = dataset.ems
-    convention_class = type(convention)
-    logger.debug(
-        "Using convention %s.%s for dataset %r",
-        convention_class.__module__, convention_class.__name__, str(path))
-
-    return dataset
 
 
 def entry_point_conventions() -> Iterable[Type[Convention]]:

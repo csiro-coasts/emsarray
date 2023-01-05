@@ -13,10 +13,9 @@ In other cases, you might want to override some default parameters.
 Convention instances can be instantiated directly in this case.
 Refer to each Convention implementation for details.
 """
-from ._base import Convention, GridKind, Index, SpatialIndexItem
-from ._helpers import (
-    Specificity, get_dataset_convention, open_dataset, register_convention
-)
+from ._base import Convention, GridKind, Index, SpatialIndexItem, Specificity
+from ._registry import get_dataset_convention, register_convention
+from ._utils import open_dataset
 from .arakawa_c import ArakawaC
 from .grid import CFGrid1D, CFGrid2D
 from .shoc import ShocSimple, ShocStandard
@@ -24,9 +23,10 @@ from .ugrid import UGrid
 
 __all__ = [
     "Convention", "GridKind", "Index", "SpatialIndexItem", "Specificity",
-    "get_dataset_convention", "open_dataset", "register_convention",
+    "get_dataset_convention", "register_convention",
+    "open_dataset",
     "ArakawaC",
     "CFGrid1D", "CFGrid2D",
-    "ShocStandard", "ShocSimple",
+    "ShocSimple", "ShocStandard",
     "UGrid",
 ]

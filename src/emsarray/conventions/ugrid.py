@@ -30,8 +30,7 @@ from emsarray.exceptions import (
 )
 from emsarray.types import Pathish
 
-from ._base import Convention
-from ._helpers import Specificity
+from ._base import Convention, Specificity
 
 logger = logging.getLogger(__name__)
 

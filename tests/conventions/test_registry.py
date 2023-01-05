@@ -6,9 +6,9 @@ import unittest.mock
 from typing import List, Tuple
 
 from emsarray.conventions import (
-    ArakawaC, CFGrid1D, CFGrid2D, ShocSimple, ShocStandard, UGrid, _helpers
+    ArakawaC, CFGrid1D, CFGrid2D, ShocSimple, ShocStandard, UGrid, _registry
 )
-from emsarray.conventions._helpers import (
+from emsarray.conventions._registry import (
     ConventionRegistry, entry_point_conventions, register_convention
 )
 
@@ -23,7 +23,7 @@ def test_entry_point_convetions():
 
 def test_register_convention_decorator(monkeypatch):
     test_registry = ConventionRegistry()
-    monkeypatch.setattr(_helpers, 'registry', test_registry)
+    monkeypatch.setattr(_registry, 'registry', test_registry)
 
     @register_convention
     class Foo:
