@@ -128,6 +128,15 @@ def get_dataset_convention(dataset: xr.Dataset) -> Optional[Type[Convention]]:
     :class:`.Convention`
         A :class:`.Convention` subclass appropriate for this dataset,
         or None if nothing appropriate can be found.
+
+    Example
+    -------
+
+    .. code-block:: python
+
+        >>> ds = emsarray.tutorial.open_dataset('austen.nc')
+        >>> get_dataset_convention(ds)
+        emsarray.conventions.ugrid.UGrid
     """
     return registry.guess_convention(dataset)
 

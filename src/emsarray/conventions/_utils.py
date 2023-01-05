@@ -35,7 +35,6 @@ def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
 
     See also
     --------
-    :meth:`emsarray.conventions.Convention.open_dataset`
     :func:`xarray.open_dataset`
     """
     dataset = xr.open_dataset(path, **kwargs)

@@ -1,5 +1,5 @@
 """
-:mod:`emsarray` supports multiple data conventionss.
+:mod:`emsarray` supports multiple data conventions.
 Each supported convention :ref:`implements the Convention interface <interface>`
 to provide a common base set of functionality.
 
