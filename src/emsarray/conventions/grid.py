@@ -7,7 +7,6 @@ from __future__ import annotations
 import abc
 import enum
 import itertools
-import logging
 import warnings
 from contextlib import suppress
 from functools import cached_property
@@ -16,17 +15,14 @@ from typing import (
 )
 
 import numpy as np
+import shapely
 import xarray as xr
-from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
-from shapely.geometry.polygon import Polygon, orient
 
 from emsarray import masking, utils
 from emsarray.types import Pathish
 
 from ._base import Convention, Specificity
-
-logger = logging.getLogger(__name__)
 
 
 class CFGridKind(str, enum.Enum):
@@ -360,18 +356,38 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
 
     @cached_property
     def polygons(self) -> np.ndarray:
-        # Keep these as 2D so that we can easily map centre->grid indices
-        longitude_bounds = self.topology.longitude_bounds.values.tolist()
-        latitude_bounds = self.topology.latitude_bounds.values.tolist()
+        lon_bounds = self.topology.longitude_bounds.values
+        lat_bounds = self.topology.latitude_bounds.values
+        if lon_bounds[0, 0] > lon_bounds[0, 1]:
+            lon_bounds = lon_bounds[:, ::-1]
+        if lat_bounds[0, 0] > lat_bounds[0, 1]:
+            lat_bounds = lat_bounds[:, ::-1]
 
-        def cell(index: int) -> Polygon:
-            y, x = self.unravel_index(index)
-            lon_min, lon_max = sorted(longitude_bounds[x])
-            lat_min, lat_max = sorted(latitude_bounds[y])
-            return box(lon_min, lat_min, lon_max, lat_max)
+        # For bounds arrays,
+        #   b[i, 1] == b[i + 1, 0])
+        # we can get the corners of each cell using this
+        lons = np.concatenate([lon_bounds[:, 0], lon_bounds[-1:, 1]])
+        lats = np.concatenate([lat_bounds[:, 0], lat_bounds[-1:, 1]])
+        # Transform these in to point pairs
+        grid = np.stack(np.meshgrid(lons, lats), axis=-1)
+        # Make a new array of shape (topology.size, 4, 2)
+        rows = np.stack([
+            grid[:-1, +1:],
+            grid[+1:, +1:],
+            grid[+1:, :-1],
+            grid[:-1, :-1],
+        ], axis=2).reshape((-1, 4, 2))
 
-        # Make a polygon for each wet cell
-        return np.array([cell(index) for index in range(self.topology.size)], dtype=object)
+        polygons = np.full(self.topology.size, None, dtype=np.object_)
+        # There might be missing polygons, represented as nans.
+        # Shapely will throw an error on these.
+        # Find all the complete rows and only construct polygons for them.
+        complete_row_indices = np.flatnonzero(np.isfinite(rows).all(axis=(1, 2)))
+        shapely.polygons(
+            rows[complete_row_indices],
+            indices=complete_row_indices,
+            out=polygons)
+        return polygons
 
     @cached_property
     def face_centres(self) -> np.ndarray:
@@ -466,27 +482,23 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
                 for pad in itertools.product([(1, 0), (0, 1)], [(1, 0), (0, 1)])
             ], axis=0)
 
-        shape = self.topology.shape
+        # Transform these in to point pairs
+        grid = np.stack([x_grid, y_grid], axis=-1)
+        # Make a new array of shape (topology.size, 4, 2)
+        rows = np.stack([
+            grid[:-1, :-1],
+            grid[:-1, +1:],
+            grid[+1:, +1:],
+            grid[+1:, :-1],
+        ], axis=2).reshape((-1, 4, 2))
 
-        def cell(index: int) -> Optional[Polygon]:
-            (j, i) = np.unravel_index(index, shape)
-            v1 = x_grid[j, i], y_grid[j, i]
-            v2 = x_grid[j, i + 1], y_grid[j, i + 1]
-            v3 = x_grid[j + 1, i + 1], y_grid[j + 1, i + 1]
-            v4 = x_grid[j + 1, i], y_grid[j + 1, i]
-            points = [v1, v2, v3, v4, v1]
-            # Can't construct polygons if we don't have all the points
-            if np.isnan(points).any():
-                return None
-            # There is no guarantee that the x or y dimensions are oriented in
-            # any particular direction, so the winding order of the polygon is
-            # not guaranteed. `orient` will fix this for us so we don't have to
-            # think about it.
-            return orient(Polygon(points))
-
-        # Make a polygon for each wet cell
-        polygons = list(map(cell, range(self.topology.size)))
-        return np.array(polygons, dtype=object)
+        polygons = np.full(self.topology.size, None, dtype=np.object_)
+        complete_row_indices = np.flatnonzero(np.isfinite(rows).all(axis=(1, 2)))
+        shapely.polygons(
+            rows[complete_row_indices],
+            indices=complete_row_indices,
+            out=polygons)
+        return polygons
 
     @cached_property
     def face_centres(self) -> np.ndarray:

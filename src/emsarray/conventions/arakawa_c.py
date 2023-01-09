@@ -14,9 +14,9 @@ from functools import cached_property
 from typing import Dict, Hashable, Optional, Tuple, cast
 
 import numpy as np
+import shapely
 import xarray as xr
 from shapely.geometry.base import BaseGeometry
-from shapely.geometry.polygon import Polygon, orient
 from xarray.core.dataset import DatasetCoordinates
 
 from emsarray import masking, utils
@@ -285,33 +285,23 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
         x_node = self.node.longitude.values
         y_node = self.node.latitude.values
 
-        def cell(index: int) -> Polygon:
-            """
-            Construct a single Polygon cell based on the 4 node points
-            surrounding given cell centre
-            """
-            # 1D plus unravel index seems to be 10x faster than 2D indices
-            # or can also try and use the mask approach further below - but this
-            # seems to be fast enough
-            (_face, j, i) = self.unravel_index(index)
-            v1 = x_node[j, i], y_node[j, i]
-            v2 = x_node[j + 1, i], y_node[j + 1, i]
-            v3 = x_node[j + 1, i + 1], y_node[j + 1, i + 1]
-            v4 = x_node[j, i + 1], y_node[j, i + 1]
+        # Transform these in to point pairs
+        grid = np.stack([x_node, y_node], axis=-1)
+        # Make a new array of shape (topology.size, 4, 2)
+        rows = np.stack([
+            grid[:-1, :-1],
+            grid[:-1, +1:],
+            grid[+1:, +1:],
+            grid[+1:, :-1],
+        ], axis=2).reshape((-1, 4, 2))
 
-            points = [v1, v2, v3, v4, v1]
-            # Can't construct polygons if we don't have all the points
-            if np.isnan(points).any():
-                return None
-            # There is no guarantee that the x or y dimensions are oriented in
-            # any particular direction, so the winding order of the polygon is
-            # not guaranteed. `orient` will fix this for us so we don't have to
-            # think about it.
-            return orient(Polygon(points))
-
-        # Make a polygon for each wet cell
-        polygons = list(map(cell, range(self.face.size)))
-        return np.array(polygons, dtype=object)
+        polygons = np.full(self.face.size, None, dtype=np.object_)
+        complete_row_indices = np.flatnonzero(np.isfinite(rows).all(axis=(1, 2)))
+        shapely.polygons(
+            rows[complete_row_indices],
+            indices=complete_row_indices,
+            out=polygons)
+        return polygons
 
     @cached_property
     def face_centres(self) -> np.ndarray:
