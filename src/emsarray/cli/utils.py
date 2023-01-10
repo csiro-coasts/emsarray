@@ -287,8 +287,8 @@ def geometry_argument(argument_string: str) -> BaseGeometry:
     bounds_match = bounds_re.match(argument_string)
     if bounds_match is not None:
         try:
-            return box(*map(decimal.Decimal, bounds_match.groups()))
-        except (decimal.DecimalException, ValueError):
+            return box(*map(float, bounds_match.groups()))
+        except ValueError:
             pass
 
     try:
@@ -340,7 +340,7 @@ def bounds_argument(bounds_string: str) -> BaseGeometry:
     match = bounds_re.match(bounds_string)
     if match is not None:
         try:
-            return box(*map(decimal.Decimal, match.groups()))
+            return box(*map(float, match.groups()))
         except decimal.DecimalException:
             pass
     raise argparse.ArgumentTypeError("Expecting four comma separated numbers for bounds")

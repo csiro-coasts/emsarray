@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from decimal import Decimal
 from pathlib import Path
 from typing import Any, List
 
@@ -79,7 +78,7 @@ def test_add_verbosity_group(args: List[str], expected: int) -> None:
 
 
 def test_bounds_argument() -> None:
-    expected = box(Decimal('1.5'), Decimal('.2'), Decimal('3.'), Decimal('4'))
+    expected = box(1.5, .2, 3., 4)
     actual = utils.bounds_argument("1.5 , .2 , 3.,4")
 
     assert actual.equals(expected)
@@ -91,7 +90,7 @@ def test_bounds_argument_invalid() -> None:
 
 
 def test_geometry_argument_bounds() -> None:
-    expected = box(Decimal('1.5'), Decimal('.2'), Decimal('3.'), Decimal('4'))
+    expected = box(1.5, .2, 3., 4)
     actual = utils.geometry_argument("1.5 , .2 , 3.,4")
 
     assert actual.equals(expected)

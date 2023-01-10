@@ -923,7 +923,9 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         --------
         :meth:`Convention.make_linear`
         """
-        mask = np.fromiter((p is not None for p in self.polygons), dtype=bool)
+        mask = np.fromiter(
+            (p is not None for p in self.polygons),
+            dtype=bool, count=self.polygons.size)
         return cast(np.ndarray, mask)
 
     @cached_property

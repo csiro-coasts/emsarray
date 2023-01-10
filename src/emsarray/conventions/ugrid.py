@@ -16,12 +16,13 @@ from contextlib import suppress
 from dataclasses import dataclass
 from functools import cached_property
 from typing import (
-    Any, Dict, FrozenSet, Hashable, Iterable, List, Optional, Set, Tuple, cast
+    Any, Dict, FrozenSet, Hashable, Iterable, List, Mapping, Optional, Set,
+    Tuple, cast
 )
 
 import numpy as np
+import shapely
 import xarray as xr
-from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import utils
@@ -1089,11 +1090,18 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         node_y = topology.node_y.values
         face_node = topology.face_node_array
 
-        def create_poly(row: np.ma.MaskedArray) -> Polygon:
-            vertices = row.compressed()
-            return Polygon(np.c_[node_x[vertices], node_y[vertices]])
+        polygons = np.full(topology.face_count, None, dtype=np.object_)
+        polygons_of_size: Mapping[int, Dict[int, np.ndarray]] = defaultdict(dict)
 
-        return np.array([create_poly(row) for row in face_node], dtype=object)
+        for index, row in enumerate(face_node):
+            vertices = row.compressed()
+            polygons_of_size[vertices.size][index] = np.c_[node_x[vertices], node_y[vertices]]
+
+        for size, size_polygons in polygons_of_size.items():
+            coords = np.stack(list(size_polygons.values()))
+            shapely.polygons(coords, indices=list(size_polygons.keys()), out=polygons)
+
+        return polygons
 
     @cached_property
     def face_centres(self) -> np.ndarray:
