@@ -14,7 +14,6 @@ from functools import cached_property
 from typing import Dict, Hashable, Optional, Tuple, cast
 
 import numpy as np
-import shapely
 import xarray as xr
 from shapely.geometry.base import BaseGeometry
 from xarray.core.dataset import DatasetCoordinates
@@ -281,27 +280,18 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
 
     @cached_property
     def polygons(self) -> np.ndarray:
-        # Keep these as 2D so that we can easily map centre->node indices
-        x_node = self.node.longitude.values
-        y_node = self.node.latitude.values
+        # Make an array of shape (j, i, 2) of all the nodes
+        grid = np.stack([self.node.longitude.values, self.node.latitude.values], axis=-1)
 
-        # Transform these in to point pairs
-        grid = np.stack([x_node, y_node], axis=-1)
-        # Make a new array of shape (topology.size, 4, 2)
-        rows = np.stack([
+        # Transform this in to an array of shape (topology.size, 4, 2)
+        points = np.stack([
             grid[:-1, :-1],
             grid[:-1, +1:],
             grid[+1:, +1:],
             grid[+1:, :-1],
         ], axis=2).reshape((-1, 4, 2))
 
-        polygons = np.full(self.face.size, None, dtype=np.object_)
-        complete_row_indices = np.flatnonzero(np.isfinite(rows).all(axis=(1, 2)))
-        shapely.polygons(
-            rows[complete_row_indices],
-            indices=complete_row_indices,
-            out=polygons)
-        return polygons
+        return utils.make_polygons_with_holes(points)
 
     @cached_property
     def face_centres(self) -> np.ndarray:

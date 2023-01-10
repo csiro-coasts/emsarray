@@ -6,11 +6,25 @@ from functools import cached_property
 from typing import Dict, Hashable, List, Optional, Tuple
 
 import numpy as np
+import shapely
 import xarray as xr
 
 from emsarray.conventions.arakawa_c import (
     ArakawaCGridKind, c_mask_from_centres
 )
+
+
+def box(minx, miny, maxx, maxy) -> shapely.Polygon:
+    """
+    Make a box, with coordinates going counterclockwise
+    starting at (minx miny).
+    """
+    return shapely.Polygon([
+        (minx, miny),
+        (maxx, miny),
+        (maxx, maxy),
+        (minx, maxy),
+    ])
 
 
 def reduce_axes(arr: np.ndarray, axes: Optional[Tuple[bool, ...]] = None) -> np.ndarray:

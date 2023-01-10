@@ -9,12 +9,13 @@ import pytest
 import xarray as xr
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
-from shapely.geometry import Polygon, box
+from shapely.geometry import Polygon
+from shapely.testing import assert_geometries_equal
 
 from emsarray.conventions import get_dataset_convention
 from emsarray.conventions.grid import CFGrid1D, CFGridKind, CFGridTopology
 from emsarray.operations import geometry
-from tests.utils import mask_from_strings
+from tests.utils import box, mask_from_strings
 
 
 def make_dataset(
@@ -167,8 +168,10 @@ def test_polygons():
     assert all(dataset.ems.mask)
 
     # Check the coordinates for the generated polygons.
-    assert polygons[0].equals_exact(box(-0.05, -0.05, 0.05, 0.05), 1e-6)
-    assert polygons[5].equals_exact(box(.15, .05, .25, .15), 1e-6)
+    assert_geometries_equal(
+        polygons[0], box(-0.05, -0.05, 0.05, 0.05), tolerance=1e-6)
+    assert_geometries_equal(
+        polygons[5], box(.15, .05, .25, .15), tolerance=1e-6)
 
 
 def test_selector_for_index():

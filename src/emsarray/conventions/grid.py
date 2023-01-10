@@ -15,11 +15,11 @@ from typing import (
 )
 
 import numpy as np
-import shapely
 import xarray as xr
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import masking, utils
+from emsarray.exceptions import ConventionViolationWarning
 from emsarray.types import Pathish
 
 from ._base import Convention, Specificity
@@ -108,6 +108,26 @@ class CFGridTopology(abc.ABC):
     def longitude(self) -> xr.DataArray:
         """The longitude coordinate variable"""
         return self.dataset[self.longitude_name]
+
+    @property
+    @abc.abstractmethod
+    def latitude_bounds(self) -> xr.DataArray:
+        """
+        Bounds for the latitude coordinate variable.
+        If there are no bounds defined on the dataset,
+        bounds will be generated.
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def longitude_bounds(self) -> xr.DataArray:
+        """
+        Bounds for the longitude coordinate variable.
+        If there are no bounds defined on the dataset,
+        bounds will be generated.
+        """
+        pass
 
     @property
     @abc.abstractmethod
@@ -294,7 +314,26 @@ class CFGrid1DTopology(CFGridTopology):
         """The name of the latitude dimension, taken from the latitude coordinate"""
         return self.longitude.dims[0]
 
-    def _calculate_bounds(self, values: np.ndarray) -> np.ndarray:
+    def _get_or_make_bounds(self, coordinate: xr.DataArray) -> xr.DataArray:
+        with suppress(KeyError):
+            bounds = self.dataset.data_vars[coordinate.attrs['bounds']]
+            if (
+                len(bounds.dims) == 2
+                and bounds.dims[0] == coordinate.dims[0]
+                and self.dataset.dims[bounds.dims[1]] == 2
+            ):
+                return bounds
+            else:
+                expected_dims = (coordinate.dims[0], 2)
+                warnings.warn(
+                    f"Bounds {bounds.name!r} for coordinate {coordinate.name!r} "
+                    f"had invalid dimensions. "
+                    f"Expected {expected_dims!r}, "
+                    f"found {tuple(bounds.dims)!r}",
+                    category=ConventionViolationWarning,
+                    stacklevel=4)
+
+        values = coordinate.values
         first_gap = values[1] - values[0]
         last_gap = values[-1] - values[-2]
         mid_points = np.concatenate([
@@ -302,27 +341,20 @@ class CFGrid1DTopology(CFGridTopology):
             (values[1:] + values[:-1]) / 2,
             [values[-1] + last_gap / 2]
         ])
-        return np.stack([mid_points[:-1], mid_points[1:]], axis=-1)
+        return xr.DataArray(
+            np.stack([mid_points[:-1], mid_points[1:]], axis=-1),
+            dims=[coordinate.dims[0], 'bounds'],
+        )
 
     @cached_property
     def latitude_bounds(self) -> xr.DataArray:
         """North/south bounds for each latitude point"""
-        with suppress(KeyError):
-            return self.dataset.data_vars[self.latitude.attrs['bounds']]
-        return xr.DataArray(
-            data=self._calculate_bounds(self.latitude.values),
-            dims=[self.latitude_name, 'bounds'],
-        )
+        return self._get_or_make_bounds(self.latitude)
 
     @cached_property
     def longitude_bounds(self) -> xr.DataArray:
         """East/west bounds for each longitude point"""
-        with suppress(KeyError):
-            return self.dataset.data_vars[self.longitude.attrs['bounds']]
-        return xr.DataArray(
-            data=self._calculate_bounds(self.longitude.values),
-            dims=[self.longitude_name, 'bounds'],
-        )
+        return self._get_or_make_bounds(self.longitude)
 
 
 class CFGrid1D(CFGrid[CFGrid1DTopology]):
@@ -358,36 +390,21 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
     def polygons(self) -> np.ndarray:
         lon_bounds = self.topology.longitude_bounds.values
         lat_bounds = self.topology.latitude_bounds.values
-        if lon_bounds[0, 0] > lon_bounds[0, 1]:
-            lon_bounds = lon_bounds[:, ::-1]
-        if lat_bounds[0, 0] > lat_bounds[0, 1]:
-            lat_bounds = lat_bounds[:, ::-1]
 
-        # For bounds arrays,
-        #   b[i, 1] == b[i + 1, 0])
-        # we can get the corners of each cell using this
-        lons = np.concatenate([lon_bounds[:, 0], lon_bounds[-1:, 1]])
-        lats = np.concatenate([lat_bounds[:, 0], lat_bounds[-1:, 1]])
-        # Transform these in to point pairs
-        grid = np.stack(np.meshgrid(lons, lats), axis=-1)
-        # Make a new array of shape (topology.size, 4, 2)
-        rows = np.stack([
-            grid[:-1, +1:],
-            grid[+1:, +1:],
-            grid[+1:, :-1],
-            grid[:-1, :-1],
-        ], axis=2).reshape((-1, 4, 2))
+        # Make a bounds array as if this dataset had 2D coordinates.
+        # 1D bounds are (min, max).
+        # 2D bounds are (j-i, i-1), (j-1, i+1), (j+1, i+1), (j+1, i-1).
+        # The bounds values are repeated as required, are given a new dimension,
+        # then repeated along that new dimension.
+        # They will come out as array with shape (lat, lon, 4)
+        y_size, x_size = self.topology.shape
+        lon_bounds_2d = np.tile(lon_bounds[np.newaxis, :, [0, 1, 1, 0]], (y_size, 1, 1))
+        lat_bounds_2d = np.tile(lat_bounds[:, np.newaxis, [0, 0, 1, 1]], (1, x_size, 1))
 
-        polygons = np.full(self.topology.size, None, dtype=np.object_)
-        # There might be missing polygons, represented as nans.
-        # Shapely will throw an error on these.
-        # Find all the complete rows and only construct polygons for them.
-        complete_row_indices = np.flatnonzero(np.isfinite(rows).all(axis=(1, 2)))
-        shapely.polygons(
-            rows[complete_row_indices],
-            indices=complete_row_indices,
-            out=polygons)
-        return polygons
+        # points is a (topology.size, 4, 2) array of the corners of each cell
+        points = np.stack([lon_bounds_2d, lat_bounds_2d], axis=-1).reshape((-1, 4, 2))
+
+        return utils.make_polygons_with_holes(points)
 
     @cached_property
     def face_centres(self) -> np.ndarray:
@@ -423,6 +440,71 @@ class CFGrid2DTopology(CFGridTopology):
         """
         return self.latitude.dims[1]
 
+    def _get_or_make_bounds(self, coordinate: xr.DataArray) -> xr.DataArray:
+        # Use the bounds defined on the coordinate itself, if any.
+        with suppress(KeyError):
+            bounds = self.dataset[coordinate.attrs['bounds']]
+            if (
+                len(bounds.dims) == 3
+                and bounds.dims[0] == self.y_dimension
+                and bounds.dims[1] == self.x_dimension
+                and self.dataset.dims[bounds.dims[2]] == 4
+            ):
+                return cast(xr.DataArray, bounds)
+            else:
+                expected_dims = (self.y_dimension, self.x_dimension, 2)
+                warnings.warn(
+                    f"Bounds {bounds.name!r} for coordinate {coordinate.name!r} "
+                    f"had invalid dimensions. "
+                    f"Expected {expected_dims!r}, "
+                    f"found {tuple(bounds.dims)!r}",
+                    category=ConventionViolationWarning,
+                    stacklevel=4)
+
+        # The dataset has no bounds defined. Let us make our own.
+        #
+        # Assume the bounds for each cell are contiguous with the neighbouring cells.
+        # The corners are the average of the four surrounding cell centres.
+        # On the edges where there are fewer 'surrounding' cells, the cell centres are used.
+        # Edge and corner cells will be smaller than the surrounding cells because of this.
+
+        # np.nanmean will return nan for an all-nan column.
+        # This is the exact behaviour that we want.
+        # numpy emits a warning that can not be silenced when this happens,
+        # so that warning is temporarily ignored.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", "Mean of empty slice", category=RuntimeWarning)
+            grid = np.nanmean([
+                np.pad(coordinate.values, pad, constant_values=np.nan)
+                for pad in itertools.product([(1, 0), (0, 1)], [(1, 0), (0, 1)])
+            ], axis=0)
+
+        y_size, x_size = self.shape
+        bounds = np.array([
+            [
+                [grid[y, x], grid[y, x + 1], grid[y + 1, x + 1], grid[y + 1, x]]
+                for x in range(x_size)
+            ]
+            for y in range(y_size)
+        ])
+        # Any cell that has a `nan` in its bounds will be set to all nan
+        cells_with_nans = np.isnan(bounds).any(axis=2)
+        bounds[cells_with_nans] = np.nan
+
+        return xr.DataArray(
+            bounds,
+            dims=[self.y_dimension, self.x_dimension, 'bounds'],
+        )
+
+    @cached_property
+    def longitude_bounds(self) -> xr.DataArray:
+        return self._get_or_make_bounds(self.longitude)
+
+    @property
+    def latitude_bounds(self) -> xr.DataArray:
+        return self._get_or_make_bounds(self.latitude)
+
 
 class CFGrid2D(CFGrid[CFGrid2DTopology]):
     """A :class:`.Convention` subclass representing datasets on a curvilinear grid
@@ -455,50 +537,14 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
 
     @cached_property
     def polygons(self) -> np.ndarray:
-        xs = self.topology.longitude.values
-        ys = self.topology.latitude.values
+        # Construct polygons from the bounds of the cells
+        lon_bounds = self.topology.longitude_bounds.values
+        lat_bounds = self.topology.latitude_bounds.values
 
-        # Make a grid around the cell centres
-        # by averaging the surrounding centre coordinates.
-        # On the edges where there are insufficient 'surrounding' cells,
-        # the centres are used.
-        # Edge and corner cells will be smaller than the surrounding cells
-        # because of this.
-        #
-        # np.nanmean will return nan for an all-nan column.
-        # This is the exact behaviour that we want.
-        # numpy emits a warning that can not be silenced when this happens,
-        # so that warning is temporarily ignored.
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", "Mean of empty slice", category=RuntimeWarning)
+        # points is a (topology.size, 4, 2) array of the corners of each cell
+        points = np.stack([lon_bounds, lat_bounds], axis=-1).reshape((-1, 4, 2))
 
-            y_grid = np.nanmean([
-                np.pad(ys, pad, constant_values=np.nan)
-                for pad in itertools.product([(1, 0), (0, 1)], [(1, 0), (0, 1)])
-            ], axis=0)
-            x_grid = np.nanmean([
-                np.pad(xs, pad, constant_values=np.nan)
-                for pad in itertools.product([(1, 0), (0, 1)], [(1, 0), (0, 1)])
-            ], axis=0)
-
-        # Transform these in to point pairs
-        grid = np.stack([x_grid, y_grid], axis=-1)
-        # Make a new array of shape (topology.size, 4, 2)
-        rows = np.stack([
-            grid[:-1, :-1],
-            grid[:-1, +1:],
-            grid[+1:, +1:],
-            grid[+1:, :-1],
-        ], axis=2).reshape((-1, 4, 2))
-
-        polygons = np.full(self.topology.size, None, dtype=np.object_)
-        complete_row_indices = np.flatnonzero(np.isfinite(rows).all(axis=(1, 2)))
-        shapely.polygons(
-            rows[complete_row_indices],
-            indices=complete_row_indices,
-            out=polygons)
-        return polygons
+        return utils.make_polygons_with_holes(points)
 
     @cached_property
     def face_centres(self) -> np.ndarray:
