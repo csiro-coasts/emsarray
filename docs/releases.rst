@@ -14,6 +14,7 @@ Release notes
 * Added Python 3.11 support to CI (:pr:`44`)
 * Various documentation fixes (:pr:`42`, :pr:`43`)
 * Renamed ``Format`` to :class:`~emsarray.conventions.Convention` (:pr:`46`)
+* Add `emsarray export-geometry` command (:pr: `48`)
 
 0.3.1
 =====
