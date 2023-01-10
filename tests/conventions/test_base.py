@@ -89,7 +89,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
             else None
             for y in range(self.shape[0])
             for x in range(self.shape[1])
-        ], dtype=object)
+        ], dtype=np.object_)
 
     def make_clip_mask(
         self,
