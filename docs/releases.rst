@@ -14,7 +14,10 @@ Release notes
 * Added Python 3.11 support to CI (:pr:`44`)
 * Various documentation fixes (:pr:`42`, :pr:`43`)
 * Renamed ``Format`` to :class:`~emsarray.conventions.Convention` (:pr:`46`)
-* Add `emsarray export-geometry` command (:pr: `48`)
+* Used :func:`shapely.polygons` when generating geometry.
+  This results in a massive performance improvement.
+  The minimum version of Shapely has been bumped to 2.0.0 (:pr:`47`)
+* Add :ref:`emsarray export-geometry` command (:pr:`48`)
 
 0.3.1
 =====
