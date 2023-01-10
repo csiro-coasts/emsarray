@@ -1320,13 +1320,13 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         if topology.has_valid_edge_face_connectivity:
             geometry_variables.append(topology.edge_face_connectivity.name)
         if topology.edge_x is not None:
-            geometry_variables.append(topology.edge_x)
+            geometry_variables.append(topology.edge_x.name)
         if topology.edge_y is not None:
-            geometry_variables.append(topology.edge_y)
+            geometry_variables.append(topology.edge_y.name)
         if topology.face_x is not None:
-            geometry_variables.append(topology.face_x)
+            geometry_variables.append(topology.face_x.name)
         if topology.face_y is not None:
-            geometry_variables.append(topology.face_y)
+            geometry_variables.append(topology.face_y.name)
 
         dataset = dataset.drop_vars(geometry_variables)
         dataset.attrs.pop('Conventions', None)
