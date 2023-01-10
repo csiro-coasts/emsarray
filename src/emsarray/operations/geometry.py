@@ -6,6 +6,7 @@ from typing import IO, Any, Generator, Optional, TypeVar, Union
 
 import geojson
 import shapefile
+import shapely
 import xarray as xr
 
 from emsarray.types import Pathish
@@ -142,3 +143,48 @@ def write_shapefile(
         if prj is not None:
             with _maybe_open(prj, 'w') as prj_file:
                 prj_file.write(dataset.ems.data_crs.to_wkt())
+
+
+def _to_multipolygon(dataset: xr.Dataset) -> shapely.MultiPolygon:
+    return shapely.MultiPolygon([
+        p for p in dataset.ems.polygons
+        if p is not None
+    ])
+
+
+def write_wkt(
+    dataset: xr.Dataset,
+    path: Pathish,
+) -> None:
+    """
+    Export the geometry of this dataset as a ``MultiPolygon``
+    to a Well Known Text file.
+
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        The dataset to export as Well Known Text.
+    path : str or pathlib.Path
+        The path where the geometry should be written to.
+    """
+    with open(path, 'w') as f:
+        f.write(shapely.to_wkt(_to_multipolygon(dataset)))
+
+
+def write_wkb(
+    dataset: xr.Dataset,
+    path: Pathish,
+) -> None:
+    """
+    Export the geometry of this dataset as a ``MultiPolygon``
+    to a Well Known Binary file.
+
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        The dataset to export as Well Known Binary.
+    path : str or pathlib.Path
+        The path where the geometry should be written to.
+    """
+    with open(path, 'wb') as f:
+        f.write(shapely.to_wkb(_to_multipolygon(dataset)))

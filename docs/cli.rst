@@ -42,6 +42,33 @@ Or clip a dataset to some geographic bounds:
 
 See ``emsarray clip --help`` for a full list of options.
 
+.. _emsarray export-geometry:
+
+``emsarray export-geometry``
+----------------------------
+
+Exports the geometry of a dataset to various formats.
+
+.. code-block:: shell-session
+
+    $ emsarray export-geometry gbr4.nc gbr.shp
+
+The output format is guessed based on the extension of the output file,
+or specified manually using the ``--format`` flag.
+
+.. table::
+   :align: left
+   :width: 100%
+
+   ================= ============= ==========
+   Format            Flag          Extensions
+   ================= ============= ==========
+   GeoJSON           ``geojson``   ``.geojson``, ``.json``
+   Shapefile         ``shapefile`` ``.shp``
+   Well Known Text   ``wkt``       ``.wkt``
+   Well Known Binary ``wkb``       ``.wkb``
+   ================= ============= ==========
+
 .. _emsarray extract-points:
 
 ``emsarray extract-points``
