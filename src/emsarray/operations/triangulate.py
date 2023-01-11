@@ -1,7 +1,7 @@
 """
 Operations for making a triangular mesh out of the polygons of a dataset.
 """
-from typing import List, Tuple
+from typing import List, Tuple, cast
 
 import xarray as xr
 from shapely.geometry import LineString, MultiPoint, Polygon
@@ -110,9 +110,9 @@ def triangulate_dataset(
         for index, polygon in enumerate(polygons)
         if polygon is not None]
     triangles_with_index = list(
-        (tuple(vertex_indices[vertex] for vertex in triangle.exterior.coords[:-1]), dataset_index)
+        (tuple(vertex_indices[vertex] for vertex in triangle_coords), dataset_index)
         for polygon, dataset_index in polygons_with_index
-        for triangle in _triangulate_polygon(polygon)
+        for triangle_coords in _triangulate_polygon(polygon)
     )
     triangles: List[Triangle] = [tri for tri, index in triangles_with_index]  # type: ignore
     indices = [index for tri, index in triangles_with_index]
@@ -120,7 +120,7 @@ def triangulate_dataset(
     return (vertices, triangles, indices)
 
 
-def _triangulate_polygon(polygon: Polygon) -> List[Polygon]:
+def _triangulate_polygon(polygon: Polygon) -> List[Tuple[Vertex, Vertex, Vertex]]:
     """
     Triangulate a polygon.
 
@@ -163,7 +163,7 @@ def _triangulate_polygon(polygon: Polygon) -> List[Polygon]:
     # Maintain a consistent winding order
     polygon = polygon.normalize()
 
-    triangles = []
+    triangles: List[Tuple[Vertex, Vertex, Vertex]] = []
     # Note that shapely polygons with n vertices will be closed, and thus have
     # n+1 coordinates. We trim that superfluous coordinate off in the next line
     while len(polygon.exterior.coords) > 4:
@@ -171,19 +171,20 @@ def _triangulate_polygon(polygon: Polygon) -> List[Polygon]:
         coords = exterior.coords[:-1]
         # We try and make an ear from vertices (i, i+1, i+2)
         for i in range(len(coords) - 2):
-            # If the diagonal between i and i+1 is within the larger polygon,
+            # If the diagonal between i and i+2 is within the larger polygon,
             # then this entire triangle is within the larger polygon
             vertices = [coords[i], coords[i + 2]]
             multipoint = MultiPoint(vertices)
             diagonal = LineString(vertices)
-            # The intersection of the diagonal with the boundary should be two
-            # points - the vertices in question. If three or more points are in
-            # a line, the intersection will be something different. Removing
-            # that ear will result in two disconnected polygons.
-            intersection = exterior.intersection(diagonal)
-            if diagonal.covered_by(polygon) and intersection.equals(multipoint):
-                triangle = Polygon([coords[i], coords[i + 1], coords[i + 2]])
-                triangles.append(triangle)
+            if (
+                diagonal.covered_by(polygon)
+                # The intersection of the diagonal with the boundary should be two
+                # points - the vertices in question. If three or more points are in
+                # a line, the intersection will be something different. Removing
+                # that ear will result in two disconnected polygons.
+                and exterior.intersection(diagonal).equals(multipoint)
+            ):
+                triangles.append((coords[i], coords[i + 1], coords[i + 2]))
                 polygon = Polygon(coords[:i + 1] + coords[i + 2:])
                 break
         else:
@@ -192,5 +193,8 @@ def _triangulate_polygon(polygon: Polygon) -> List[Polygon]:
                 f"Could not find interior diagonal for polygon! {polygon.wkt}")
 
     # The trimmed polygon is now a triangle. Add it to the list and we are done!
-    triangles.append(polygon)
+
+    triangles.append(cast(
+        Tuple[Vertex, Vertex, Vertex],
+        tuple(map(tuple, polygon.exterior.coords[:-1]))))
     return triangles
