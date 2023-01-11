@@ -156,7 +156,7 @@ def test_varnames():
     assert dataset.ems.get_time_name() == 'time'
 
 
-def test_polygons():
+def test_polygons_no_bounds():
     dataset = make_dataset(width=3, height=4)
     polygons = dataset.ems.polygons
 
@@ -172,6 +172,42 @@ def test_polygons():
         polygons[0], box(-0.05, -0.05, 0.05, 0.05), tolerance=1e-6)
     assert_geometries_equal(
         polygons[5], box(.15, .05, .25, .15), tolerance=1e-6)
+
+
+def test_polygons_bounds():
+    dataset = make_dataset(width=3, height=4)
+    lon_grid = np.concatenate([
+        dataset['lon'].values - 0.08,
+        [dataset['lon'].values[-1] + 0.02]
+    ])
+    lat_grid = np.concatenate([
+        dataset['lat'].values - 0.07,
+        [dataset['lat'].values[-1] + 0.03]
+    ])
+    dataset = dataset.assign({
+        'lon_bounds': xr.DataArray(
+            np.c_[lon_grid[:-1], lon_grid[1:]],
+            dims=[dataset['lon'].dims[0], 'bounds'],
+        ),
+        'lat_bounds': xr.DataArray(
+            np.c_[lat_grid[:-1], lat_grid[1:]],
+            dims=[dataset['lat'].dims[0], 'bounds'],
+        ),
+    })
+    dataset['lon'].attrs['bounds'] = 'lon_bounds'
+    dataset['lat'].attrs['bounds'] = 'lat_bounds'
+    assert_allclose(dataset.ems.topology.longitude_bounds, dataset['lon_bounds'])
+    assert_allclose(dataset.ems.topology.latitude_bounds, dataset['lat_bounds'])
+
+    assert_geometries_equal(
+        dataset.ems.polygons[0],
+        box(-0.08, -0.07, 0.02, 0.03),
+        tolerance=1e-6)
+
+    assert_geometries_equal(
+        dataset.ems.polygons[4],
+        box(0.02, 0.03, 0.12, 0.13),
+        tolerance=1e-6)
 
 
 def test_selector_for_index():

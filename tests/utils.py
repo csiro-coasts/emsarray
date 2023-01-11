@@ -86,7 +86,7 @@ class ShocLayerGenerator(abc.ABC):
         }
 
     @property
-    def simple_vars(self) -> Dict[Hashable, xr.DataArray]:
+    def simple_coords(self) -> Dict[Hashable, xr.DataArray]:
         return {
             "zc": xr.DataArray(
                 data=self.z_centre,
@@ -123,11 +123,13 @@ class ShocGridGenerator(abc.ABC):
         self, *,
         j: int,
         i: int,
-        face_mask: Optional[np.ndarray] = None
+        face_mask: Optional[np.ndarray] = None,
+        include_bounds: bool = False,
     ):
         self.j_size = j
         self.i_size = i
         self.face_mask = face_mask
+        self.include_bounds = include_bounds
 
     @abc.abstractmethod
     def make_x_grid(self, j: np.ndarray, i: np.ndarray) -> np.ndarray:
@@ -241,7 +243,33 @@ class ShocGridGenerator(abc.ABC):
         }
 
     @property
-    def simple_vars(self) -> Dict[Hashable, xr.DataArray]:
+    def simple_vars(self) -> Dict[str, xr.DataArray]:
+        simple_vars = {}
+        if self.include_bounds:
+            simple_vars.update({
+                'longitude_bounds': xr.DataArray(
+                    np.stack([
+                        self.x_grid[:-1, :-1],
+                        self.x_grid[:-1, +1:],
+                        self.x_grid[+1:, +1:],
+                        self.x_grid[+1:, :-1],
+                    ], axis=2),
+                    dims=["j", "i", "bounds"],
+                ).where(self.simple_mask.data_vars['centre_mask']),
+                'latitude_bounds': xr.DataArray(
+                    np.stack([
+                        self.y_grid[:-1, :-1],
+                        self.y_grid[:-1, +1:],
+                        self.y_grid[+1:, +1:],
+                        self.y_grid[+1:, :-1],
+                    ], axis=2),
+                    dims=["j", "i", "bounds"],
+                ).where(self.simple_mask.data_vars['centre_mask']),
+            })
+        return simple_vars
+
+    @property
+    def simple_coords(self) -> Dict[Hashable, xr.DataArray]:
         return {
             "longitude": xr.DataArray(
                 data=self.x_centre,
@@ -252,6 +280,10 @@ class ShocGridGenerator(abc.ABC):
                     "coordinate_type": "longitude",
                     "units": "degrees_east",
                     "projection": "geographic",
+                    **(
+                        {"bounds": "longitude_bounds"}
+                        if self.include_bounds else {}
+                    ),
                 },
             ).where(self.simple_mask.data_vars['centre_mask']),
             "latitude": xr.DataArray(
@@ -263,6 +295,10 @@ class ShocGridGenerator(abc.ABC):
                     "coordinate_type": "latitude",
                     "units": "degrees_north",
                     "projection": "geographic",
+                    **(
+                        {"bounds": "latitude_bounds"}
+                        if self.include_bounds else {}
+                    ),
                 },
             ).where(self.simple_mask.data_vars['centre_mask']),
         }
