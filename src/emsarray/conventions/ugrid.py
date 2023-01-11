@@ -687,7 +687,7 @@ class Mesh2DTopology:
         expected = {self.face_dimension, self.max_node_dimension}
         if actual != expected:
             warnings.warn(
-                f"Got a face_face_connectivity variable {data_array.name!r} with "
+                f"Got a face_node_connectivity variable {data_array.name!r} with "
                 f"unexpected dimensions {actual}, expecting {expected}",
                 ConventionViolationWarning,
             )
@@ -1089,10 +1089,12 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         node_x = topology.node_x.values
         node_y = topology.node_y.values
         face_node = topology.face_node_array
-
         polygons = np.full(topology.face_count, None, dtype=np.object_)
-        polygons_of_size: Mapping[int, Dict[int, np.ndarray]] = defaultdict(dict)
 
+        # `shapely.polygons` will make polygons with the same number of vertices.
+        # UGRID polygons have arbitrary numbers of vertices.
+        # Group polygons by how many vertices they have, then make them in bulk.
+        polygons_of_size: Mapping[int, Dict[int, np.ndarray]] = defaultdict(dict)
         for index, row in enumerate(face_node):
             vertices = row.compressed()
             polygons_of_size[vertices.size][index] = np.c_[node_x[vertices], node_y[vertices]]

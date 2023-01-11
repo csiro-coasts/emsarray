@@ -18,6 +18,7 @@ import pytest
 import xarray as xr
 from matplotlib.figure import Figure
 from shapely.geometry import Polygon
+from shapely.testing import assert_geometries_equal
 
 from emsarray.conventions import get_dataset_convention
 from emsarray.conventions.grid import CFGridKind
@@ -34,6 +35,7 @@ def make_dataset(
     time_size: int = 4,
     grid_type: Type[ShocGridGenerator] = DiagonalShocGrid,
     corner_size: int = 0,
+    include_bounds: bool = False,
 ) -> xr.Dataset:
     """
     Make a dummy SHOC simple dataset of a particular size.
@@ -73,7 +75,10 @@ def make_dataset(
     wet_centre_mask[:, -1:] = False
     wet_mask = xr.DataArray(data=wet_centre_mask, dims=["j", "i"])
 
-    grid = grid_type(j=j_size, i=i_size, face_mask=coordinate_centre_mask)
+    grid = grid_type(
+        j=j_size, i=i_size,
+        face_mask=coordinate_centre_mask,
+        include_bounds=include_bounds)
     layers = ShocLayerGenerator(k=k_size)
 
     time = xr.DataArray(
@@ -104,10 +109,10 @@ def make_dataset(
         data=np.random.normal(0, 0.2, (time_size, j_size, i_size)),
         dims=["time", "j", "i"],
         attrs={
-                "units": "metre",
-                "long_name": "Surface elevation",
-                "standard_name": "sea_surface_height_above_geoid",
-            }
+            "units": "metre",
+            "long_name": "Surface elevation",
+            "standard_name": "sea_surface_height_above_geoid",
+        }
     ).where(wet_mask)
     temp = xr.DataArray(
         data=np.random.normal(12, 0.5, (time_size, k_size, j_size, i_size)),
@@ -119,8 +124,8 @@ def make_dataset(
     ).where(wet_mask)
 
     return xr.Dataset(
-        data_vars={"botz": botz, "eta": eta, "temp": temp},
-        coords={**layers.simple_vars, **grid.simple_vars, "time": time},
+        data_vars={"botz": botz, "eta": eta, "temp": temp, **grid.simple_vars},
+        coords={**layers.simple_coords, **grid.simple_coords, "time": time},
         attrs={
             "title": "Example SHOC dataset",
             "ems_version": "v1.2.3 fake",
@@ -158,12 +163,51 @@ def test_varnames():
     assert dataset.ems.get_time_name() == 'time'
 
 
-def test_polygons():
-    dataset = make_dataset(j_size=10, i_size=20)
+def test_polygons_no_bounds():
+    dataset = make_dataset(
+        j_size=10, i_size=20,
+        include_bounds=False, corner_size=3)
+    polygons = dataset.ems.polygons
+    print(type(dataset.ems))
+
+    # Should be one item for every cell in the shape
+    assert len(polygons) == 10 * 20
+
+    assert_geometries_equal(
+        polygons[0],
+        Polygon([[0.1, 2], [0.15, 1.95], [0.2, 2], [0.15, 2.05]]))
+
+    assert_geometries_equal(
+        polygons[21],
+        Polygon([[0.2, 2], [0.3, 1.9], [0.4, 2], [0.3, 2.1]]))
+
+    assert polygons[20 * 9 + 0] is None
+    assert polygons[20 * 9 + 1] is None
+    assert polygons[20 * 9 + 2] is None
+    assert polygons[20 * 9 + 3] is not None
+
+
+def test_polygons_with_bounds():
+    dataset = make_dataset(
+        j_size=10, i_size=20,
+        include_bounds=True, corner_size=3)
     polygons = dataset.ems.polygons
 
     # Should be one item for every cell in the shape
     assert len(polygons) == 10 * 20
+
+    assert_geometries_equal(
+        polygons[0],
+        Polygon([[0, 2], [0.1, 1.9], [0.2, 2], [0.1, 2.1]]))
+
+    assert_geometries_equal(
+        polygons[21],
+        Polygon([[0.2, 2], [0.3, 1.9], [0.4, 2], [0.3, 2.1]]))
+
+    assert polygons[20 * 9 + 0] is None
+    assert polygons[20 * 9 + 1] is None
+    assert polygons[20 * 9 + 2] is None
+    assert polygons[20 * 9 + 3] is not None
 
 
 def test_holes():

@@ -26,6 +26,7 @@ import netCDF4
 import numpy as np
 import pandas as pd
 import pytz
+import shapely
 import xarray as xr
 from packaging.version import Version
 from xarray.coding import times
@@ -646,3 +647,39 @@ def requires_extra(
             raise exception_class(extra) from import_error
         return error  # type: ignore
     return error_decorator
+
+
+def make_polygons_with_holes(
+    points: np.ndarray,
+    *,
+    out: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """
+    Make a :class:`numpy.ndarray` of :class:`shapely.Polygon` from an array of (n, m, 2) points.
+    ``n`` is the number of polygons, ``m`` is the number of vertices per polygon.
+    If any point in a polygon is :data:`np.nan`,
+    that Polygon is skipped and will be :class:`None` in the returned array.
+
+    Parameters
+    ----------
+
+    points : np.ndarray
+        A (n, m, 2) array. Each row represents the m points of a polygon.
+    out : np.ndarray, optional
+        Optional. An array to fill with polygons.
+
+    Returns
+    -------
+
+    np.ndarray
+        The polygons in a array of size n.
+    """
+    if out is None:
+        out = np.full(points.shape[0], None, dtype=np.object_)
+
+    complete_row_indices = np.flatnonzero(np.isfinite(points).all(axis=(1, 2)))
+    shapely.polygons(
+        points[complete_row_indices],
+        indices=complete_row_indices,
+        out=out)
+    return out

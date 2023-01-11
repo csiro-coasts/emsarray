@@ -9,12 +9,13 @@ import pytest
 import xarray as xr
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
-from shapely.geometry import Polygon, box
+from shapely.geometry import Polygon
+from shapely.testing import assert_geometries_equal
 
 from emsarray.conventions import get_dataset_convention
 from emsarray.conventions.grid import CFGrid1D, CFGridKind, CFGridTopology
 from emsarray.operations import geometry
-from tests.utils import mask_from_strings
+from tests.utils import box, mask_from_strings
 
 
 def make_dataset(
@@ -155,7 +156,7 @@ def test_varnames():
     assert dataset.ems.get_time_name() == 'time'
 
 
-def test_polygons():
+def test_polygons_no_bounds():
     dataset = make_dataset(width=3, height=4)
     polygons = dataset.ems.polygons
 
@@ -167,8 +168,46 @@ def test_polygons():
     assert all(dataset.ems.mask)
 
     # Check the coordinates for the generated polygons.
-    assert polygons[0].equals_exact(box(-0.05, -0.05, 0.05, 0.05), 1e-6)
-    assert polygons[5].equals_exact(box(.15, .05, .25, .15), 1e-6)
+    assert_geometries_equal(
+        polygons[0], box(-0.05, -0.05, 0.05, 0.05), tolerance=1e-6)
+    assert_geometries_equal(
+        polygons[5], box(.15, .05, .25, .15), tolerance=1e-6)
+
+
+def test_polygons_bounds():
+    dataset = make_dataset(width=3, height=4)
+    lon_grid = np.concatenate([
+        dataset['lon'].values - 0.08,
+        [dataset['lon'].values[-1] + 0.02]
+    ])
+    lat_grid = np.concatenate([
+        dataset['lat'].values - 0.07,
+        [dataset['lat'].values[-1] + 0.03]
+    ])
+    dataset = dataset.assign({
+        'lon_bounds': xr.DataArray(
+            np.c_[lon_grid[:-1], lon_grid[1:]],
+            dims=[dataset['lon'].dims[0], 'bounds'],
+        ),
+        'lat_bounds': xr.DataArray(
+            np.c_[lat_grid[:-1], lat_grid[1:]],
+            dims=[dataset['lat'].dims[0], 'bounds'],
+        ),
+    })
+    dataset['lon'].attrs['bounds'] = 'lon_bounds'
+    dataset['lat'].attrs['bounds'] = 'lat_bounds'
+    assert_allclose(dataset.ems.topology.longitude_bounds, dataset['lon_bounds'])
+    assert_allclose(dataset.ems.topology.latitude_bounds, dataset['lat_bounds'])
+
+    assert_geometries_equal(
+        dataset.ems.polygons[0],
+        box(-0.08, -0.07, 0.02, 0.03),
+        tolerance=1e-6)
+
+    assert_geometries_equal(
+        dataset.ems.polygons[4],
+        box(0.02, 0.03, 0.12, 0.13),
+        tolerance=1e-6)
 
 
 def test_selector_for_index():

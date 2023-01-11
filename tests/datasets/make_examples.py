@@ -107,10 +107,10 @@ def make_shoc_standard(out: pathlib.Path) -> None:
     yy = np.sin(theta) * radius
 
     face_y = dataset.createVariable("y_centre", "f4", ["face_j", "face_i"])
-    face_y[:] = (yy[:-1, :-1] + yy[:-1, 1:] + yy[1:, 1:] + yy[1:, :-1]) / 2
+    face_y[:] = (yy[:-1, :-1] + yy[:-1, 1:] + yy[1:, 1:] + yy[1:, :-1]) / 4
 
     face_x = dataset.createVariable("x_centre", "f4", ["face_j", "face_i"])
-    face_x[:] = (xx[:-1, :-1] + xx[:-1, 1:] + xx[1:, 1:] + xx[1:, :-1]) / 2
+    face_x[:] = (xx[:-1, :-1] + xx[:-1, 1:] + xx[1:, 1:] + xx[1:, :-1]) / 4
 
     left_y = dataset.createVariable("y_left", "f4", ["left_j", "left_i"])
     left_y[:] = (yy[:-1, :] + yy[1:, :]) / 2
