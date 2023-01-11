@@ -19,6 +19,7 @@ Release notes
   The minimum version of Shapely has been bumped to 2.0.0 (:pr:`47`)
 * Add :ref:`emsarray export-geometry` command (:pr:`48`)
 * Use coordinate bounds from the dataset when making polygons (:pr:`49`)
+* Fix a bug in :meth:`Ugrid.drop_geometry()` (:pr:`50`)
 
 0.3.1
 =====
