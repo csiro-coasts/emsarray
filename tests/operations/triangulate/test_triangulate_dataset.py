@@ -4,6 +4,7 @@ from typing import List, Tuple
 
 import numpy as np
 import pytest
+import shapely
 import xarray as xr
 from shapely.geometry import Polygon
 
@@ -138,7 +139,7 @@ def test_triangulate_polygon():
         triangles = _triangulate_polygon(polygon)
         assert len(triangles) == len(coords) - 2
 
-        union = reduce(lambda a, b: a.union(b), triangles)
+        union = shapely.union_all(shapely.polygons(np.array(triangles)))
         assert union.equals(polygon)
 
 

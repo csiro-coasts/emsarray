@@ -2,7 +2,9 @@ import json
 import os
 import pathlib
 from contextlib import contextmanager
-from typing import IO, Any, Generator, Optional, TypeVar, Union
+from typing import (
+    IO, Any, Generator, Iterable, Iterator, Optional, TypeVar, Union
+)
 
 import geojson
 import shapefile
@@ -14,6 +16,30 @@ from emsarray.types import Pathish
 T = TypeVar('T')
 
 
+class dumpable_iterator(list):
+    """
+    Wrap an iterator / generator so it can be used in `json.dumps()`.
+    No guarantees that it works for anything else!
+
+    `json.dumps()` will only iterate over list or tuple subclasses by default,
+    and will throw an error if passed an iterator.
+    This class pretends to be a list, but presents the iteratable instead.
+    Iterating over this multiple times is not supported,
+    and most magic methods will access the (empty) list underlying this.
+    """
+    def __init__(self, gen: Iterable[T]):
+        self.gen = gen
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self.gen)
+
+    def __bool__(self) -> bool:
+        return True
+
+    def __len__(self) -> int:
+        raise NotImplementedError("Can't get the length of a dumpable_iterator")
+
+
 def to_geojson(
     dataset: xr.Dataset,
 ) -> geojson.FeatureCollection:
@@ -22,6 +48,11 @@ def to_geojson(
 
     Each feature will include the linear index and the native index
     of the corresponding cell in its properties.
+
+    .. note::
+        The `features` list on the returned FeatureCollection is a generator.
+        It can only be iterated over once.
+        It is designed to work with :func:`json.dumps` directly.
 
     Parameters
     ----------
@@ -37,14 +68,14 @@ def to_geojson(
     --------
     :func:`.write_geojson`
     """
-    return geojson.FeatureCollection([
+    return geojson.FeatureCollection(dumpable_iterator(
         geojson.Feature(geometry=polygon, properties={
             'linear_index': i,
             'index': dataset.ems.unravel_index(i),
         })
         for i, polygon in enumerate(dataset.ems.polygons)
         if polygon is not None
-    ])
+    ))
 
 
 def write_geojson(
