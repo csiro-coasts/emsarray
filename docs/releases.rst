@@ -10,7 +10,7 @@ Release notes
 * Reworked how command line entrypoints are discovered (:pr:`35`)
 * Added brief tutorial on writing command line Python scripts
   using ``emsarray`` (:pr:`35`)
-* Various documentation fixes (:pr:`42`, :pr:`43`)
+* Various documentation fixes (:pr:`42`, :pr:`43`, :pr:`52`)
 * Added Python 3.11 support to CI (:pr:`44`)
 * Allow manual binding of conventions to datasets (:pr:`45`)
 * Renamed ``Format`` to :class:`~emsarray.conventions.Convention` (:pr:`46`)

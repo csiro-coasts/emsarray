@@ -14,7 +14,7 @@ Arakawa C grid datasets have four :ref:`grids <grids>`:
 *face*, *left*, *back*, and *node*.
 :class:`ArakawaCGridKind` represents this.
 Each grid is :ref:`indexed <indexing>` by a grid kind and two integers *i* and *j*.
-The convention native index type is :data:`ArakawaCGridKind`.
+The convention native index type is :data:`ArakawaCIndex`.
 
 .. autoclass:: ArakawaCGridKind
    :members:

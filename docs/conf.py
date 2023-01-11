@@ -84,9 +84,6 @@ autodoc_default_options = {
     # 'members': True,
     'member-order': 'bysource',
 }
-autodoc_type_aliases = {
-    'IndexType': 'emsarray.conventions.IndexType',
-}
 
 
 # Other documentation that we link to

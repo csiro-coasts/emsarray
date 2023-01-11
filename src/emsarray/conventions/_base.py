@@ -363,7 +363,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        `index` : :data:`Index`
+        index : :data:`.Index`
             The native index to ravel.
 
         Returns
@@ -415,16 +415,16 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        `linear_index`
+        linear_index : int
             The linear index to unravel.
-        `grid_kind` : GridKind
+        grid_kind : GridKind, optional
             Used to indicate what kind of index is being unravelled,
             for conventions with multiple grids.
             Optional, if not provided this will return the unravelled face index.
 
         Returns
         -------
-        ``Index``
+        :data:`.Index`
             The convention native index for that same cell
 
         Example

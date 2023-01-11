@@ -298,10 +298,10 @@ class Mesh2DTopology:
     """
     A helper for extracting the topology data for a 2D unstructured mesh
     dataset. The dataset will contain a dummy variable with the attribute
-    `cf_role = "mesh_topology"`. The attributes of that variable explain the
+    ``cf_role = "mesh_topology"``. The attributes of that variable explain the
     topology of the dataset. For example, the names of the variables that store
-    the coordinates for nodes can be found in the `node_coordinates` attribute
-    as the string "x_variable y_variable".
+    the coordinates for nodes can be found in the ``node_coordinates`` attribute
+    as the string ``"x_variable y_variable"``.
 
     There are five possible connectivity variables on a UGRID dataset:
     face-node, face-edge, face-face, edge-node, and edge-face.
@@ -364,7 +364,7 @@ class Mesh2DTopology:
     def mesh_variable(self) -> xr.DataArray:
         """
         Get the dummy variable that stores the mesh topology information.
-        This is variable is either named using the `topology_key` argument to
+        This is variable is either named using the ``topology_key`` argument to
         the contructor, or found by looking for a variable with the attribute
         ``cf_role`` of ``"mesh_topology"``.
         """
@@ -382,7 +382,7 @@ class Mesh2DTopology:
     def mesh_attributes(self) -> Dict[Hashable, str]:
         """
         Get the mesh topology attributes from the dummy variable with the
-        attribute `cf_role` of "mesh_topology.
+        attribute ``cf_role`` of ``"mesh_topology"``.
         """
         return {
             key: value for key, value in self.mesh_variable.attrs.items()
@@ -392,12 +392,13 @@ class Mesh2DTopology:
     @cached_property
     def sensible_fill_value(self) -> int:
         """
-        Find a sensible value to use for _FillValue. This finds an all-nines
-        number larger than each of node_count, edge_count, and face_count.
+        A sensible value to use for ``_FillValue``.
+        This is all-nines number larger than each of
+        :attr:`node_count`, :attr:`edge_count`, and :attr:`face_count`.
 
-        An alternate, simpler implementation would use `np.iinfo(dtype).max`
-        (the maximum integer value for a given dtype), but using all-nines is
-        traditional.
+        An alternate, simpler implementation would use ``np.iinfo(dtype).max``
+        (the maximum integer value for a given dtype),
+        but using all-nines is traditional.
         """
         # There will always be more edges than faces, as one face is composed
         # of at least three edges. There are probably more edges than nodes.
