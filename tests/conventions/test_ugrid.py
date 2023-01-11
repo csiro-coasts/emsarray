@@ -418,7 +418,8 @@ def test_selector_for_index(index, selector):
 def test_make_geojson_geometry():
     dataset = make_dataset(width=3)
     feature_collection = geometry.to_geojson(dataset)
-    assert len(feature_collection.features) == len(dataset.ems.polygons)
+    features = list(iter(feature_collection.features))
+    assert len(features) == len(dataset.ems.polygons)
     out = json.dumps(feature_collection)
     assert isinstance(out, str)
 
