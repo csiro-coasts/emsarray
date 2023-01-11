@@ -285,7 +285,7 @@ def make_dataset(
                 for face_nodes in face_node_values
             ],
             dims=[face_dimension],
-            name="face_x",
+            name="Mesh2_face_x",
             attrs={
                 "long_name": "Characteristic longitude value of a face",
                 "start_index": 0,
@@ -298,7 +298,7 @@ def make_dataset(
                 for face_nodes in face_node_values
             ],
             dims=[face_dimension],
-            name="face_y",
+            name="Mesh2_face_y",
             attrs={
                 "long_name": "Characteristic longitude value of a face",
                 "start_index": 0,
@@ -380,8 +380,8 @@ def test_face_centres_from_variables():
     convention: UGrid = dataset.ems
 
     face_centres = convention.face_centres
-    lons = dataset['face_x'].values
-    lats = dataset['face_y'].values
+    lons = dataset['Mesh2_face_x'].values
+    lats = dataset['Mesh2_face_y'].values
     for face in range(dataset.dims['nMesh2_face']):
         lon = lons[face]
         lat = lats[face]
@@ -480,12 +480,75 @@ def test_grid_kind_and_size():
     assert size == convention.topology.edge_count
 
 
-def test_drop_geometry(datasets: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'ugrid_mesh2d.nc')
+def test_drop_geometry_minimal():
+    dataset = make_dataset(width=3, make_edges=False, make_face_coordinates=False)
+    topology = dataset.ems.topology
+
+    topology_names = [
+        topology.mesh_variable.name,
+        'Mesh2_node_x', 'Mesh2_node_y',
+        'Mesh2_face_nodes',
+    ]
 
     dropped = dataset.ems.drop_geometry()
-    assert dropped.dims.keys() == {'face'}
-    for name in ['Mesh2D', 'node_x', 'node_y', 'mesh_face_node']:
+    assert dropped.dims.keys() == {
+        # These still exist because there are variables defined on them
+        topology.face_dimension, 'Mesh2_layers', 'record'
+    }
+    for name in topology_names:
+        assert name in dataset.variables
+        assert name not in dropped.variables
+
+
+def test_drop_geometry_full():
+    dataset = make_dataset(width=3, make_edges=True, make_face_coordinates=True)
+    topology = dataset.ems.topology
+    topology.mesh_variable.attrs.update({
+        'edge_coordinates': 'Mesh2_edge_x Mesh2_edge_y',
+        'edge_face_connectivity': 'Mesh2_edge_faces',
+        'face_edge_connectivity': 'Mesh2_face_edges',
+        'face_face_connectivity': 'Mesh2_face_faces',
+    })
+    dataset = dataset.assign({
+        'Mesh2_edge_faces': xr.DataArray(
+            topology.edge_face_array,
+            dims=[topology.edge_dimension, topology.two_dimension],
+        ),
+        'Mesh2_face_edges': xr.DataArray(
+            topology.face_edge_array,
+            dims=[topology.face_dimension, topology.max_node_dimension],
+        ),
+        'Mesh2_face_faces': xr.DataArray(
+            topology.face_face_array,
+            dims=[topology.face_dimension, topology.max_node_dimension],
+        ),
+        'Mesh2_edge_x': xr.DataArray(
+            np.arange(topology.edge_count),
+            dims=[topology.edge_dimension],
+        ),
+        'Mesh2_edge_y': xr.DataArray(
+            np.arange(topology.edge_count),
+            dims=[topology.edge_dimension],
+        ),
+    })
+
+    topology_names = [
+        topology.mesh_variable.name,
+        'Mesh2_node_x', 'Mesh2_node_y',
+        'Mesh2_edge_x', 'Mesh2_edge_y',
+        'Mesh2_face_x', 'Mesh2_face_y',
+        'Mesh2_edge_nodes', 'Mesh2_edge_faces',
+        'Mesh2_face_nodes', 'Mesh2_face_edges', 'Mesh2_face_faces',
+    ]
+
+    print(list(dataset.variables.keys()))
+    dropped = dataset.ems.drop_geometry()
+    assert dropped.dims.keys() == {
+        # These still exist because there are variables defined on them
+        topology.face_dimension, topology.edge_dimension,
+        'Mesh2_layers', 'record'
+    }
+    for name in topology_names:
         assert name in dataset.variables
         assert name not in dropped.variables
 
