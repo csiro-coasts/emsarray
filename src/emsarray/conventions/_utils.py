@@ -59,7 +59,7 @@ def open_mfdataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
     path
         The path or list of paths to the dataset to open
     kwargs
-        These are passed straight through to :func:`xarray.open_dataset`.
+        These are passed straight through to :func:`xarray.open_mfdataset`.
 
     Returns
     -------
