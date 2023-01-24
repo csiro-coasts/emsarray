@@ -47,3 +47,45 @@ def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
         convention_class.__module__, convention_class.__name__, str(path))
 
     return dataset
+
+
+def open_mfdataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
+    """
+    Open a mfdataset and determine the correct Convention implementation for it.
+    If a valid Convention implementation can not be found, an error is raised.
+
+    Parameters
+    ----------
+    path
+        The path or list of paths to the dataset to open
+    kwargs
+        These are passed straight through to :func:`xarray.open_dataset`.
+
+    Returns
+    -------
+    xarray.Dataset
+        The opened dataset
+
+    Example
+    -------
+
+    .. code-block:: python
+
+        import emsarray
+        dataset = emsarray.open_mfdataset("./tests/datasets/ugrid_mesh2d.nc")
+
+    See also
+    --------
+    :func:`xarray.open_mfdataset`
+    """
+    dataset = xr.open_mfdataset(path, **kwargs)
+
+    # Determine the correct convention. All the magic happens in the accessor.
+    convention = dataset.ems
+    convention_class = type(convention)
+    logger.debug(
+        "Using convention %s.%s for dataset %r",
+        convention_class.__module__, convention_class.__name__, str(path))
+
+    return dataset
+

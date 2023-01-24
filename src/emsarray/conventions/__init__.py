@@ -15,7 +15,7 @@ Refer to each Convention implementation for details.
 """
 from ._base import Convention, GridKind, Index, SpatialIndexItem, Specificity
 from ._registry import get_dataset_convention, register_convention
-from ._utils import open_dataset
+from ._utils import open_dataset, open_mfdataset
 from .arakawa_c import ArakawaC
 from .grid import CFGrid1D, CFGrid2D
 from .shoc import ShocSimple, ShocStandard
@@ -24,7 +24,7 @@ from .ugrid import UGrid
 __all__ = [
     "Convention", "GridKind", "Index", "SpatialIndexItem", "Specificity",
     "get_dataset_convention", "register_convention",
-    "open_dataset",
+    "open_dataset", "open_mfdataset",
     "ArakawaC",
     "CFGrid1D", "CFGrid2D",
     "ShocSimple", "ShocStandard",
