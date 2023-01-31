@@ -49,6 +49,6 @@ Contents
     cli.rst
     developing/index.rst
     testing.rst
-    releases.rst
+    releases/index.rst
 
 .. _xarray: https://xarray.pydata.org/

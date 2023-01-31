@@ -1,0 +1,11 @@
+=====
+0.2.0
+=====
+
+* Added support for :doc:`additional conventions via plugins </developing/conventions>`
+  (:pr:`11`).
+* Added support for one-based indexing in UGRID datasets
+  (:pr:`14`).
+* Buffering around clip regions in :meth:`.Convention.make_clip_mask` is now optional
+  (:issue:`12`, :pr:`20`).
+* Removed dependency on SciPy, added missing dependency to conda package.
