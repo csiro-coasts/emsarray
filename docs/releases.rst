@@ -20,6 +20,7 @@ Release notes
 * Add :ref:`emsarray export-geometry` command (:pr:`48`)
 * Use coordinate bounds from the dataset when making polygons (:pr:`49`)
 * Fix a bug in :meth:`Ugrid.drop_geometry()` (:pr:`50`)
+* Relicense to BSD 3-Clause (:issue:`55`, :pr:`56`)
 
 0.3.1
 =====
