@@ -1,0 +1,10 @@
+:orphan:
+
+======================
+Internal documentation
+======================
+
+.. toctree::
+   :maxdepth: 1
+
+   releasing
