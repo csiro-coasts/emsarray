@@ -1,0 +1,20 @@
+=============================
+Next release (in development)
+=============================
+
+* Add CF Convention attributes to coordinate variables when extracting points
+  (:pr:`34`)
+* Reworked how command line entrypoints are discovered (:pr:`35`)
+* Added brief tutorial on writing command line Python scripts
+  using ``emsarray`` (:pr:`35`)
+* Various documentation fixes (:pr:`42`, :pr:`43`, :pr:`52`)
+* Added Python 3.11 support to CI (:pr:`44`)
+* Allow manual binding of conventions to datasets (:pr:`45`)
+* Renamed ``Format`` to :class:`~emsarray.conventions.Convention` (:pr:`46`)
+* Used :func:`shapely.polygons` when generating geometry.
+  This results in a massive performance improvement.
+  The minimum version of Shapely has been bumped to 2.0.0 (:pr:`47`)
+* Add :ref:`emsarray export-geometry` command (:pr:`48`)
+* Use coordinate bounds from the dataset when making polygons (:pr:`49`)
+* Fix a bug in :meth:`Ugrid.drop_geometry()` (:pr:`50`)
+* Relicense to BSD 3-Clause (:issue:`55`, :pr:`56`)
