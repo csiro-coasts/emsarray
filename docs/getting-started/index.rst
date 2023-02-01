@@ -10,3 +10,4 @@ and using emsarray to work with datasets.
 
     installing.rst
     overview.rst
+    faq.rst
