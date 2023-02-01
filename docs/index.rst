@@ -42,7 +42,7 @@ Contents
 .. toctree::
     :maxdepth: 1
 
-    installing.rst
+    getting-started/index.rst
     concepts/index.rst
     examples.rst
     api/index.rst
