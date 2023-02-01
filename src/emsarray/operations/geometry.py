@@ -1,3 +1,7 @@
+"""
+Export the geometry of a dataset to a number of formats.
+The geometry is represented as a collection of Polygons.
+"""
 import json
 import os
 import pathlib
@@ -16,7 +20,7 @@ from emsarray.types import Pathish
 T = TypeVar('T')
 
 
-class dumpable_iterator(list):
+class _dumpable_iterator(list):
     """
     Wrap an iterator / generator so it can be used in `json.dumps()`.
     No guarantees that it works for anything else!
@@ -37,7 +41,7 @@ class dumpable_iterator(list):
         return True
 
     def __len__(self) -> int:
-        raise NotImplementedError("Can't get the length of a dumpable_iterator")
+        raise NotImplementedError("Can't get the length of a _dumpable_iterator")
 
 
 def to_geojson(
@@ -68,7 +72,7 @@ def to_geojson(
     --------
     :func:`.write_geojson`
     """
-    return geojson.FeatureCollection(dumpable_iterator(
+    return geojson.FeatureCollection(_dumpable_iterator(
         geojson.Feature(geometry=polygon, properties={
             'linear_index': i,
             'index': dataset.ems.unravel_index(i),
