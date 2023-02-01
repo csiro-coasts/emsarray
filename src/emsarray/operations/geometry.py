@@ -16,7 +16,7 @@ from emsarray.types import Pathish
 T = TypeVar('T')
 
 
-class dumpable_iterator(list):
+class _dumpable_iterator(list):
     """
     Wrap an iterator / generator so it can be used in `json.dumps()`.
     No guarantees that it works for anything else!

@@ -9,3 +9,4 @@ and using emsarray to work with datasets.
     :maxdepth: 1
 
     installing.rst
+    overview.rst

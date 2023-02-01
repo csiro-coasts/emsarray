@@ -33,7 +33,7 @@ and use the :doc:`dataset.ems </api/accessors>` attribute:
     temp = dataset['temp'].isel(time=0, k=-1)
     dataset.ems.plot(temp)
 
-.. image:: _static/images/gbr4_temp.png
+.. image:: /_static/images/gbr4_temp.png
    :alt: Plot of sea surface temperature from the GBR4 example file
 
 Contents
