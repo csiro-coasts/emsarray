@@ -34,29 +34,16 @@ Merge the pull request.
 Build and publish packages
 ==========================
 
-Fetch the latest ``emsarray`` commits including the freshly merged pull request.
-Tag the merge commit from the release pull request.
-Note that the tag name includes a ``v`` prefix.
+Once the release pull request has been merged
+tag the merge commit with the correct version.
+The ``scripts/tag-release.py`` command will do the hard work for you:
 
 .. code-block:: shell
 
-   $ git tag v1.2.0 <sha-of-merge-commit>
-   $ git push origin v1.2.0
-   $ git checkout v1.2.0
-
-Release the new version to PyPI:
-
-.. code-block:: shell
-
-   $ rm -rf ./build ./venv
-   $ python3 -m venv venv
-   $ source venv/bin/activate
-   $ pip install build twine
-   $ python3 -m build
-   $ twine upload dist/*
+   $ ./scripts/tag-release.py
 
 Fork the [emsarray-feedstock](https://github.com/conda-forge/emsarray-feedstock) repository
-and make a ``release/1.2.0`` branch.
+and make a ``release/v1.2.0`` branch.
 Update the version in ``recipe/meta.yaml``.
 Ensure the minimum dependencies in ``recipe/meta.yaml`` are correct by comparing with ``setup.cfg``.
 Commit these changes and make a pull request.
@@ -69,9 +56,6 @@ Update records and publish notices
 [Make a new release on Github](https://github.com/csiro-coasts/emsarray/releases/new).
 Select the 1.2.0 tag you just created.
 Copy the release notes from ``docs/releases/1.2.0.rst``.
-
-Publish a new version to the [CSIRO Data Access Portal](https://data.csiro.au/collection/csiro:57587v1).
-Update the version number and add the PyPI packages and source tarball for this release.
 
 Prepare the codebase for further development
 ============================================
