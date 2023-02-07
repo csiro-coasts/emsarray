@@ -17,13 +17,13 @@ Preparing the codebase
 ======================
 
 When it is time to release a new version
-run the ``./scripts/pre-release.py`` script.
+run the ``./scripts/release.py pre`` script.
 This will create a new branch and update the code base ready for a new release.
 Push this branch and make a pull request on Github.
 
 .. code-block:: console
 
-   $ ./scripts/pre-release 1.2.0
+   $ ./scripts/release.py pre 1.2.0
 
 Build and publish packages
 ==========================
@@ -34,7 +34,7 @@ The ``scripts/tag-release.py`` command will do the hard work for you:
 
 .. code-block:: shell
 
-   $ ./scripts/tag-release.py
+   $ ./scripts/release.py tag
 
 Fork the [emsarray-feedstock](https://github.com/conda-forge/emsarray-feedstock) repository
 and make a ``release/v1.2.0`` branch.
@@ -54,15 +54,13 @@ Copy the release notes from ``docs/releases/1.2.0.rst``.
 Prepare the codebase for further development
 ============================================
 
-Make a new file ``docs/releases/development.rst`` with the content
+Once the new version has been released
+the code base needs to be prepared so development work can continue:
 
-.. code-block:: rst
+.. code-block:: shell
 
-   =============================
-   Next release (in development)
-   =============================
+   $ ./scripts/release.py post
 
-   * ...
-
-Update ``docs/releases/index.rst`` to include a reference to this document.
-Commit and push this change.
+Push this branch and create a pull request.
+Once this pull request has been merged,
+the release process is finished!
