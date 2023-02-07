@@ -17,46 +17,27 @@ Preparing the codebase
 ======================
 
 When it is time to release a new version
-make a branch named ``release/1.2.0``.
+run the ``./scripts/release.py pre`` script.
+This will create a new branch and update the code base ready for a new release.
+Push this branch and make a pull request on Github.
 
-Update the version in ``setup.cfg``.
+.. code-block:: console
 
-Move ``docs/releases/development.rst`` to ``docs/releases/1.2.0.rst``,
-and update the title to ``1.2.0``.
-Update ``docs/releases/index.rst``
-and add a reference to ``docs/releases/1.2.0.rst`` to the toctree.
-Ensure the list of changes is up to date by referring to the merged pull requests.
-
-Commit these changes and make a pull request on Github.
-Review these changes to ensure everything is correct and all the tests pass.
-Merge the pull request.
+   $ ./scripts/release.py pre 1.2.0
 
 Build and publish packages
 ==========================
 
-Fetch the latest ``emsarray`` commits including the freshly merged pull request.
-Tag the merge commit from the release pull request.
-Note that the tag name includes a ``v`` prefix.
+Once the release pull request has been merged
+tag the merge commit with the correct version.
+The ``scripts/tag-release.py`` command will do the hard work for you:
 
 .. code-block:: shell
 
-   $ git tag v1.2.0 <sha-of-merge-commit>
-   $ git push origin v1.2.0
-   $ git checkout v1.2.0
-
-Release the new version to PyPI:
-
-.. code-block:: shell
-
-   $ rm -rf ./build ./venv
-   $ python3 -m venv venv
-   $ source venv/bin/activate
-   $ pip install build twine
-   $ python3 -m build
-   $ twine upload dist/*
+   $ ./scripts/release.py tag
 
 Fork the [emsarray-feedstock](https://github.com/conda-forge/emsarray-feedstock) repository
-and make a ``release/1.2.0`` branch.
+and make a ``release/v1.2.0`` branch.
 Update the version in ``recipe/meta.yaml``.
 Ensure the minimum dependencies in ``recipe/meta.yaml`` are correct by comparing with ``setup.cfg``.
 Commit these changes and make a pull request.
@@ -70,21 +51,16 @@ Update records and publish notices
 Select the 1.2.0 tag you just created.
 Copy the release notes from ``docs/releases/1.2.0.rst``.
 
-Publish a new version to the [CSIRO Data Access Portal](https://data.csiro.au/collection/csiro:57587v1).
-Update the version number and add the PyPI packages and source tarball for this release.
-
 Prepare the codebase for further development
 ============================================
 
-Make a new file ``docs/releases/development.rst`` with the content
+Once the new version has been released
+the code base needs to be prepared so development work can continue:
 
-.. code-block:: rst
+.. code-block:: shell
 
-   =============================
-   Next release (in development)
-   =============================
+   $ ./scripts/release.py post
 
-   * ...
-
-Update ``docs/releases/index.rst`` to include a reference to this document.
-Commit and push this change.
+Push this branch and create a pull request.
+Once this pull request has been merged,
+the release process is finished!

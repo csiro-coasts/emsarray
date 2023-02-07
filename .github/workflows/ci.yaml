@@ -1,5 +1,10 @@
-name: pytest
+name: Build, test, and lint
 on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v[0-9]+.*"
   pull_request:
     branches:
       - "*"
@@ -7,9 +12,33 @@ on:
   workflow_dispatch:
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      python_version: "3.11"
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.python_version }}
+          cache: 'pip'
+
+      - name: Build python package
+        shell: bash -l {0}
+        run: |
+          pip install build
+          python3 -m build
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: "Python package"
+          path: dist
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: ["build"]
 
     strategy:
       fail-fast: false
@@ -17,7 +46,7 @@ jobs:
         python-version: ["3.8", "3.9", "3.10", "3.11"]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: ./.github/actions/environment
         with:
           python-version: ${{ matrix.python-version }}
@@ -31,10 +60,11 @@ jobs:
             --cov-report xml:coverage-${{ matrix.python-version }}.xml
 
       - name: JUnit Report
-        uses: mikepenz/action-junit-report@v3.1.0
+        uses: mikepenz/action-junit-report@v3
         if: always()
         with:
           report_paths: 'junit-py*.xml'
+          check_name: "JUnit Test Report - Python ${{ matrix.python-version }}"
 
       - uses: actions/upload-artifact@v3
         with:
@@ -44,6 +74,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: ["build"]
 
     defaults:
       run:
@@ -53,7 +84,7 @@ jobs:
       python_version: "3.11"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: ./.github/actions/environment
         with:
           python-version: ${{ env.python_version }}
@@ -71,13 +102,14 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: ["build"]
 
     defaults:
       run:
         shell: bash -l {0}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: ./.github/actions/environment
         with:
           python-version: "3.11"
@@ -91,21 +123,37 @@ jobs:
           name: Docs
           path: docs/_build/dirhtml
 
-  package:
+  publish:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    needs: ['test', 'lint', 'docs']
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: ./.github/actions/environment
+      - name: Fetch Python package
+        uses: actions/download-artifact@v3
         with:
-          python-version: "3.11"
+          name: "Python package"
+          path: "dist"
 
-      - run: |
-          pip install build
-          python3 -m build
+      - name: "Check tag matches version"
+        shell: bash -l {0}
+        run: |
+          VERSION="$( echo "${{ github.ref }}" | sed 's!refs/tags/v!!' )"
+          echo "Looking for packages with version $VERSION"
+          ls -l dist/*
+          packages=(
+            "dist/emsarray-$VERSION.tar.gz"
+            "dist/emsarray-$VERSION-*.whl"
+          )
+          for package in "${packages[@]}" ; do
+            if ! test -e $package ; then
+              echo "Could not find $package"
+              exit 1
+            fi
+          done
 
-      - uses: actions/upload-artifact@v3
+      - name: "Publish Python package"
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          name: Python packages
-          path: dist
+          password: ${{ secrets.PYPI_API_TOKEN }}
