@@ -17,19 +17,13 @@ Preparing the codebase
 ======================
 
 When it is time to release a new version
-make a branch named ``release/1.2.0``.
+run the ``./scripts/pre-release.py`` script.
+This will create a new branch and update the code base ready for a new release.
+Push this branch and make a pull request on Github.
 
-Update the version in ``setup.cfg``.
+.. code-block:: console
 
-Move ``docs/releases/development.rst`` to ``docs/releases/1.2.0.rst``,
-and update the title to ``1.2.0``.
-Update ``docs/releases/index.rst``
-and add a reference to ``docs/releases/1.2.0.rst`` to the toctree.
-Ensure the list of changes is up to date by referring to the merged pull requests.
-
-Commit these changes and make a pull request on Github.
-Review these changes to ensure everything is correct and all the tests pass.
-Merge the pull request.
+   $ ./scripts/pre-release 1.2.0
 
 Build and publish packages
 ==========================
