@@ -10,15 +10,22 @@ runs:
 
   steps:
       # Used for the pip cache, not for the python version
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
       with:
         cache: 'pip'
+        python-version: ${{ inputs.python-version }}
+
+    - name: Fetch Python package
+      uses: actions/download-artifact@v3
+      with:
+        name: "Python package"
+        path: "dist/"
 
     - name: Install base Conda environment
       uses: mamba-org/provision-with-micromamba@main
       with:
         cache-downloads: true
-        cache-env: true
+        cache-env: false
         channels: conda-forge
         environment-file: continuous-integration/environment.yaml
         environment-name: continuous-integration
@@ -27,9 +34,9 @@ runs:
           wheel
           pip
 
-    - name: Install Python dependencies
+    - name: Install Python packages
       shell: bash -l {0}
       run: |
         pip install \
           -r continuous-integration/requirements.txt \
-          -e .
+          dist/emsarray-*.whl
