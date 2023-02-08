@@ -2,6 +2,8 @@
 0.3.0
 =====
 
+Released on 2022-10-05
+
 * Use variable and dimension names as-is, instead of casting to strings.
   :mod:`xarray` internally treats all variable and dimension names as Hashable,
   without assuming they are strings.
