@@ -57,7 +57,7 @@ def add_options(parser: argparse.ArgumentParser) -> None:
 
 def add_pre_options(parser: argparse.ArgumentParser) -> None:
     parser.description = "Get the project ready for making a release"
-    parser.set_defaults(func=pre_release, old_version='placeholder')
+    parser.set_defaults(func=pre_release)
     parser.add_argument(
         'new_version', type=str,
         help=("The new version to bump to"))
@@ -74,7 +74,7 @@ def add_pre_options(parser: argparse.ArgumentParser) -> None:
 
 def add_tag_options(parser: argparse.ArgumentParser) -> None:
     parser.description = "Tag the current commit for release"
-    parser.set_defaults(func=tag_release, version='placeholder')
+    parser.set_defaults(func=tag_release)
     parser.add_argument(
         '--remote', type=str, default='origin',
         help=("The name of the csiro-coasts/emsarray remote. Defaults to 'origin'"))
@@ -85,7 +85,7 @@ def add_tag_options(parser: argparse.ArgumentParser) -> None:
 
 def add_post_options(parser: argparse.ArgumentParser) -> None:
     parser.description = "Get the project ready for development after a release"
-    parser.set_defaults(func=post_release, version='placeholder')
+    parser.set_defaults(func=post_release)
     parser.add_argument(
         '--remote', type=str, default='origin',
         help=("The name of the csiro-coasts/emsarray remote. Defaults to 'origin'"))
@@ -175,7 +175,7 @@ def post_release(opts: argparse.Namespace) -> None:
         r'\g<0>   ' + release_notes_dev.stem + '\n')
     call('git', 'add', str(release_notes_dev), str(release_notes_index))
 
-    git_commit(f'Prepare for development after version {opts.version} release')
+    git_commit(f'Prepare for development after version {version} release')
     maybe_push(opts.remote, branch_name)
 
 
