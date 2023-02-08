@@ -21,3 +21,5 @@ Released on 2023-02-08
 * Fix a bug in :meth:`Ugrid.drop_geometry()` (:pr:`50`)
 * Relicense to BSD 3-Clause (:issue:`55`, :pr:`56`)
 * Automate most of the release process (:pr:`60`)
+* Add a CITATION.cff file and example citation to the :doc:`FAQ </getting-started/faq>`
+  (:issue:`37`, :pr:`38`)
