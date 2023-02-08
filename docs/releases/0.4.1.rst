@@ -1,0 +1,7 @@
+=====
+0.4.1
+=====
+
+Released on 2023-02-08
+
+* Fix licence vs license confusion (:pr:`63`)
