@@ -2,6 +2,8 @@
 0.2.0
 =====
 
+Released on 2022-09-29
+
 * Added support for :doc:`additional conventions via plugins </developing/conventions>`
   (:pr:`11`).
 * Added support for one-based indexing in UGRID datasets

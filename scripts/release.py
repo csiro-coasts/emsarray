@@ -1,5 +1,6 @@
 import argparse
 import configparser
+import datetime
 import pathlib
 import re
 import shlex
@@ -10,8 +11,10 @@ from typing import List, Optional
 PROJECT = pathlib.Path(__file__).parent.parent
 
 # These files contain the version string that needs to be updated
+citation_file = pathlib.Path('CITATION.cff')
 version_files = [
     pathlib.Path('setup.cfg'),
+    citation_file,
 ]
 
 release_notes_index = pathlib.Path('docs/releases/index.rst')
@@ -61,6 +64,12 @@ def add_pre_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         '--remote', type=str, default='origin',
         help=("The name of the csiro-coasts/emsarray remote. Defaults to 'origin'"))
+    parser.add_argument(
+        '--ref', type=str, default='origin/main',
+        help=("The ref to branch from. Defaults to 'origin/main'"))
+    parser.add_argument(
+        '--release-date', type=argparse_date, default=datetime.date.today(),
+        help=('The release date in YYYY-MM-DD format. Defaults to today'))
 
 
 def add_tag_options(parser: argparse.ArgumentParser) -> None:
@@ -80,6 +89,9 @@ def add_post_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         '--remote', type=str, default='origin',
         help=("The name of the csiro-coasts/emsarray remote. Defaults to 'origin'"))
+    parser.add_argument(
+        '--ref', type=str, default='origin/main',
+        help=("The ref to branch from. Defaults to 'origin/main'"))
 
 
 def pre_release(opts: argparse.Namespace) -> None:
@@ -89,7 +101,11 @@ def pre_release(opts: argparse.Namespace) -> None:
     git_check(opts.remote)
 
     branch_name = f'release-{opts.new_version}'
-    call('git', 'checkout', '-b', branch_name, f'{opts.remote}/main')
+    call('git', 'checkout', '-b', branch_name, opts.ref)
+
+    release_date_re = re.compile(r'date-released: \d+-\d+-\d+')
+    new_release_date = f'date-released: {opts.release_date.isoformat()}'
+    replace_in_file(citation_file, release_date_re, new_release_date)
 
     old_version_pattern = r'(?<!\.)' + re.escape(old_version) + r'(?!\.)'
     old_version_re = re.compile(old_version_pattern)
@@ -103,8 +119,15 @@ def pre_release(opts: argparse.Namespace) -> None:
     call('git', 'mv', str(release_notes_dev), str(new_release_notes))
 
     heading_re = re.compile('.*?^=+$.*?^=+$', re.MULTILINE | re.DOTALL)
-    new_heading = '{ruler}\n{version}\n{ruler}'.format(
-        version=opts.new_version, ruler='=' * len(opts.new_version))
+    version = opts.new_version
+    ruler = '=' * len(version)
+    new_heading = '\n'.join([
+        ruler,
+        version,
+        ruler,
+        '',
+        f'Released on {opts.release_date.isoformat()}',
+    ])
     replace_in_file(new_release_notes, heading_re, new_heading)
     call('git', 'add', str(new_release_notes))
 
@@ -142,7 +165,7 @@ def post_release(opts: argparse.Namespace) -> None:
     git_check(opts.remote)
 
     branch_name = f'post-{version}-release'
-    call('git', 'checkout', '-b', branch_name, f'{opts.remote}/main')
+    call('git', 'checkout', '-b', branch_name, opts.ref)
 
     release_notes_dev.write_text(release_notes_dev_header)
     toctree_re = re.compile(r'^\.\. toctree::$\n(^ +.*$\n)*^$\n', re.MULTILINE)
@@ -227,6 +250,13 @@ def replace_in_file(
         raise CommandError(f"Error updating {path}: pattern not found!")
     new_content = pattern.sub(replacement, old_content)
     full_path.write_text(new_content)
+
+
+def argparse_date(value: str) -> datetime.date:
+    try:
+        return datetime.date.fromisoformat(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f'not a valid date: {value!r}')
 
 
 class CommandError(Exception):
