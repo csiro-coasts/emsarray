@@ -123,6 +123,26 @@ jobs:
           name: Docs
           path: docs/_build/dirhtml
 
+  build_conda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: ['build']
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+        with:
+          repository: conda-forge/emsarray-feedstock
+          path: emsarray-feedstock
+      - uses: ./.github/actions/environment
+        with:
+          python-version: "3.11"
+
+      - run: |
+          conda install conda-build
+          ./scripts/build-local-conda-package.sh
+
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 5
