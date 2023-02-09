@@ -4,6 +4,10 @@ inputs:
   python-version:
     description: Python version to install. Used as a Conda version constraint.
     required: true
+  package-artifact-name:
+    description: Name of the emsarray Python package artifact
+    required: false
+    default: "Python package"
 
 runs:
   using: composite
@@ -13,26 +17,36 @@ runs:
     - uses: actions/setup-python@v4
       with:
         cache: 'pip'
+        cache-dependency-path: |
+          continuous-integration/requirements.txt
+          continuous-integration/environment.yaml
+          setup.cfg
         python-version: ${{ inputs.python-version }}
 
-    - name: Fetch Python package
+    - name: Fetch built emsarray package
       uses: actions/download-artifact@v3
       with:
-        name: "Python package"
+        name: ${{ inputs.package-artifact-name }}
         path: "dist/"
 
-    - name: Install base Conda environment
-      uses: mamba-org/provision-with-micromamba@main
+    - name: Cache conda packages
+      uses: actions/cache@v2
       with:
-        cache-downloads: true
-        cache-env: false
-        channels: conda-forge
+        path: ~/conda_pkgs_dir
+        key:
+          ${{ runner.os }}-conda-${{
+          hashFiles('continuous-integration/environment.yaml') }}
+
+    - name: Install base Conda environment
+      uses: conda-incubator/setup-miniconda@v2
+      with:
         environment-file: continuous-integration/environment.yaml
-        environment-name: continuous-integration
-        extra-specs: |
-          python=${{ inputs.python-version }}
-          wheel
-          pip
+        python-version: ${{ inputs.python-version }}
+        channels: conda-forge
+    - shell: bash -l {0}
+      run: |
+        conda install -c conda-forge wheel
+
 
     - name: Install Python packages
       shell: bash -l {0}

@@ -1,0 +1,36 @@
+name: Build emsarray Python package
+description: Build the emsarray Python package in both tarball and wheel formats.
+inputs:
+  python-version:
+    description: Python version to use.
+    required: true
+  artifact-name:
+    description: Name of the uploaded artifact
+    required: false
+    default: "Python package"
+
+outputs:
+  artifact-name:
+    description: Name of the uploaded artifact
+    value: ${{ inputs.artifact-name }}
+
+runs:
+  using: composite
+
+  steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: 'pip'
+
+    - name: Build python package
+      shell: bash -l {0}
+      run: |
+        pip install build
+        python3 -m build
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: "dist/"
