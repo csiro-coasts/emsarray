@@ -21,18 +21,23 @@ runs:
         name: "Python package"
         path: "dist/"
 
-    - name: Install base Conda environment
-      uses: mamba-org/provision-with-micromamba@main
+    - name: Cache conda packages
+      uses: actions/cache@v2
       with:
-        cache-downloads: true
-        cache-env: false
-        channels: conda-forge
+        path: ~/conda_pkgs_dir
+        key:
+          ${{ runner.os }}-conda-${{
+          hashFiles('continuous-integration/environment.yaml') }}
+
+    - name: Install base Conda environment
+      uses: conda-incubator/setup-miniconda@v2
+      with:
         environment-file: continuous-integration/environment.yaml
-        environment-name: continuous-integration
-        extra-specs: |
-          python=${{ inputs.python-version }}
-          wheel
-          pip
+        python-version: ${{ inputs.python-version }}
+        channels: conda-forge
+      run: |
+        conda install -c conda-forge wheel
+
 
     - name: Install Python packages
       shell: bash -l {0}
