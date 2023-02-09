@@ -1,0 +1,56 @@
+name: Publish a new version to PyPI
+on:
+  push:
+    tags:
+      - "v[0-9]+.*"
+
+  workflow_dispatch:
+
+env:
+  python-version: "3.11"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ${{ steps.build.outputs.artifact-name }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/build-python-package
+        id: build
+        with:
+          python-version: ${{ env.python-version }}
+
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: ['build']
+
+    steps:
+      - name: Fetch Python package
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: "dist"
+
+      - name: "Check tag matches version"
+        shell: bash -l {0}
+        run: |
+          VERSION="$( echo "${{ github.ref }}" | sed 's!refs/tags/v!!' )"
+          echo "Looking for packages with version $VERSION"
+          ls -l dist/*
+          packages=(
+            "dist/emsarray-$VERSION.tar.gz"
+            "dist/emsarray-$VERSION-*.whl"
+          )
+          for package in "${packages[@]}" ; do
+            if ! test -e $package ; then
+              echo "Could not find $package"
+              exit 1
+            fi
+          done
+
+      - name: "Publish Python package"
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
