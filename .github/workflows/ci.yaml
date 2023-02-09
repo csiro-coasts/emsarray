@@ -125,7 +125,7 @@ jobs:
 
   build_conda:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     needs: ['build']
     continue-on-error: true
 
