@@ -4,6 +4,10 @@ inputs:
   python-version:
     description: Python version to install. Used as a Conda version constraint.
     required: true
+  package-artifact-name:
+    description: Name of the emsarray Python package artifact
+    required: false
+    default: "Python package"
 
 runs:
   using: composite
@@ -22,7 +26,7 @@ runs:
     - name: Fetch built emsarray package
       uses: actions/download-artifact@v3
       with:
-        name: "Python package"
+        name: ${{ inputs.python-artifact-name }}
         path: "dist/"
 
     - name: Cache conda packages
