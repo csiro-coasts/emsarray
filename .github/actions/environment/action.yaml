@@ -13,9 +13,13 @@ runs:
     - uses: actions/setup-python@v4
       with:
         cache: 'pip'
+        cache-dependency-path: |
+          continuous-integration/requirements.txt
+          continuous-integration/environment.yaml
+          setup.cfg
         python-version: ${{ inputs.python-version }}
 
-    - name: Fetch Python package
+    - name: Fetch built emsarray package
       uses: actions/download-artifact@v3
       with:
         name: "Python package"
