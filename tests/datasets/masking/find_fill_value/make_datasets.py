@@ -52,6 +52,21 @@ def make_float_with_fill_value_and_offset(
     ds.close()
 
 
+def make_timedelta_with_missing_value(
+    output_path: pathlib.Path = here / "timedelta_with_missing_value.nc",
+) -> None:
+    ds = netCDF4.Dataset(output_path, "w", "NETCDF4")
+    ds.createDimension("x", 2)
+    ds.createDimension("y", 2)
+
+    missing_value = np.float32(1.e+35)
+    var = ds.createVariable("var", "f4", ["y", "x"], fill_value=False)
+    var.missing_value = missing_value
+    var.units = "days"
+    var[:] = np.arange(4).reshape((2, 2))
+    var[1, 1] = missing_value
+
+    ds.close()
 
 
 def make_int_with_fill_value_and_offset(
@@ -73,4 +88,5 @@ def make_int_with_fill_value_and_offset(
 if __name__ == '__main__':
     make_float_with_fill_value()
     make_float_with_fill_value_and_offset()
+    make_timedelta_with_missing_value()
     make_int_with_fill_value_and_offset()

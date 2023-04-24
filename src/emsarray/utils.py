@@ -31,6 +31,7 @@ import xarray as xr
 from packaging.version import Version
 from xarray.coding import times
 from xarray.core.common import contains_cftime_datetimes
+from xarray.core.dtypes import maybe_promote
 
 from emsarray.types import Pathish
 
@@ -233,8 +234,10 @@ def disable_default_fill_value(dataset_or_array: Union[xr.Dataset, xr.DataArray]
         The :class:`xarray.Dataset` or :class:`xarray.DataArray` to update
     """
     for variable in _get_variables(dataset_or_array):
+        current_dtype = variable.dtype
+        promoted_dtype, fill_value = maybe_promote(current_dtype)
         if (
-            issubclass(variable.dtype.type, np.floating)
+            current_dtype == promoted_dtype
             and "_FillValue" not in variable.encoding
             and "_FillValue" not in variable.attrs
         ):

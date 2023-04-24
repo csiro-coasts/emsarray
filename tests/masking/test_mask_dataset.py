@@ -155,10 +155,10 @@ def test_mask_dataset(tmp_path: pathlib.Path):
         data=np.random.normal(0, 0.2, (records, j_size, i_size)),
         dims=["record", "j_centre", "i_centre"],
         attrs={
-                "units": "metre",
-                "long_name": "Surface elevation",
-                "standard_name": "sea_surface_height_above_geoid",
-            }
+            "units": "metre",
+            "long_name": "Surface elevation",
+            "standard_name": "sea_surface_height_above_geoid",
+        }
     )
     temp = xr.DataArray(
         data=np.random.normal(12, 0.5, (records, k_size, j_size, i_size)),
@@ -262,7 +262,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
         assert nc_flag2.shape == (k_size, 4, 3)
         flag2_mask = np.stack([np.array([
             [0, 0, 0], [0, 0, 0], [0, 0, 1], [0, 1, 1]
-        ])]*k_size).astype(bool)
+        ])] * k_size).astype(bool)
         expected: np.ndarray = np.ma.masked_array(
             flag2.values[:, 1:5, 1:4].copy(),
             mask=flag2_mask,
