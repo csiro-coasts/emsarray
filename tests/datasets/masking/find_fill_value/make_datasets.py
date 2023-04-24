@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
 
+"""
+Make some datasets for testing fill values.
+Because of how xarray preprocesses variables to apply masks,
+it is easier to construct these datasets using the plain netCDF4 library,
+save the datasets to disk, and then load them using xarray.
+This guarantees that the behaviour in the tests will replicate real-world use.
+
+Running this script will overwrite any datasets already constructed in this directory.
+This operation should result in byte-for-byte identical datasets each time it is run.
+However each netCDF4 dataset will encode the versions of the
+netCDF4, hdf5 and other relevant libraries used to construct the dataset.
+If the versions have changed, the script will create new files that git thinks have changed.
+"""
+
 import pathlib
 
 import netCDF4
@@ -8,8 +22,10 @@ import numpy as np
 here = pathlib.Path(__file__).parent
 
 
-def make_float_with_fill_value() -> None:
-    ds = netCDF4.Dataset(here / "float_with_fill_value.nc", "w", "NETCDF4")
+def make_float_with_fill_value(
+    output_path: pathlib.Path = here / "float_with_fill_value.nc"
+) -> None:
+    ds = netCDF4.Dataset(output_path, "w", "NETCDF4")
     ds.createDimension("x", 2)
     ds.createDimension("y", 2)
 
@@ -20,8 +36,10 @@ def make_float_with_fill_value() -> None:
     ds.close()
 
 
-def make_float_with_fill_value_and_offset() -> None:
-    ds = netCDF4.Dataset(here / "float_with_fill_value_and_offset.nc", "w", "NETCDF4")
+def make_float_with_fill_value_and_offset(
+    output_path: pathlib.Path = here / "float_with_fill_value_and_offset.nc",
+) -> None:
+    ds = netCDF4.Dataset(output_path, "w", "NETCDF4")
     ds.createDimension("x", 2)
     ds.createDimension("y", 2)
 
@@ -34,8 +52,12 @@ def make_float_with_fill_value_and_offset() -> None:
     ds.close()
 
 
-def make_int_with_fill_value_and_offset() -> None:
-    ds = netCDF4.Dataset(here / "int_with_fill_value_and_offset.nc", "w", "NETCDF4")
+
+
+def make_int_with_fill_value_and_offset(
+    output_path: pathlib.Path = here / "int_with_fill_value_and_offset.nc",
+) -> None:
+    ds = netCDF4.Dataset(output_path, "w", "NETCDF4")
     ds.createDimension("x", 2)
     ds.createDimension("y", 2)
 
