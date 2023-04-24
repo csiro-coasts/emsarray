@@ -1,6 +1,8 @@
-=============================
-Next release (in development)
-=============================
+=====
+0.4.2
+=====
+
+Released on 2023-04-24
 
 * Fixed an issue with ``_FillValue`` / ``missing_value``
   and variables with non-float types such as ``timedelta64``
