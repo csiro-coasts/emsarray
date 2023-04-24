@@ -14,6 +14,7 @@ from typing import Any, Dict, Hashable, List, cast
 
 import numpy as np
 import xarray as xr
+from xarray.core.dtypes import maybe_promote
 
 from emsarray import utils
 from emsarray.types import Pathish
@@ -71,7 +72,6 @@ def mask_grid_dataset(
     # file system, at the added expense of having to recombine the dataset
     # afterwards.
     for key, data_array in dataset.data_vars.items():
-        logger.debug("DataArray %s", key)
         masked_data_array = mask_grid_data_array(mask, data_array)
         variable_path = work_path / f"{key}.nc"
         mfdataset_names.append(variable_path)
@@ -130,12 +130,18 @@ def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataA
     try:
         fill_value = find_fill_value(data_array)
     except ValueError:
+        logger.debug(
+            "Data array %r has no valid fill value, leaving as is",
+            data_array.name)
         return data_array
 
     # Loop through each possible mask
     for mask_name, mask_data_array in mask.data_vars.items():
         # If every dimension of this mask exists in the data array, apply it
         if dimensions >= set(mask_data_array.dims):
+            logger.debug(
+                "Masking data array %r with mask %r",
+                data_array.name, mask_name)
             new_data_array = cast(xr.DataArray, data_array.where(mask_data_array, other=fill_value))
             new_data_array.attrs = data_array.attrs
             new_data_array.encoding = data_array.encoding
@@ -143,6 +149,9 @@ def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataA
 
     # Fallback, no appropriate mask was found, so don't apply any.
     # This generally happens for data arrays such as time, record, x_grid, etc.
+    logger.debug(
+        "Data array %r had no relevant mask, leaving as is",
+        data_array.name)
     return data_array
 
 
@@ -182,24 +191,16 @@ def find_fill_value(data_array: xr.DataArray) -> Any:
         # constructed a dataset using one...
         return np.ma.masked
 
-    if '_FillValue' in data_array.encoding:
-        # The dataset was opened with mask_and_scale=True and a mask has been
-        # applied. Masked values are now represented as np.nan, not _FillValue.
-        return np.nan
+    attrs = ['_FillValue', 'missing_value']
+    for attr in attrs:
+        if attr in data_array.attrs:
+            # The dataset was opened with mask_and_scale=False and a mask has not
+            # been applied. Masked values should be represented using _FillValue/missing_value.
+            return data_array.attrs[attr]
 
-    if '_FillValue' in data_array.attrs:
-        # The dataset was opened with mask_and_scale=False and a mask has not
-        # been applied. Masked values should be represented using _FillValue.
-        return data_array.attrs['_FillValue']
-
-    if issubclass(data_array.dtype.type, np.floating):
-        # NaN is a useful fallback for a _FillValue, but only if the dtype
-        # is some sort of float. We won't actually _set_ a _FillValue
-        # attribute though, as that can play havok when trying to save
-        # existing datasets. xarray gets real grumpy when you have
-        # a _FillValue and a missing_value, and some existing datasets play
-        # fast and loose with mixing the two.
-        return np.nan
+    promoted_dtype, fill_value = maybe_promote(data_array.dtype)
+    if promoted_dtype == data_array.dtype:
+        return fill_value
 
     raise ValueError("No appropriate fill value found")
 

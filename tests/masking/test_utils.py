@@ -9,6 +9,7 @@ import xarray as xr
 from numpy.testing import assert_equal
 
 from emsarray import masking
+from emsarray.utils import to_netcdf_with_fixes
 from tests.utils import mask_from_strings
 
 
@@ -100,6 +101,26 @@ def test_find_fill_value_masked_and_scaled_int(datasets):
             data_array.values,
             np.array([[22, 24], [-1, 28]], dtype=np.int8))
         assert_dtype_equal(masking.find_fill_value(data_array), np.int8(-1))
+
+
+def test_find_fill_value_timedelta_with_missing_value(
+    datasets: pathlib.Path,
+    tmp_path: pathlib.Path,
+) -> None:
+    dataset_path = datasets / 'masking/find_fill_value/timedelta_with_missing_value.nc'
+
+    missing_value = np.float32(1.e35)
+    assert_raw_values(
+        dataset_path, 'var',
+        np.array([[0, 1], [2, missing_value]], dtype=np.float32))
+
+    with xr.open_dataset(dataset_path) as dataset:
+        data_array = dataset['var']
+        assert dataset['var'].dtype == np.dtype('timedelta64[ns]')
+        fill_value = masking.find_fill_value(data_array)
+        assert np.isnat(fill_value)
+
+        to_netcdf_with_fixes(dataset, tmp_path / 'dataset.nc')
 
 
 def test_calculate_mask_bounds():

@@ -57,45 +57,66 @@ def test_fix_time_units_for_ems(tmp_path: pathlib.Path):
 
 
 def test_disable_default_fill_value(tmp_path: pathlib.Path):
-    foo = xarray.DataArray(
+    int_var = xarray.DataArray(
         data=np.arange(35, dtype=int).reshape(5, 7),
         dims=['j', 'i'],
         attrs={"Hello": "World"},
     )
-    bar = xarray.DataArray(
-        data=np.arange(35, dtype=np.float64).reshape(5, 7),
-        dims=['j', 'i'],
-    )
-    baz = xarray.DataArray(
-        data=np.arange(35, dtype=np.float64).reshape(5, 7),
-        dims=['j', 'i'],
-    )
-    baz.data = np.where(np.tri(5, 7, dtype=bool), baz.data, np.nan)
-    baz.encoding["_FillValue"] = np.nan
 
-    dataset = xarray.Dataset(data_vars={"foo": foo, "bar": bar, "baz": baz})
+    float_var = xarray.DataArray(
+        data=np.arange(35, dtype=np.float64).reshape(5, 7),
+        dims=['j', 'i'])
+
+    f_data = np.where(
+        np.tri(5, 7, dtype=bool),
+        np.arange(35, dtype=np.float64).reshape(5, 7),
+        np.nan)
+    float_with_fill_value_var = xarray.DataArray(data=f_data, dims=['j', 'i'])
+    float_with_fill_value_var.encoding["_FillValue"] = np.nan
+
+    td_data = np.where(
+        np.tri(5, 7, dtype=bool),
+        np.arange(35).reshape(5, 7) * np.timedelta64(1, 'D'),
+        np.timedelta64('nat'))
+    timedelta_with_missing_value_var = xarray.DataArray(
+        data=td_data, dims=['j', 'i'])
+    timedelta_with_missing_value_var.encoding['missing_value'] = np.float64('1e35')
+    timedelta_with_missing_value_var.encoding['units'] = 'days'
+
+    dataset = xarray.Dataset(data_vars={
+        "int_var": int_var,
+        "float_var": float_var,
+        "float_with_fill_value_var": float_with_fill_value_var,
+        "timedelta_with_missing_value_var": timedelta_with_missing_value_var,
+    })
 
     # Save to a netCDF4 and then prove that it is bad
     dataset.to_netcdf(tmp_path / "bad.nc")
     with netCDF4.Dataset(tmp_path / "bad.nc", "r") as nc_dataset:
         # This one shouldn't be here because it is an integer datatype. xarray
         # does the right thing already in this case.
-        assert '_FillValue' not in nc_dataset.variables["foo"].ncattrs()
+        assert '_FillValue' not in nc_dataset.variables["int_var"].ncattrs()
         # This one shouldn't be here as we didnt set it, and the array is full!
         # This is the problem we are trying to solve
-        assert np.isnan(nc_dataset.variables["bar"].getncattr("_FillValue"))
+        assert np.isnan(nc_dataset.variables["float_var"].getncattr("_FillValue"))
         # This one is quite alright, we did explicitly set it after all
-        assert np.isnan(nc_dataset.variables["baz"].getncattr("_FillValue"))
+        assert np.isnan(nc_dataset.variables["float_with_fill_value_var"].getncattr("_FillValue"))
+        # This one is incorrect, a `missing_value` attribute has already been set
+        assert np.isnan(nc_dataset.variables["timedelta_with_missing_value_var"].getncattr("_FillValue"))
 
     utils.disable_default_fill_value(dataset)
     dataset.to_netcdf(tmp_path / "good.nc")
     with netCDF4.Dataset(tmp_path / "good.nc", "r") as nc_dataset:
         # This one should still be unset
-        assert '_FillValue' not in nc_dataset.variables["foo"].ncattrs()
+        assert '_FillValue' not in nc_dataset.variables["int_var"].ncattrs()
         # This one should now be unset
-        assert '_FillValue' not in nc_dataset.variables["bar"].ncattrs()
+        assert '_FillValue' not in nc_dataset.variables["float_var"].ncattrs()
         # Make sure this didn't get clobbered
-        assert np.isnan(nc_dataset.variables["baz"].getncattr("_FillValue"))
+        assert np.isnan(nc_dataset.variables["float_with_fill_value_var"].getncattr("_FillValue"))
+        # This one should now be unset
+        nc_timedelta = nc_dataset.variables["timedelta_with_missing_value_var"]
+        assert '_FillValue' not in nc_timedelta.ncattrs()
+        assert nc_timedelta.getncattr('missing_value') == np.float64('1e35')
 
 
 def test_dataset_like():
