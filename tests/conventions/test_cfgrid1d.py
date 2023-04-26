@@ -101,10 +101,10 @@ def make_dataset(
         dims=[time_name, latitude_name, longitude_name],
         name="eta",
         attrs={
-                "units": "metre",
-                "long_name": "Surface elevation",
-                "standard_name": "sea_surface_height_above_geoid",
-            }
+            "units": "metre",
+            "long_name": "Surface elevation",
+            "standard_name": "sea_surface_height_above_geoid",
+        },
     )
     temp = xr.DataArray(
         data=np.random.normal(12, 0.5, (time_size, depth, height, width)),
