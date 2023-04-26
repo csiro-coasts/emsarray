@@ -248,7 +248,7 @@ def set_verbosity(level: int) -> None:
 
 
 NUMBER = r'\d+(?:_\d+)*'
-DECIMAL = rf'({NUMBER}|{NUMBER}\.|\.{NUMBER}|{NUMBER}\.{NUMBER})'
+DECIMAL = rf'(-?(?:{NUMBER}|{NUMBER}\.|\.{NUMBER}|{NUMBER}\.{NUMBER}))'
 bounds_re = re.compile(r'\s*,\s*'.join([DECIMAL] * 4))
 
 
