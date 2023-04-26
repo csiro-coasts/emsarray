@@ -40,7 +40,7 @@ def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndar
     square_edges = 2 * square_rows * square_columns + square_rows + square_columns
     total_edges = triangle_edges + square_edges - width
 
-    face_node = np.ma.masked_array(
+    face_node: np.ndarray = np.ma.masked_array(
         np.full((total_faces, 4), fill_value, dtype=np.int32),
         mask=True, fill_value=fill_value)
     edge_node = np.zeros((total_edges, 2), dtype=np.int32)
@@ -223,10 +223,10 @@ def make_dataset(
         dims=[time_dimension, face_dimension],
         name="eta",
         attrs={
-                "units": "metre",
-                "long_name": "Surface elevation",
-                "standard_name": "sea_surface_height_above_geoid",
-            }
+            "units": "metre",
+            "long_name": "Surface elevation",
+            "standard_name": "sea_surface_height_above_geoid",
+        },
     )
     temp = xr.DataArray(
         data=np.random.normal(12, 0.5, (time_size, depth_size, cell_size)),

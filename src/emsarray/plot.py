@@ -57,7 +57,7 @@ def add_coast(axes: Axes, **kwargs: Any) -> None:
         **kwargs,
     }
     coast = GSHHSFeature()
-    axes.add_feature(coast,  **kwargs)
+    axes.add_feature(coast, **kwargs)
 
 
 def add_gridlines(axes: Axes) -> gridliner.Gridliner:
