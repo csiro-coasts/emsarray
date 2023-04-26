@@ -78,8 +78,8 @@ def test_add_verbosity_group(args: List[str], expected: int) -> None:
 
 
 def test_bounds_argument() -> None:
-    expected = box(1.5, .2, 3., 4)
-    actual = utils.bounds_argument("1.5 , .2 , 3.,4")
+    expected = box(1.5, -.2, 3., 4)
+    actual = utils.bounds_argument("1.5 , -.2 , 3.,4")
 
     assert actual.equals(expected)
 
