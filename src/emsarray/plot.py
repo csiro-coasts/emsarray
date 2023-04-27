@@ -61,7 +61,7 @@ def add_coast(axes: Axes, **kwargs: Any) -> None:
 
 
 def add_gridlines(axes: Axes) -> gridliner.Gridliner:
-    gridlines = axes.gridlines(draw_labels=True)
+    gridlines = axes.gridlines(draw_labels=True, auto_update=True)
     gridlines.top_labels = False
     gridlines.right_labels = False
     return gridlines

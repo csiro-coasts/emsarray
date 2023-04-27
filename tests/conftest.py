@@ -1,4 +1,5 @@
 import pathlib
+from unittest import mock
 
 import pytest
 
@@ -17,13 +18,22 @@ def pytest_runtest_setup(item):
 
 
 @pytest.fixture
-def matplotlib_backend(backend='template'):
+def matplotlib_backend(
+    monkeypatch: pytest.MonkeyPatch,
+    backend: str = 'template',
+):
     """
     Override the matplotlib backend for this test to 'template'
     """
     import matplotlib
+    import matplotlib.pyplot
+
+    show_mock = mock.Mock(spec=matplotlib.pyplot.show)
+    monkeypatch.setattr(matplotlib.pyplot, 'show', show_mock)
+
     with matplotlib.rc_context({'backend': 'template'}):
         yield
+        matplotlib.pyplot.close('all')
 
 
 def _needs_tutorial_mark(*args, **kwargs):
