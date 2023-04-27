@@ -4,6 +4,7 @@ import abc
 import dataclasses
 import enum
 import logging
+import warnings
 from functools import cached_property
 from typing import (
     TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Generic, Hashable, List,
@@ -19,8 +20,7 @@ from emsarray import utils
 from emsarray.compat.shapely import SpatialIndex
 from emsarray.operations import depth
 from emsarray.plot import (
-    _requires_plot, animate_on_figure, plot_on_figure,
-    polygons_to_patch_collection
+    _requires_plot, animate_on_figure, plot_on_figure, polygons_to_collection
 )
 from emsarray.state import State
 from emsarray.types import Pathish
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from cartopy.crs import CRS
     from matplotlib.animation import FuncAnimation
     from matplotlib.axes import Axes
-    from matplotlib.collections import PatchCollection
+    from matplotlib.collections import PolyCollection
     from matplotlib.figure import Figure
     from matplotlib.quiver import Quiver
 
@@ -552,7 +552,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         The coordinate reference system that coordinates in this dataset are
         defined in.
-        Used by :meth:`.make_patch_collection` and :meth:`.make_quiver`.
+        Used by :meth:`.make_poly_collection` and :meth:`.make_quiver`.
         Defaults to :class:`cartopy.crs.PlateCarree`.
         """
         # Lazily imported here as cartopy is an optional dependency
@@ -746,35 +746,35 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return animate_on_figure(figure, self, coordinate=coordinate, **kwargs)
 
     @_requires_plot
-    def make_patch_collection(
+    def make_poly_collection(
         self,
         data_array: Optional[DataArrayOrName] = None,
         **kwargs: Any,
-    ) -> PatchCollection:
+    ) -> PolyCollection:
         """
-        Make a :class:`~matplotlib.collections.PatchCollection`
+        Make a :class:`~matplotlib.collections.PolyCollection`
         from the geometry of this :class:`~xarray.Dataset`.
         This can be used to make custom matplotlib plots from your data.
 
         If a :class:`~xarray.DataArray` is passed in,
-        the values of that are assigned to the PatchCollection `array` parameter.
+        the values of that are assigned to the PolyCollection `array` parameter.
 
         Parameters
         ----------
         data_array : Hashable or :class:`xarray.DataArray`, optional
             A data array, or the name of a data variable in this dataset. Optional.
             If given, the data array is :meth:`linearised <.make_linear>`
-            and passed to :meth:`PatchCollection.set_array() <matplotlib.cm.ScalarMappable.set_array>`.
+            and passed to :meth:`PolyCollection.set_array() <matplotlib.cm.ScalarMappable.set_array>`.
             The data is used to colour the patches.
             Refer to the matplotlib documentation for more information on styling.
         **kwargs
             Any keyword arguments are passed to the
-            :class:`~matplotlib.collections.PatchCollection` constructor.
+            :class:`~matplotlib.collections.PolyCollection` constructor.
 
         Returns
         -------
-        :class:`~matplotlib.collections.PatchCollection`
-            A PatchCollection constructed using the geometry of this dataset.
+        :class:`~matplotlib.collections.PolyCollection`
+            A PolyCollection constructed using the geometry of this dataset.
 
         Example
         -------
@@ -791,7 +791,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
             ds = emsarray.open_dataset("./tests/datasets/ugrid_mesh2d.nc")
             ds = ds.isel(record=0, Mesh2_layers=-1)
-            patches = ds.ems.make_patch_collection('temp')
+            patches = ds.ems.make_poly_collection('temp')
             axes.add_collection(patches)
             figure.colorbar(patches, ax=axes, location='right', label='meters')
 
@@ -802,7 +802,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         if data_array is not None:
             if 'array' in kwargs:
                 raise TypeError(
-                    "Can not pass both `data_array` and `array` to make_patch_collection"
+                    "Can not pass both `data_array` and `array` to make_poly_collection"
                 )
 
             data_array = self._get_data_array(data_array)
@@ -821,7 +821,19 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         if 'transform' not in kwargs:
             kwargs['transform'] = self.data_crs
 
-        return polygons_to_patch_collection(self.polygons[self.mask], **kwargs)
+        return polygons_to_collection(self.polygons[self.mask], **kwargs)
+
+    def make_patch_collection(
+        self,
+        data_array: Optional[DataArrayOrName] = None,
+        **kwargs: Any,
+    ) -> PolyCollection:
+        warnings.warn(
+            "Convention.make_patch_collection has been renamed to "
+            "Convention.make_poly_collection, and now returns a PolyCollection",
+            category=DeprecationWarning,
+        )
+        return self.make_poly_collection(data_array, **kwargs)
 
     @_requires_plot
     def make_quiver(
