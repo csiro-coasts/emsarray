@@ -3,3 +3,4 @@ Next release (in development)
 =============================
 
 * Fix an issue with negative coordinates in :func:`~emsarray.cli.utils.bounds_argument` (:pr:`74`).
+* Add a new ``emsarray plot`` subcommand to the ``emsarray`` command line interface (:pr:`76`).

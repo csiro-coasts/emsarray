@@ -5,6 +5,7 @@ import enum
 from functools import cached_property
 from typing import Dict, Hashable, List, Optional, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import xarray as xr
@@ -282,15 +283,21 @@ def test_plot():
 
     # Naming a simple variable should work fine
     convention.plot('botz')
+    plt.show.assert_called_once()
+    plt.show.reset_mock()
 
     # This should raise an error, as 'temp' is 3D + time
     temp = dataset.data_vars['temp']
     with pytest.raises(ValueError):
         convention.plot(temp)
+    plt.show.assert_not_called()
+    plt.show.reset_mock()
 
     # Slice off the surface, at one time point
     initial_surface_temp = temp.isel({'z': 0, 't': 0})
     convention.plot(initial_surface_temp)
+    plt.show.assert_called_once()
+    plt.show.reset_mock()
 
 
 def test_face_centres():
