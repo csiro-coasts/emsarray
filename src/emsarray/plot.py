@@ -17,10 +17,10 @@ try:
     import cartopy.crs
     from cartopy.feature import GSHHSFeature
     from cartopy.mpl import gridliner
-    from matplotlib import animation, patches
+    from matplotlib import animation
     from matplotlib.artist import Artist
     from matplotlib.axes import Axes
-    from matplotlib.collections import PatchCollection
+    from matplotlib.collections import PolyCollection
     from matplotlib.figure import Figure
     from shapely.geometry import Polygon
     CAN_PLOT = True
@@ -30,7 +30,7 @@ except ImportError as exc:
     IMPORT_EXCEPTION = exc
 
 
-__all___ = ['CAN_PLOT', 'plot_on_figure', 'polygon_to_patch']
+__all___ = ['CAN_PLOT', 'plot_on_figure', 'polygons_to_collection']
 
 
 _requires_plot = requires_extra(extra='plot', import_error=IMPORT_EXCEPTION)
@@ -81,7 +81,7 @@ def bounds_to_extent(bounds: Tuple[float, float, float, float]) -> List[float]:
 
         import cartopy.crs as ccrs
         import matplotlib.pyplot as plt
-        from emsarray.plot import bounds_to_extent, polygon_to_patch
+        from emsarray.plot import bounds_to_extent
         from shapely.geometry import Polygon
 
         polygon = Polygon([
@@ -91,44 +91,40 @@ def bounds_to_extent(bounds: Tuple[float, float, float, float]) -> List[float]:
         figure = plt.figure(figsize=(10, 8), dpi=100)
         axes = plt.subplot(projection=ccrs.PlateCarree())
         axes.set_extent(bounds_to_extent(polygon.buffer(0.1).bounds))
-        axes.add_patch(polygon_to_patch(polygon))
-        figure.show()
     """
     minx, miny, maxx, maxy = bounds
     return [minx, maxx, miny, maxy]
 
 
 @_requires_plot
-def polygon_to_patch(polygon: Polygon, **kwargs: Any) -> patches.Polygon:
-    """
-    Convert a :class:`shapely.geometry.Polygon <Polygon>` to a
-    :class:`matplotlib.patches.Polygon`.
-    """
-    return patches.Polygon(np.transpose(polygon.exterior.xy), **kwargs)
-
-
-@_requires_plot
-def polygons_to_patch_collection(
+def polygons_to_collection(
     polygons: Iterable[Polygon],
     **kwargs: Any,
-) -> PatchCollection:
+) -> PolyCollection:
     """
     Convert a list of Shapely :class:`Polygons <Polygon>`
-    to a matplotlib :class:`~matplotlib.collections.PatchCollection`.
+    to a matplotlib :class:`~matplotlib.collections.PolyCollection`.
 
     Parameters
     ----------
-    polygons : iterable of `Polygon`
-        The polygons for the patch collection
+    polygons : iterable of Shapely :class:`Polygons <Polygon>`
+        The polygons for the poly collection
     **kwargs : Any
-        Keyword arguments to pass to the PatchCollection constructor.
+        Keyword arguments to pass to the PolyCollection constructor.
 
     Returns
     -------
-    :class:`matplotlib.collections.PatchCollection`
-        The PatchCollection made up of the polygons passed in.
+    :class:`matplotlib.collections.PolyCollection`
+        A PolyCollection made up of the polygons passed in.
     """
-    return PatchCollection(map(polygon_to_patch, polygons), **kwargs)
+    return PolyCollection(
+        verts=[
+            np.asarray(polygon.exterior.coords)
+            for polygon in polygons
+        ],
+        closed=False,
+        **kwargs
+    )
 
 
 @_requires_plot
@@ -154,7 +150,7 @@ def plot_on_figure(
         This is used to build the polygons and vector quivers.
     scalar : :class:`xarray.DataArray`, optional
         The data to plot as an :class:`xarray.DataArray`.
-        This will be passed to :meth:`.Convention.make_patch_collection`.
+        This will be passed to :meth:`.Convention.make_poly_collection`.
     vector : tuple of :class:`numpy.ndarray`, optional
         The *u* and *v* components of a vector field
         as a tuple of :class:`xarray.DataArray`.
@@ -175,18 +171,18 @@ def plot_on_figure(
 
     if scalar is None and vector is None:
         # Plot the polygon shapes for want of anything else to draw
-        patches = convention.make_patch_collection()
-        axes.add_collection(patches)
+        collection = convention.make_poly_collection()
+        axes.add_collection(collection)
         if title is None:
             title = 'Geometry'
 
     if scalar is not None:
         # Plot a scalar variable on the polygons using a colour map
-        patches = convention.make_patch_collection(
+        collection = convention.make_poly_collection(
             scalar, cmap='jet', edgecolor='face')
-        axes.add_collection(patches)
+        axes.add_collection(collection)
         units = scalar.attrs.get('units')
-        figure.colorbar(patches, ax=axes, location='right', label=units)
+        figure.colorbar(collection, ax=axes, location='right', label=units)
 
     if vector is not None:
         # Plot a vector variable using a quiver
@@ -230,7 +226,7 @@ def animate_on_figure(
         The coordinate values to vary across frames in the animation.
     scalar : :class:`xarray.DataArray`, optional
         The data to plot as an :class:`xarray.DataArray`.
-        This will be passed to :meth:`.Convention.make_patch_collection`.
+        This will be passed to :meth:`.Convention.make_poly_collection`.
         It should have horizontal dimensions appropriate for this convention,
         and a dimension matching the ``coordinate`` parameter.
     vector : tuple of :class:`numpy.ndarray`, optional
@@ -273,17 +269,17 @@ def animate_on_figure(
     axes.set_aspect(aspect='equal', adjustable='datalim')
     axes.title.set_animated(True)
 
-    patches = None
+    collection = None
     if scalar is not None:
         # Plot a scalar variable on the polygons using a colour map
         scalar_values = convention.make_linear(scalar).values[:, convention.mask]
-        patches = convention.make_patch_collection(
+        collection = convention.make_poly_collection(
             cmap='jet', edgecolor='face',
             clim=(np.nanmin(scalar_values), np.nanmax(scalar_values)))
-        axes.add_collection(patches)
-        patches.set_animated(True)
+        axes.add_collection(collection)
+        collection.set_animated(True)
         units = scalar.attrs.get('units')
-        figure.colorbar(patches, ax=axes, location='right', label=units)
+        figure.colorbar(collection, ax=axes, location='right', label=units)
 
     quiver = None
     if vector is not None:
@@ -333,9 +329,9 @@ def animate_on_figure(
         changes.extend(gridlines.xline_artists)
         changes.extend(gridlines.yline_artists)
 
-        if patches is not None:
-            patches.set_array(scalar_values[index])
-            changes.append(patches)
+        if collection is not None:
+            collection.set_array(scalar_values[index])
+            changes.append(collection)
 
         if quiver is not None:
             quiver.set_UVC(vector_u_values[index], vector_v_values[index])
