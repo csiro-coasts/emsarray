@@ -86,6 +86,22 @@ def timed_func(fn: Callable[..., _T]) -> Callable[..., _T]:
     Logs "Calling ``<func.__qualname__>``" before the wrapped function is called,
     and "Completed ``<func.__qualname__>`` in ``<time>``s" after.
     The name of the logger is taken from ``func.__module__``.
+
+    Example
+    -------
+
+    .. code-block:: python
+
+        class Grass(Convention):
+            @cached_property
+            @timed_func
+            def polygons(self):
+                return ...
+
+    When called, this will log something like::
+
+        DEBUG Calling Grass.polygons
+        DEBUG Completed Grass.polygons in 3.14s
     """
     fn_logger = logging.getLogger(fn.__module__)
 
