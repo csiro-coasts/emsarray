@@ -16,6 +16,8 @@ from typing import Callable, Iterator, List, Optional, Protocol
 from shapely.geometry import box, shape
 from shapely.geometry.base import BaseGeometry
 
+from emsarray.conventions._registry import entry_point_conventions
+
 from .exceptions import CommandException
 
 cli_logger = logging.getLogger('emsarray.cli')
@@ -210,6 +212,13 @@ def set_verbosity(level: int) -> None:
     elif level >= 3:
         level_str = 'DEBUG'
 
+    # Include logging handlers for all plugins
+    entry_point_convention_modules = sorted({
+        convention.__module__
+        for convention in entry_point_conventions()
+        if not convention.__module__.startswith('emsarray.')
+    })
+
     logging.captureWarnings(True)
     logging.config.dictConfig({
         'version': 1,
@@ -238,6 +247,10 @@ def set_verbosity(level: int) -> None:
             'emsarray': {'handlers': ['console'], 'level': level_str},
             'emsarray.cli.errors': {
                 'handlers': ['error'], 'level': level_str, 'propagate': False
+            },
+            **{
+                module: {'handlers': ['console'], 'level': level_str}
+                for module in entry_point_convention_modules
             },
             'py.warnings': {'handlers': ['console'], 'level': 'WARNING'},
             '__main__': {'handlers': ['console'], 'level': level_str},
