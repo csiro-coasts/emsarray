@@ -279,6 +279,7 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
         raise ValueError("Data array did not match any known grids")
 
     @cached_property
+    @utils.timed_func
     def polygons(self) -> np.ndarray:
         # Make an array of shape (j, i, 2) of all the nodes
         grid = np.stack([self.node.longitude.values, self.node.latitude.values], axis=-1)

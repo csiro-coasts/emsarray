@@ -9,7 +9,6 @@ import emsarray
 from emsarray.cli import BaseCommand, CommandException
 from emsarray.operations import geometry
 from emsarray.types import Pathish
-from emsarray.utils import PerfTimer
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +69,8 @@ class Command(BaseCommand):
             output_format = self.guess_format(output_path)
             logger.debug("Guessed output format as %r", output_format)
 
-        with PerfTimer() as t:
-            count = dataset.ems.polygons.size
-        logger.debug("Generated %d polygons in %f seconds", count, t.elapsed)
+        count = dataset.ems.polygons[dataset.ems.mask].size
+        logger.debug("Dataset contains %d polygons", count)
 
         try:
             writer = format_writers[output_format]

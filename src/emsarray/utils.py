@@ -80,6 +80,25 @@ class PerfTimer:
         return self._stop - self._start
 
 
+def timed_func(fn: Callable[..., _T]) -> Callable[..., _T]:
+    """
+    Log the execution time of the decorated function.
+    Logs "Calling ``<func.__qualname__>``" before the wrapped function is called,
+    and "Completed ``<func.__qualname__>`` in ``<time>``s" after.
+    The name of the logger is taken from ``func.__module__``.
+    """
+    fn_logger = logging.getLogger(fn.__module__)
+
+    @functools.wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> _T:
+        fn_logger.debug("Calling %s", fn.__qualname__)
+        with PerfTimer() as timer:
+            value = fn(*args, **kwargs)
+        fn_logger.debug("Completed %s in %fs", fn.__qualname__, timer.elapsed)
+        return value
+    return wrapper
+
+
 def to_netcdf_with_fixes(
     dataset: xr.Dataset,
     path: Pathish,

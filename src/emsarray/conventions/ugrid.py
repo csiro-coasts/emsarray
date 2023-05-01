@@ -579,26 +579,25 @@ class Mesh2DTopology:
             return self._to_index_array(
                 self.edge_node_connectivity, self.edge_dimension)
 
-        logger.info("Building edge_node_array")
-        with utils.PerfTimer() as timer:
-            # Each edge is composed of two nodes. Each edge may be named twice,
-            # once for each face. To de-duplicate this, edges are built up using
-            # this dict-of-sets, where the dict index is the node with the
-            # lower index, and the set is the node indices of the other end.
-            low_highs: Dict[int, Set[int]] = defaultdict(set)
+        return self.make_edge_node_array()
 
-            for face_index, node_pairs in self._face_and_node_pair_iter():
-                for pair in node_pairs:
-                    low, high = sorted(pair)
-                    low_highs[low].add(high)
-            edge_node = np.array([
-                [low, high]
-                for low, highs in low_highs.items()
-                for high in highs
-            ], dtype=self.sensible_dtype)
-        logger.debug("Built edge_node_array in %f seconds", timer.elapsed)
+    @utils.timed_func
+    def make_edge_node_array(self) -> np.ndarray:
+        # Each edge is composed of two nodes. Each edge may be named twice,
+        # once for each face. To de-duplicate this, edges are built up using
+        # this dict-of-sets, where the dict index is the node with the
+        # lower index, and the set is the node indices of the other end.
+        low_highs: Dict[int, Set[int]] = defaultdict(set)
 
-        return edge_node
+        for face_index, node_pairs in self._face_and_node_pair_iter():
+            for pair in node_pairs:
+                low, high = sorted(pair)
+                low_highs[low].add(high)
+        return np.array([
+            [low, high]
+            for low, highs in low_highs.items()
+            for high in highs
+        ], dtype=self.sensible_dtype)
 
     @cached_property
     def has_valid_edge_face_connectivity(self) -> bool:
@@ -650,26 +649,22 @@ class Mesh2DTopology:
             return self._to_index_array(
                 self.edge_face_connectivity, self.edge_dimension)
 
-        # Access these outside of the timer below
-        fill_value = self.sensible_fill_value
-        face_edge = self.face_edge_array
+        return self.make_edge_face_array()
 
-        # Build an edge_face_connectivity matrix
-        logger.info("Building edge_face_array")
-        with utils.PerfTimer() as timer:
-            # The edge_face connectivity matrix
-            shape = (self.edge_count, 2)
-            filled = np.full(shape, fill_value, dtype=self.sensible_dtype)
-            edge_face: np.ndarray = np.ma.masked_array(filled, mask=True)
+    @utils.timed_func
+    def make_edge_face_array(self) -> np.ndarray:
+        # The edge_face connectivity matrix
+        shape = (self.edge_count, 2)
+        filled = np.full(shape, self.sensible_fill_value, dtype=self.sensible_dtype)
+        edge_face: np.ndarray = np.ma.masked_array(filled, mask=True)
 
-            # The number of faces already seen for this edge
-            edge_face_count = np.zeros(self.edge_count, dtype=self.sensible_dtype)
+        # The number of faces already seen for this edge
+        edge_face_count = np.zeros(self.edge_count, dtype=self.sensible_dtype)
 
-            for face_index, edge_indices in enumerate(face_edge):
-                for edge_index in edge_indices.compressed():
-                    edge_face[edge_index, edge_face_count[edge_index]] = face_index
-                    edge_face_count[edge_index] += 1
-        logger.debug("Built edge_face_array in %f seconds", timer.elapsed)
+        for face_index, edge_indices in enumerate(self.face_edge_array):
+            for edge_index in edge_indices.compressed():
+                edge_face[edge_index, edge_face_count[edge_index]] = face_index
+                edge_face_count[edge_index] += 1
 
         return edge_face
 
@@ -763,27 +758,24 @@ class Mesh2DTopology:
             return self._to_index_array(
                 self.face_edge_connectivity, self.face_dimension)
 
-        # Access these outside of the timer below
-        fill_value = self.sensible_fill_value
-        edge_node = self.edge_node_array
+        return self.make_face_edge_array()
 
+    @utils.timed_func
+    def make_face_edge_array(self) -> np.ndarray:
         # Build a face_edge_connectivity matrix
-        logger.info("Building face_edge_array")
-        with utils.PerfTimer() as timer:
-            shape = (self.face_count, self.max_node_count)
-            filled = np.full(shape, fill_value, dtype=self.sensible_dtype)
-            face_edge: np.ndarray = np.ma.masked_array(filled, mask=True)
+        shape = (self.face_count, self.max_node_count)
+        filled = np.full(shape, self.sensible_fill_value, dtype=self.sensible_dtype)
+        face_edge: np.ndarray = np.ma.masked_array(filled, mask=True)
 
-            node_pair_to_edge_index = {
-                frozenset(edge): edge_index
-                for edge_index, edge in enumerate(edge_node)
-            }
+        node_pair_to_edge_index = {
+            frozenset(edge): edge_index
+            for edge_index, edge in enumerate(self.edge_node_array)
+        }
 
-            for face_index, node_pairs in self._face_and_node_pair_iter():
-                for column, node_pair in enumerate(node_pairs):
-                    edge_index = node_pair_to_edge_index[frozenset(node_pair)]
-                    face_edge[face_index, column] = edge_index
-        logger.debug("Built face_edge_array in %f seconds", timer.elapsed)
+        for face_index, node_pairs in self._face_and_node_pair_iter():
+            for column, node_pair in enumerate(node_pairs):
+                edge_index = node_pair_to_edge_index[frozenset(node_pair)]
+                face_edge[face_index, column] = edge_index
 
         return face_edge
 
@@ -834,27 +826,23 @@ class Mesh2DTopology:
             return self._to_index_array(
                 self.face_face_connectivity, self.face_dimension)
 
-        # Access these outside of the timer below
-        fill_value = self.sensible_fill_value
-        edge_face = self.edge_face_array
+        return self.make_face_face_array()
 
+    def make_face_face_array(self) -> np.ndarray:
         # Build a face_face_connectivity matrix
-        logger.info("Building face_face_array")
-        with utils.PerfTimer() as timer:
-            face_count = np.zeros(self.face_count, dtype=self.sensible_dtype)
-            shape = (self.face_count, self.max_node_count)
-            filled = np.full(shape, fill_value, dtype=self.sensible_dtype)
-            face_face: np.ndarray = np.ma.masked_array(filled, mask=True)
+        face_count = np.zeros(self.face_count, dtype=self.sensible_dtype)
+        shape = (self.face_count, self.max_node_count)
+        filled = np.full(shape, self.sensible_fill_value, dtype=self.sensible_dtype)
+        face_face: np.ndarray = np.ma.masked_array(filled, mask=True)
 
-            for edge_index, face_indices in enumerate(edge_face):
-                if np.any(np.ma.getmask(face_indices)):
-                    continue
-                left, right = face_indices
-                face_face[left, face_count[left]] = right
-                face_face[right, face_count[right]] = left
-                face_count[left] += 1
-                face_count[right] += 1
-        logger.debug("Built face_face_array in %f seconds", timer.elapsed)
+        for edge_index, face_indices in enumerate(self.edge_face_array):
+            if np.any(np.ma.getmask(face_indices)):
+                continue
+            left, right = face_indices
+            face_face[left, face_count[left]] = right
+            face_face[right, face_count[right]] = left
+            face_count[left] += 1
+            face_count[right] += 1
 
         return face_face
 
@@ -1083,6 +1071,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         raise ValueError("Data array did not have any face, edge, or node dimension")
 
     @cached_property
+    @utils.timed_func
     def polygons(self) -> np.ndarray:
         """Generate list of Polygons"""
         # X,Y coords of each node

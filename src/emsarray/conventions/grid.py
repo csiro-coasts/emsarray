@@ -387,6 +387,7 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
         return Specificity.LOW
 
     @cached_property
+    @utils.timed_func
     def polygons(self) -> np.ndarray:
         lon_bounds = self.topology.longitude_bounds.values
         lat_bounds = self.topology.latitude_bounds.values
@@ -536,6 +537,7 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
         return Specificity.LOW
 
     @cached_property
+    @utils.timed_func
     def polygons(self) -> np.ndarray:
         # Construct polygons from the bounds of the cells
         lon_bounds = self.topology.longitude_bounds.values
