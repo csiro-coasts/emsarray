@@ -1,4 +1,5 @@
 import datetime
+import logging
 import pathlib
 
 import netCDF4
@@ -10,6 +11,9 @@ import xarray
 import xarray.testing
 
 from emsarray import utils
+from tests.utils import filter_warning
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.parametrize(
@@ -76,8 +80,9 @@ def test_disable_default_fill_value(tmp_path: pathlib.Path):
 
     td_data = np.where(
         np.tri(5, 7, dtype=bool),
-        np.arange(35).reshape(5, 7) * np.timedelta64(1, 'D'),
-        np.timedelta64('nat'))
+        np.arange(35).reshape(5, 7) * np.timedelta64(1, 'D').astype('timedelta64[ns]'),
+        np.timedelta64('nat', 'ns'))
+    logger.info('%r', td_data)
     timedelta_with_missing_value_var = xarray.DataArray(
         data=td_data, dims=['j', 'i'])
     timedelta_with_missing_value_var.encoding['missing_value'] = np.float64('1e35')
@@ -91,7 +96,17 @@ def test_disable_default_fill_value(tmp_path: pathlib.Path):
     })
 
     # Save to a netCDF4 and then prove that it is bad
-    dataset.to_netcdf(tmp_path / "bad.nc")
+    # This emits warnings in current versions of xarray / numpy.
+    # See https://github.com/pydata/xarray/issues/7942
+    with filter_warning(
+        'default', category=RuntimeWarning,
+        message='invalid value encountered in cast',
+        module=r'xarray\.coding\.times',
+        record=True,
+    ) as ws:
+        dataset.to_netcdf(tmp_path / "bad.nc")
+        assert len(ws) == 1
+
     with netCDF4.Dataset(tmp_path / "bad.nc", "r") as nc_dataset:
         # This one shouldn't be here because it is an integer datatype. xarray
         # does the right thing already in this case.
@@ -105,7 +120,17 @@ def test_disable_default_fill_value(tmp_path: pathlib.Path):
         assert np.isnan(nc_dataset.variables["timedelta_with_missing_value_var"].getncattr("_FillValue"))
 
     utils.disable_default_fill_value(dataset)
-    dataset.to_netcdf(tmp_path / "good.nc")
+
+    # See https://github.com/pydata/xarray/issues/7942
+    with filter_warning(
+        'default', category=RuntimeWarning,
+        message='invalid value encountered in cast',
+        module=r'xarray\.coding\.times',
+        record=True,
+    ) as ws:
+        dataset.to_netcdf(tmp_path / "good.nc")
+        assert len(ws) == 1
+
     with netCDF4.Dataset(tmp_path / "good.nc", "r") as nc_dataset:
         # This one should still be unset
         assert '_FillValue' not in nc_dataset.variables["int_var"].ncattrs()

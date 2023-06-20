@@ -23,7 +23,7 @@ from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )
 from emsarray.operations import geometry
-from tests.utils import assert_property_not_cached
+from tests.utils import assert_property_not_cached, filter_warning
 
 
 def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -239,10 +239,28 @@ def make_dataset(
         },
     )
 
+    one_day = np.timedelta64(1, 'D').astype('timedelta64[ns]')
+    period = xr.DataArray(
+        data=np.concatenate([
+            np.arange(cell_size - 2, dtype=int) * one_day,
+            [np.timedelta64('nat', 'ns')] * 2,
+        ]),
+        dims=[face_dimension],
+        name="period",
+        attrs={
+            "long_name": "Some variable counting days",
+        },
+    )
+    period.encoding.update({
+        "units": "days",
+        "_FillValue": np.int16(-1),
+        "dtype": np.dtype('int16'),
+    })
+
     dataset = xr.Dataset(
         data_vars={var.name: var for var in [
             mesh, face_node_connectivity, node_x, node_y,
-            t, z, botz, eta, temp
+            t, z, botz, eta, temp, period,
         ]},
         attrs={
             'title': "COMPAS defalt version",
@@ -713,7 +731,22 @@ def test_apply_clip_mask(tmp_path):
 
 def test_make_and_apply_clip_mask(tmp_path):
     dataset = make_dataset(width=5)
-    dataset.ems.to_netcdf(tmp_path / "original.nc")
+
+    # When saving a dataset to disk, xarray.coding.times.cast_to_int_if_safe
+    # will check if it is possible to encode a timedelta64 using integer values
+    # by casting the values and checking for equality.
+    # Recent versions of numpy will emit warnings
+    # when casting a data array with dtype timedelta64 to int
+    # if it contains NaT (not a time) values.
+    # xarray will fix this eventually, but for now...
+    # See https://github.com/pydata/xarray/issues/7942
+    with filter_warning(
+        'ignore', category=RuntimeWarning,
+        message='invalid value encountered in cast',
+        module=r'xarray\.coding\.times',
+    ):
+        dataset.ems.to_netcdf(tmp_path / "original.nc")
+
     geometry.write_geojson(dataset, tmp_path / 'original.geojson')
 
     polygon = Polygon([[3.4, 1], [3.4, -1], [6, -1], [6, 1], [3.4, 1]])

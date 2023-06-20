@@ -491,7 +491,11 @@ class Mesh2DTopology:
             # If a data array has a fill value, xarray will convert that data array
             # to a floating point data type, and replace masked values with np.nan.
             # Here we convert a floating point array to a masked integer array.
-            values = np.ma.masked_invalid(values).astype(np.int_)
+            masked_values = np.ma.masked_invalid(values)
+            # numpy will emit a warning when converting an array with np.nan to int,
+            # even if the nans are masked out.
+            masked_values.data[masked_values.mask] = self.sensible_fill_value
+            values = masked_values.astype(self.sensible_dtype)
         elif '_FillValue' in data_array.attrs:
             # The data array has a fill value, but xarray has not applied it.
             # This implied the dataset was opened with mask_and_scale=False,
@@ -1195,13 +1199,17 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         # any changes.
         topology_variables: List[xr.DataArray] = [topology.mesh_variable]
 
-        def integer_indices(data_array: xr.DataArray) -> np.ndarray:
-            masked = np.ma.masked_invalid(data_array.values)
-            masked_integers: np.ndarray = masked.astype(np.int_)
-            return masked_integers
-
         # This is the fill value used in the mask.
         new_fill_value = clip_mask.data_vars['new_node_index'].encoding['_FillValue']
+
+        def integer_indices(data_array: xr.DataArray) -> np.ndarray:
+            masked_values = np.ma.masked_invalid(data_array.values)
+            # numpy will emit a warning when converting an array with np.nan to int,
+            # even if the nans are masked out.
+            masked_values.data[masked_values.mask] = new_fill_value
+            masked_integers: np.ndarray = masked_values.astype(np.int_)
+            return masked_integers
+
         new_node_indices = integer_indices(clip_mask.data_vars['new_node_index'])
         new_face_indices = integer_indices(clip_mask.data_vars['new_face_index'])
         has_edges = 'new_edge_index' in clip_mask.data_vars

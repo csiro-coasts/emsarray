@@ -10,7 +10,7 @@ from numpy.testing import assert_equal
 
 from emsarray import masking
 from emsarray.utils import to_netcdf_with_fixes
-from tests.utils import mask_from_strings
+from tests.utils import filter_warning, mask_from_strings
 
 
 def assert_raw_values(
@@ -120,7 +120,14 @@ def test_find_fill_value_timedelta_with_missing_value(
         fill_value = masking.find_fill_value(data_array)
         assert np.isnat(fill_value)
 
-        to_netcdf_with_fixes(dataset, tmp_path / 'dataset.nc')
+        # See https://github.com/pydata/xarray/issues/7942
+        with filter_warning(
+            'ignore', category=RuntimeWarning,
+            message='invalid value encountered in cast',
+            module=r'xarray\.coding\.times',
+        ):
+            # Write this out for easier debugging purposes
+            to_netcdf_with_fixes(dataset, tmp_path / 'dataset.nc')
 
 
 def test_calculate_mask_bounds():
