@@ -13,6 +13,7 @@ from typing import (
 
 import numpy as np
 import xarray as xr
+from shapely import unary_union
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
@@ -23,7 +24,7 @@ from emsarray.plot import (
     _requires_plot, animate_on_figure, plot_on_figure, polygons_to_collection
 )
 from emsarray.state import State
-from emsarray.types import Pathish
+from emsarray.types import Bounds, Pathish
 
 if TYPE_CHECKING:
     # Import these optional dependencies only during type checking
@@ -940,6 +941,26 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             (p is not None for p in self.polygons),
             dtype=bool, count=self.polygons.size)
         return cast(np.ndarray, mask)
+
+    @cached_property
+    def geometry(self) -> Polygon:
+        """
+        A shapely :class:`Polygon` that represents the geometry of the entire dataset.
+
+        This is equivalent to the union of all polygons in the dataset,
+        although specific conventions may have a simpler way of constructing this.
+        """
+        return unary_union(self.polygons[self.mask])
+
+    @cached_property
+    def bounds(self) -> Bounds:
+        """
+        Returns minimum bounding region (minx, miny, maxx, maxy) of the entire dataset.
+
+        This is equivalent to the bounds of the dataset :attr:`geometry`,
+        although specific conventons may have a simpler way of constructing this.
+        """
+        return cast(Bounds, self.geometry.bounds)
 
     @cached_property
     @utils.timed_func

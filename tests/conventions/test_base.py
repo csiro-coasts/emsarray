@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import xarray as xr
-from shapely.geometry import LineString, Point, box
+from shapely.geometry import LineString, Point, Polygon, box
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import masking, utils
@@ -84,6 +84,8 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     @cached_property
     def polygons(self) -> np.ndarray:
         height, width = self.shape
+        # Each polygon is a box from (x, y, x+1, y+1),
+        # however the polygons around the edge are masked out with None.
         return np.array([
             box(x, y, x + 1, y + 1)
             if (0 < x < width - 1) and (0 < y < height - 1)
@@ -124,6 +126,33 @@ def test_mask():
         convention.mask,
         np.array(top_bottom + middle * 8 + top_bottom),
     )
+
+
+def test_geometry():
+    dataset = xr.Dataset({
+        'values': (['z', 'y', 'x'], np.random.standard_normal((5, 10, 20))),
+        'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
+    })
+    convention = SimpleConvention(dataset)
+
+    # The geometry will be the union of all the polygons,
+    # which results in some 'extra' vertices along the edge.
+    assert convention.geometry == Polygon(
+        [(1, x) for x in range(1, 10)]
+        + [(y, 9) for y in range(2, 20)]
+        + [(19, x) for x in reversed(range(1, 9))]
+        + [(y, 1) for y in reversed(range(1, 19))]
+    )
+
+
+def test_bounds():
+    dataset = xr.Dataset({
+        'values': (['z', 'y', 'x'], np.random.standard_normal((5, 10, 20))),
+        'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
+    })
+    convention = SimpleConvention(dataset)
+
+    assert convention.bounds == (1, 1, 19, 9)
 
 
 def test_spatial_index():

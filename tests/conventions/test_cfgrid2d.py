@@ -17,6 +17,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 from matplotlib.figure import Figure
+from numpy.testing import assert_allclose
 from shapely.geometry import Polygon
 from shapely.testing import assert_geometries_equal
 
@@ -24,7 +25,10 @@ from emsarray.conventions import get_dataset_convention
 from emsarray.conventions.grid import CFGridKind
 from emsarray.conventions.shoc import ShocSimple
 from emsarray.operations import geometry
-from tests.utils import DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator
+from tests.utils import (
+    DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator,
+    assert_property_not_cached
+)
 
 
 def make_dataset(
@@ -232,6 +236,14 @@ def test_holes():
     # A polygon surrounded by all neighbours is full sized
     poly = only_polygons[22]
     assert poly.equals_exact(Polygon([(0.3, 1.9), (0.4, 1.8), (0.5, 1.9), (0.4, 2.0), (0.3, 1.9)]), 1e-6)
+
+
+def test_bounds():
+    dataset = make_dataset(
+        j_size=10, i_size=20, corner_size=5, include_bounds=True)
+    # The corner cuts out some of the upper bounds
+    assert_allclose(dataset.ems.bounds, (0, 0, 3, 2.5))
+    assert_property_not_cached(dataset.ems, 'geometry')
 
 
 def test_face_centres():

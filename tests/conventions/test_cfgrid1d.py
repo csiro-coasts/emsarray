@@ -15,7 +15,7 @@ from shapely.testing import assert_geometries_equal
 from emsarray.conventions import get_dataset_convention
 from emsarray.conventions.grid import CFGrid1D, CFGridKind, CFGridTopology
 from emsarray.operations import geometry
-from tests.utils import box, mask_from_strings
+from tests.utils import assert_property_not_cached, box, mask_from_strings
 
 
 def make_dataset(
@@ -24,6 +24,7 @@ def make_dataset(
     height: int,
     depth: int = 5,
     time_size: int = 4,
+    bounds: bool = False,
 ) -> xr.Dataset:
     longitude_name = 'lon'
     latitude_name = 'lat'
@@ -116,18 +117,39 @@ def make_dataset(
         },
     )
 
+    data_vars = [
+        time, lat, lon, depth_var,
+        botz, eta, temp,
+    ]
+
+    if bounds:
+        lon_grid = np.concatenate([
+            lon.values - 0.08,
+            [lon.values[-1] + 0.02]
+        ])
+        lat_grid = np.concatenate([
+            lat.values - 0.07,
+            [lat.values[-1] + 0.03]
+        ])
+        lon_bounds = xr.DataArray(
+            np.c_[lon_grid[:-1], lon_grid[1:]],
+            dims=[longitude_name, 'bounds'],
+            name="lon_bounds",
+        )
+        lat_bounds = xr.DataArray(
+            np.c_[lat_grid[:-1], lat_grid[1:]],
+            dims=[latitude_name, 'bounds'],
+            name="lat_bounds",
+        )
+        lon.attrs['bounds'] = lon_bounds.name
+        lat.attrs['bounds'] = lat_bounds.name
+        data_vars += [lon_bounds, lat_bounds]
+
     dataset = xr.Dataset(
-        data_vars={var.name: var for var in [
-            time, lat, lon, depth_var,
-            botz, eta, temp
-        ]},
+        data_vars={var.name: var for var in data_vars},
         attrs={
-            'title': "COMPAS defalt version",
-            'paramhead': "Example COMPAS grid",
-            'paramfile': "in.prm",
-            'version': "v1.0 rev(1234)",
-            'Conventions': "UGRID-1.0",
-            'start_index': 0,
+            'title': "Example CFGrid1D",
+            'Conventions': "CF-1.4",
         },
     )
     dataset.encoding['unlimited_dims'] = {'time'}
@@ -157,7 +179,7 @@ def test_varnames():
 
 
 def test_polygons_no_bounds():
-    dataset = make_dataset(width=3, height=4)
+    dataset = make_dataset(width=3, height=4, bounds=False)
     polygons = dataset.ems.polygons
 
     # Should be one item for every face
@@ -175,27 +197,7 @@ def test_polygons_no_bounds():
 
 
 def test_polygons_bounds():
-    dataset = make_dataset(width=3, height=4)
-    lon_grid = np.concatenate([
-        dataset['lon'].values - 0.08,
-        [dataset['lon'].values[-1] + 0.02]
-    ])
-    lat_grid = np.concatenate([
-        dataset['lat'].values - 0.07,
-        [dataset['lat'].values[-1] + 0.03]
-    ])
-    dataset = dataset.assign({
-        'lon_bounds': xr.DataArray(
-            np.c_[lon_grid[:-1], lon_grid[1:]],
-            dims=[dataset['lon'].dims[0], 'bounds'],
-        ),
-        'lat_bounds': xr.DataArray(
-            np.c_[lat_grid[:-1], lat_grid[1:]],
-            dims=[dataset['lat'].dims[0], 'bounds'],
-        ),
-    })
-    dataset['lon'].attrs['bounds'] = 'lon_bounds'
-    dataset['lat'].attrs['bounds'] = 'lat_bounds'
+    dataset = make_dataset(width=3, height=4, bounds=True)
     assert_allclose(dataset.ems.topology.longitude_bounds, dataset['lon_bounds'])
     assert_allclose(dataset.ems.topology.latitude_bounds, dataset['lat_bounds'])
 
@@ -207,6 +209,32 @@ def test_polygons_bounds():
     assert_geometries_equal(
         dataset.ems.polygons[4],
         box(0.02, 0.03, 0.12, 0.13),
+        tolerance=1e-6)
+
+
+def test_bounds_no_bounds():
+    dataset = make_dataset(width=3, height=4, bounds=False)
+    assert_allclose(dataset.ems.bounds, (-0.05, -0.05, 0.25, 0.35))
+    assert_property_not_cached(dataset.ems, 'geometry')
+
+
+def test_bounds_with_bounds():
+    dataset = make_dataset(width=3, height=4, bounds=True)
+    assert_allclose(dataset.ems.bounds, (-0.08, -0.07, 0.22, 0.33))
+    assert_property_not_cached(dataset.ems, 'geometry')
+
+
+def test_geometry():
+    dataset = make_dataset(width=3, height=4, bounds=False)
+    assert_geometries_equal(
+        dataset.ems.geometry,
+        Polygon([
+            (0.25, -0.05),
+            (0.25, 0.35),
+            (-0.05, 0.35),
+            (-0.05, -0.05),
+            (0.25, -0.05),
+        ]),
         tolerance=1e-6)
 
 
