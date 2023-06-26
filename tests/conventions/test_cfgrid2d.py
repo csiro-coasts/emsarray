@@ -22,7 +22,7 @@ from shapely.geometry import Polygon
 from shapely.testing import assert_geometries_equal
 
 from emsarray.conventions import get_dataset_convention
-from emsarray.conventions.grid import CFGridKind
+from emsarray.conventions.grid import CFGrid2DTopology, CFGridKind
 from emsarray.conventions.shoc import ShocSimple
 from emsarray.operations import geometry
 from tests.utils import (
@@ -165,6 +165,66 @@ def test_varnames():
     assert dataset.ems.get_depth_name() == 'zc'
     assert dataset.ems.get_all_depth_names() == ['zc']
     assert dataset.ems.get_time_name() == 'time'
+
+
+@pytest.mark.parametrize(
+    ['name', 'attrs'],
+    [
+        ('lat', {'units': 'degrees_north'}),
+        ('l1', {'units': 'degree_north'}),
+        ('latitude', {'units': 'degree_N'}),
+        ('y', {'units': 'degrees_N'}),
+        ('Latitude', {'units': 'degreeN'}),
+        ('lats', {'units': 'degreesN'}),
+        ('latitude', {'standard_name': 'latitude'}),
+        ('y', {'axis': 'Y'}),
+    ],
+)
+def test_latitude_detection(name: str, attrs: dict):
+    dataset = xr.Dataset({
+        name: xr.DataArray([[0, 1], [2, 3]], dims=['j', 'i'], attrs=attrs),
+        'dummy': xr.DataArray([3, 4, 5], dims=['other']),
+    })
+    topology = CFGrid2DTopology(dataset)
+    assert topology.latitude_name == name
+
+
+@pytest.mark.parametrize(
+    ['name', 'attrs'],
+    [
+        ('lon', {'units': 'degrees_east'}),
+        ('l2', {'units': 'degree_east'}),
+        ('longitude', {'units': 'degree_E'}),
+        ('x', {'units': 'degrees_E'}),
+        ('Longitude', {'units': 'degreeE'}),
+        ('lons', {'units': 'degreesE'}),
+        ('longitude', {'standard_name': 'longitude'}),
+        ('x', {'axis': 'X'}),
+    ],
+)
+def test_longitude_detection(name: str, attrs: dict):
+    dataset = xr.Dataset({
+        name: xr.DataArray([[0, 1], [2, 3]], dims=['j', 'i'], attrs=attrs),
+        'dummy': xr.DataArray([3, 4, 5], dims=['other']),
+    })
+    topology = CFGrid2DTopology(dataset)
+    assert topology.longitude_name == name
+
+
+def test_manual_coordinate_names():
+    dataset = xr.Dataset({
+        'n': xr.DataArray([[0, 1], [2, 3]], dims=['j', 'i']),
+        'e': xr.DataArray([[4, 5], [6, 7]], dims=['j', 'i']),
+    })
+    topology = CFGrid2DTopology(dataset)
+    with pytest.raises(ValueError):
+        topology.latitude_name
+
+    topology = CFGrid2DTopology(dataset, latitude='n', longitude='e')
+    assert topology.latitude_name == 'n'
+    assert topology.longitude_name == 'e'
+    xr.testing.assert_equal(topology.latitude, dataset['n'])
+    xr.testing.assert_equal(topology.longitude, dataset['e'])
 
 
 def test_polygons_no_bounds():
