@@ -12,3 +12,4 @@ Next release (in development)
 * Add :attr:`.Convention.bounds` and :attr:`.Convention.geometry` attributes (:pr:`83`).
 * Fix a number of numpy warnings about unsafe casts (:pr:`85`).
 * Follow CF Conventions properly when finding latitude / longitude coordinate variables (:issue:`84`, :pr:`86`)
+* Include a ``py.typed`` file in built packages (:issue:`80`, :pr:`87`).
