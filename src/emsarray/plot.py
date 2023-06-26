@@ -293,7 +293,7 @@ def animate_on_figure(
         # to make the autoscaling behave across all frames.
         coordinate_dim = coordinate.dims[0]
         initial_u, initial_v = (
-            abs(vec).max(dim=coordinate_dim, skipna=True)
+            abs(vec).max(dim=str(coordinate_dim), skipna=True)
             for vec in vector)
         quiver = convention.make_quiver(axes, initial_u, initial_v)
         quiver.set_animated(True)

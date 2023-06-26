@@ -188,8 +188,8 @@ def _find_ocean_floor_indices(
     #
     # Columns of all nans will have an argmax index of 0.
     # Item 0 in the column will be nan, resulting in nan in the output as desired.
-    depth_indices = (data_array * 0 + 1).cumsum(depth_dimension)
-    max_depth_indices = depth_indices.argmax(depth_dimension)
+    depth_indices = (data_array * 0 + 1).cumsum(str(depth_dimension))
+    max_depth_indices = depth_indices.argmax(str(depth_dimension))
     return cast(xr.DataArray, max_depth_indices)
 
 

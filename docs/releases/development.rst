@@ -10,3 +10,4 @@ Next release (in development)
   (:pr:`77`).
 * Added :func:`emsarray.utils.timed_func` for easily logging some performance metrics (:pr:`79`).
 * Add :attr:`.Convention.bounds` and :attr:`.Convention.geometry` attributes (:pr:`83`).
+* Fix a number of numpy warnings about unsafe casts (:pr:`85`).
