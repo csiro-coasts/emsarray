@@ -16,11 +16,12 @@ from typing import (
 
 import numpy as np
 import xarray as xr
+from shapely.geometry import Polygon, box
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import masking, utils
 from emsarray.exceptions import ConventionViolationWarning
-from emsarray.types import Pathish
+from emsarray.types import Bounds, Pathish
 
 from ._base import Convention, Specificity
 
@@ -223,6 +224,16 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
         """A :class:`CFGridTopology` helper."""
         return self.topology_class(self.dataset)
 
+    @cached_property
+    def bounds(self) -> Bounds:
+        # This can be computed easily from the coordinate bounds
+        topology = self.topology
+        min_x = np.nanmin(topology.longitude_bounds)
+        max_x = np.nanmax(topology.longitude_bounds)
+        min_y = np.nanmin(topology.latitude_bounds)
+        max_y = np.nanmax(topology.latitude_bounds)
+        return (min_x, min_y, max_x, max_y)
+
     def unravel_index(
         self,
         index: int,
@@ -413,6 +424,12 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
         xx, yy = np.meshgrid(topology.longitude.values, topology.latitude.values)
         centres = np.column_stack((xx.flatten(), yy.flatten()))
         return cast(np.ndarray, centres)
+
+    @cached_property
+    def geometry(self) -> Polygon:
+        # As CFGrid1D is axis aligned,
+        # the geometry can be constructed from the bounds.
+        return box(*self.bounds)
 
 
 # 2D coordinate grids

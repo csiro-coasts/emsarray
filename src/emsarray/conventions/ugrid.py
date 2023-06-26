@@ -29,7 +29,7 @@ from emsarray import utils
 from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )
-from emsarray.types import Pathish
+from emsarray.types import Bounds, Pathish
 
 from ._base import Convention, Specificity
 
@@ -1102,6 +1102,15 @@ class UGrid(Convention[UGridKind, UGridIndex]):
             face_centres = np.column_stack((face_x, face_y))
             return cast(np.ndarray, face_centres)
         return super().face_centres
+
+    @cached_property
+    def bounds(self) -> Bounds:
+        topology = self.topology
+        min_x = np.nanmin(topology.node_x)
+        max_x = np.nanmax(topology.node_x)
+        min_y = np.nanmin(topology.node_y)
+        max_y = np.nanmax(topology.node_y)
+        return (min_x, min_y, max_x, max_y)
 
     def selector_for_index(self, index: UGridIndex) -> Dict[Hashable, int]:
         kind, i = index

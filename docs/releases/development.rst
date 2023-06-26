@@ -9,3 +9,4 @@ Next release (in development)
   for significant speed improvements
   (:pr:`77`).
 * Added :func:`emsarray.utils.timed_func` for easily logging some performance metrics (:pr:`79`).
+* Add :attr:`.Convention.bounds` and :attr:`.Convention.geometry` attributes (:pr:`83`).

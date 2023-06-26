@@ -23,6 +23,7 @@ from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )
 from emsarray.operations import geometry
+from tests.utils import assert_property_not_cached
 
 
 def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -399,6 +400,15 @@ def test_face_centres_from_centroids():
         polygon = convention.polygons[linear_index]
         lon, lat = polygon.centroid.coords[0]
         np.testing.assert_equal(face_centres[linear_index], [lon, lat])
+
+
+def test_bounds(datasets: pathlib.Path):
+    dataset = xr.open_dataset(datasets / 'ugrid_mesh2d.nc')
+    r = 3.6
+    assert_allclose(dataset.ems.bounds, (-r, -r, r, r))
+
+    # We also want to check that we didn't make the geometry to calculate this
+    assert_property_not_cached(dataset.ems, 'geometry')
 
 
 @pytest.mark.parametrize(
