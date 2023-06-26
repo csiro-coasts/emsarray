@@ -746,6 +746,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return animate_on_figure(figure, self, coordinate=coordinate, **kwargs)
 
     @_requires_plot
+    @utils.timed_func
     def make_poly_collection(
         self,
         data_array: Optional[DataArrayOrName] = None,
@@ -941,6 +942,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return cast(np.ndarray, mask)
 
     @cached_property
+    @utils.timed_func
     def spatial_index(self) -> SpatialIndex[SpatialIndexItem[Index]]:
         """
         A shapely :class:`strtree.STRtree` spatial index of all cells in this dataset.
@@ -970,16 +972,12 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         --------
         :class:`.SpatialIndexItem`
         """
-        logger.info("Building spatial index...")
-        with utils.PerfTimer() as timer:
-            items = [
-                (poly, SpatialIndexItem(index, self.unravel_index(index), poly))
-                for index, poly in enumerate(self.polygons)
-                if poly is not None
-            ]
-            spatial_index = SpatialIndex(items)
-        logger.debug("Build spatial index in %f seconds", timer.elapsed)
-        return spatial_index
+        items = [
+            (poly, SpatialIndexItem(index, self.unravel_index(index), poly))
+            for index, poly in enumerate(self.polygons)
+            if poly is not None
+        ]
+        return SpatialIndex(items)
 
     def get_index_for_point(
         self,

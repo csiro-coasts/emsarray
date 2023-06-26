@@ -8,3 +8,4 @@ Next release (in development)
   rather than :class:`~matplotlib.collections.PatchCollection`
   for significant speed improvements
   (:pr:`77`).
+* Added :func:`emsarray.utils.timed_func` for easily logging some performance metrics (:pr:`79`).
