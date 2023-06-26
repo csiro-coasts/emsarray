@@ -227,13 +227,20 @@ def update_connectivity(
     if start_index != 0:
         column_values = column_values + start_index
 
+    dtype = connectivity.encoding.get('dtype', connectivity.dtype)
+
+    if dtype.kind == 'i':
+        # Ensure the fill value fits within the representable integers
+        max_representable = np.iinfo(dtype).max
+        if max_representable < fill_value:
+            fill_value = max_representable
+
     # We need to preseve the integer dtype,
     # while also accounting for masked values.
     # xarray does not make this easy.
     # By constructing the array using new_fill_value where needed,
     # setting the dtype explicitly, and adding the _FillValue attribute,
     # xarray will cooperate.
-    dtype = connectivity.encoding.get('dtype', connectivity.dtype)
     include_row = ~np.ma.getmask(row_indices)
     raw_values = np.array([
         [
