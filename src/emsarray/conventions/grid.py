@@ -35,6 +35,17 @@ class CFGridKind(str, enum.Enum):
 CFGridIndex = Tuple[int, int]
 
 
+CF_LATITUDE_UNITS = {
+    'degrees_north', 'degree_north', 'degree_N', 'degrees_N',
+    'degreeN', 'degreesN'
+}
+
+CF_LONGITUDE_UNITS = {
+    'degrees_east', 'degree_east', 'degree_E', 'degrees_E',
+    'degreeE', 'degreesE'
+}
+
+
 class CFGridTopology(abc.ABC):
     """
     A topology helper that keeps track of the latitude and longitude coordinates
@@ -69,14 +80,18 @@ class CFGridTopology(abc.ABC):
         ``standard_name = "latitude"`` or
         ``units = "degree_north"``
         attribute.
+
+        See also
+        --------
+        https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#latitude-coordinate
         """
         try:
             return next(
                 name
                 for name, variable in self.dataset.variables.items()
-                if variable.attrs.get('standard_name') == 'latitude'
-                or variable.attrs.get('coordinate_type') == 'latitude'
-                or variable.attrs.get('units') == 'degree_north'
+                if variable.attrs.get('units') in CF_LATITUDE_UNITS
+                or variable.attrs.get('standard_name') == 'latitude'
+                or variable.attrs.get('axis') == 'Y'
             )
         except StopIteration:
             raise ValueError("Could not find latitude coordinate")
@@ -89,13 +104,17 @@ class CFGridTopology(abc.ABC):
         ``standard_name = "longitude"`` or
         ``units = "degree_east"``
         attribute.
+
+        See also
+        --------
+        https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#longitude-coordinate
         """
         try:
             return next(
                 name for name, variable in self.dataset.variables.items()
-                if variable.attrs.get('standard_name') == 'longitude'
-                or variable.attrs.get('coordinate_type') == 'longitude'
-                or variable.attrs.get('units') == 'degree_east'
+                if variable.attrs.get('units') in CF_LONGITUDE_UNITS
+                or variable.attrs.get('standard_name') == 'longitude'
+                or variable.attrs.get('axis') == 'X'
             )
         except StopIteration:
             raise ValueError("Could not find longitude coordinate")
