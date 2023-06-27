@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 title: emsarray
-version: 0.4.2
-date-released: 2023-04-24
+version: 0.4.3
+date-released: 2023-06-27
 type: software
 authors:
   - given-names: Tim
