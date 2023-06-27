@@ -26,6 +26,10 @@ jobs:
         with:
           python-version: ${{ env.python-version }}
 
+      - name: "Check py.typed file is included in wheel"
+        shell: bash -l {0}
+        run: unzip -l dist/*.whl | grep -q py.typed
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
