@@ -11,7 +11,7 @@ from __future__ import annotations
 import enum
 import logging
 from functools import cached_property
-from typing import Dict, Hashable, Optional, Tuple, cast
+from typing import Dict, Hashable, List, Optional, Tuple, cast
 
 import numpy as np
 import xarray as xr
@@ -307,8 +307,8 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
         topology = self._topology_for_grid_kind[kind]
         return {topology.j_dimension: j, topology.i_dimension: i}
 
-    def drop_geometry(self) -> xr.Dataset:
-        variables = [
+    def get_all_geometry_names(self) -> List[Hashable]:
+        return [
             self.face.longitude.name,
             self.face.latitude.name,
             self.node.longitude.name,
@@ -318,7 +318,6 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
             self.back.longitude.name,
             self.back.latitude.name,
         ]
-        return self.dataset.drop_vars(variables)
 
     def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
         kind, size = self.get_grid_kind_and_size(data_array)

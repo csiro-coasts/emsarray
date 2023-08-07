@@ -4,7 +4,7 @@ import dataclasses
 import enum
 import pathlib
 from functools import cached_property
-from typing import Dict, Hashable, Optional, Tuple
+from typing import Dict, Hashable, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -53,6 +53,9 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         if expected.issubset(data_array.dims):
             return (SimpleGridKind.face, int(np.prod(self.shape)))
         raise ValueError("Invalid dimensions")
+
+    def get_all_geometry_names(self) -> List[Hashable]:
+        return ['x', 'y']
 
     def unravel_index(
         self,

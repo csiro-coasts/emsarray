@@ -1257,14 +1257,28 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return self.select_index(index.index)
 
     @abc.abstractmethod
+    def get_all_geometry_names(self) -> List[Hashable]:
+        """
+        Return a list of the names of all geometry variables used by this convention.
+
+        See Also
+        --------
+        drop_geometry
+        """
+        pass
+
     def drop_geometry(self) -> xr.Dataset:
         """
         Return a new :class:`xarray.Dataset`
         with all geometry variables dropped.
         Useful when significantly transforming the dataset,
         such as :mod:`extracting point data <emsarray.operations.point_extraction>`.
+
+        See Also
+        --------
+        get_all_geometry_names
         """
-        pass
+        return self.dataset.drop_vars(self.get_all_geometry_names())
 
     @abc.abstractmethod
     def make_clip_mask(

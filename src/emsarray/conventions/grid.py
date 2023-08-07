@@ -11,7 +11,7 @@ import warnings
 from contextlib import suppress
 from functools import cached_property
 from typing import (
-    Dict, Generic, Hashable, Optional, Tuple, Type, TypeVar, cast
+    Dict, Generic, Hashable, List, Optional, Tuple, Type, TypeVar, cast
 )
 
 import numpy as np
@@ -264,7 +264,10 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
     def ravel_index(self, indices: CFGridIndex) -> int:
         return int(np.ravel_multi_index(indices, self.topology.shape))
 
-    def get_grid_kind_and_size(self, data_array: xr.DataArray) -> Tuple[CFGridKind, int]:
+    def get_grid_kind_and_size(
+        self,
+        data_array: xr.DataArray,
+    ) -> Tuple[CFGridKind, int]:
         expected = {self.topology.y_dimension, self.topology.x_dimension}
         dims = set(data_array.dims)
         if dims.issuperset(expected):
@@ -277,13 +280,27 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
         y, x = index
         return {self.topology.y_dimension: y, self.topology.x_dimension: x}
 
-    def drop_geometry(self) -> xr.Dataset:
-        dataset = self.dataset.drop_vars([
+    def get_all_geometry_names(self) -> List[Hashable]:
+        # Grid datasets contain latitude and longitude variables
+        # plus optional bounds variables.
+        names = [
             self.topology.longitude_name,
             self.topology.latitude_name,
-        ])
-        dataset.attrs.pop('Conventions', None)
+        ]
 
+        bounds_names: List[Optional[Hashable]] = [
+            self.topology.longitude.attrs.get('bounds', None),
+            self.topology.latitude.attrs.get('bounds', None),
+        ]
+        for bounds_name in bounds_names:
+            if bounds_name is not None and bounds_name in self.dataset.variables:
+                names.append(bounds_name)
+
+        return names
+
+    def drop_geometry(self) -> xr.Dataset:
+        dataset = super().drop_geometry()
+        dataset.attrs.pop('Conventions', None)
         return dataset
 
     def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
