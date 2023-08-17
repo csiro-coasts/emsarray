@@ -4,6 +4,7 @@ emsarray or xarray to construct the datasets. The data associated with the
 datasets are meaningless.
 """
 
+import datetime
 import functools
 import pathlib
 from typing import Callable
@@ -23,6 +24,25 @@ def dataset_maker(fn: Callable) -> Callable:
         fn(out)
 
     return wrapper
+
+
+@dataset_maker
+def make_times(out: pathlib.Path) -> None:
+    """
+    This dataset contains nothing but a time coordinate.
+    It is used for basic testing of the time coordinate detection.
+    """
+    dataset = netCDF4.Dataset(str(out), "w", format="NETCDF4")
+    dataset.createDimension("record", None)
+
+    epoc = datetime.date(1990, 1, 1)
+    one_day = datetime.timedelta(days=1)
+    start_days_since_epoc = (datetime.date(2023, 8, 17) - epoc) // one_day
+    time = dataset.createVariable("time", "f4", ["record"])
+    time[:] = np.arange(start_days_since_epoc, start_days_since_epoc + 10)
+    time.units = f"days since {epoc:%Y-%m-%d %H:%M:%S Z}"
+
+    dataset.close()
 
 
 @dataset_maker
@@ -268,6 +288,7 @@ def make_ugrid_mesh2d_one_indexed(out: pathlib.Path) -> None:
 def main() -> None:
     here = pathlib.Path(__file__).parent
 
+    make_times(here / 'times.nc')
     make_cfgrid1d(here / 'cfgrid1d.nc')
     make_cfgrid2d(here / 'cfgrid2d.nc')
     make_shoc_standard(here / 'shoc_standard.nc')

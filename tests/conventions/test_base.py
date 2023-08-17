@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import pathlib
 from functools import cached_property
 from typing import Dict, Hashable, List, Optional, Tuple
 
@@ -40,9 +41,6 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     @classmethod
     def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
         return None
-
-    def get_time_name(self) -> Hashable:
-        return 't'
 
     def get_depth_name(self) -> Hashable:
         return 'z'
@@ -112,6 +110,12 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
 
     def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
+
+
+def test_get_time_name(datasets: pathlib.Path) -> None:
+    dataset = xr.open_dataset(datasets / 'times.nc')
+    SimpleConvention(dataset).bind()
+    assert dataset.ems.get_time_name() == 'time'
 
 
 def test_mask():

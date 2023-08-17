@@ -283,10 +283,33 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             return self.dataset[data_array]
 
     def get_time_name(self) -> Hashable:
-        """Get the name of the time variable in this dataset."""
+        """Get the name of the time variable in this dataset.
+
+        If no time variable can be found, a KeyError is raised.
+
+        Returns
+        -------
+        Hashable
+            The name of the time coordinate, if one was found.
+
+        Notes
+        -----
+        According to the CF Conventions,
+        a time variable is defined by having a `units` attribute
+        formatted according to the UDUNITS package.
+
+        xarray will find all time variables and convert them to numpy datetimes.
+        """
         for name, variable in self.dataset.variables.items():
-            if variable.attrs.get('standard_name') == 'time':
-                return name
+            # xarray will automatically decode all time variables
+            # and move the 'units' attribute over to encoding to store this change.
+            if 'units' in variable.encoding:
+                units = variable.encoding['units']
+                # A time variable must have units of the form '<units> since <epoc>'
+                if 'since' in units:
+                    # The variable must now be a numpy datetime
+                    if variable.dtype.type == np.datetime64:
+                        return name
         raise KeyError("Dataset does not have a time dimension")
 
     def get_depth_name(self) -> Hashable:
