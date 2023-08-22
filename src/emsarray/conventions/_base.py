@@ -435,18 +435,40 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         return depth_names
 
+    @utils.deprecated(
+        (
+            "Convention.get_depths() is deprecated. "
+            "Use Convention.depth_coordinate.values instead."
+        ),
+        DeprecationWarning,
+    )
     def get_depths(self) -> np.ndarray:
         """Get the depth of each vertical layer in this dataset.
+
+        .. deprecated:: 0.5.0
+            This method is replaced by
+            :attr:`Convention.depth_coordinate.values <Convention.depth_coordinate>`.
 
         Returns
         -------
         :class:`numpy.ndarray`
             An array of depths, one per vertical layer in the dataset.
         """
-        return cast(np.ndarray, self.dataset.variables[self.get_depth_name()].values)
+        return cast(np.ndarray, self.depth_coordinate.values)
 
+    @utils.deprecated(
+        (
+            "Convention.get_times() is deprecated. "
+            "Use Convention.time_coordinate.values instead."
+        ),
+        DeprecationWarning,
+    )
     def get_times(self) -> np.ndarray:
         """Get all timesteps in this dataset.
+
+        .. deprecated:: 0.5.0
+            This method is replaced by
+            :attr:`Convention.time_coordinate.values <Convention.time_coordinate>`.
 
         Returns
         -------
@@ -455,7 +477,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             The datetimes will be whatever native format the dataset uses,
             likely :class:`numpy.datetime64`.
         """
-        return cast(np.ndarray, self.dataset.variables[self.get_time_name()].values)
+        return cast(np.ndarray, self.time_coordinate.values)
 
     @abc.abstractmethod
     def ravel_index(self, index: Index) -> int:

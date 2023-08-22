@@ -15,6 +15,7 @@ import itertools
 import logging
 import textwrap
 import time
+import warnings
 from types import TracebackType
 from typing import (
     Any, Callable, Hashable, Iterable, List, Literal, Mapping, MutableMapping,
@@ -721,3 +722,13 @@ def make_polygons_with_holes(
         indices=complete_row_indices,
         out=out)
     return out
+
+
+def deprecated(message: str, category: Type[Warning] = DeprecationWarning) -> Callable:
+    def decorator(fn: Callable) -> Callable:
+        @functools.wraps(fn)
+        def wrapped(*args: Any, **kwargs: Any) -> Any:
+            warnings.warn(message, category=category, stacklevel=2)
+            return fn(*args, **kwargs)
+        return wrapped
+    return decorator
