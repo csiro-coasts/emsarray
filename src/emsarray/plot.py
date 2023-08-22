@@ -102,12 +102,12 @@ def polygons_to_collection(
     **kwargs: Any,
 ) -> PolyCollection:
     """
-    Convert a list of Shapely :class:`Polygons <Polygon>`
+    Convert a list of :class:`shapely.Polygon` instances
     to a matplotlib :class:`~matplotlib.collections.PolyCollection`.
 
     Parameters
     ----------
-    polygons : iterable of Shapely :class:`Polygons <Polygon>`
+    polygons : iterable of :class:`shapely.Polygon`
         The polygons for the poly collection
     **kwargs : Any
         Keyword arguments to pass to the PolyCollection constructor.

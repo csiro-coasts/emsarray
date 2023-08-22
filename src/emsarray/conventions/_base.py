@@ -14,7 +14,7 @@ from typing import (
 import numpy as np
 import xarray as xr
 from shapely import unary_union
-from shapely.geometry import Point, Polygon
+from shapely.geometry import MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import utils
@@ -189,7 +189,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         so the CF Grid convention classes will match many datasets.
         However this match is very generic.
         A more specific implementation such as SHOC may be supported.
-        The SHOC convention implementation should return a higher specicifity than the CF grid convention.
+        The SHOC convention implementation should return a higher specicifity
+        than the CF grid convention.
 
         Parameters
         ----------
@@ -1008,10 +1009,13 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @property
     @abc.abstractmethod
     def polygons(self) -> np.ndarray:
-        """A :class:`np.ndarray` of :class:`Polygon` instances representing the cells in this dataset.
+        """A :class:`np.ndarray` of :class:`shapely.Polygon` instances
+        representing the cells in this dataset.
 
-        The order of the polygons in the list corresponds to the linear index of this dataset.
-        Not all valid cell indices have a polygon, these holes are represented as :data:`None` in the list.
+        The order of the polygons in the list
+        corresponds to the linear index of this dataset.
+        Not all valid cell indices have a polygon,
+        these holes are represented as :data:`None` in the list.
         If you want a list of just polygons, apply the :attr:`mask <Convention.mask>`:
 
         .. code-block:: python
@@ -1067,9 +1071,10 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return cast(np.ndarray, mask)
 
     @cached_property
-    def geometry(self) -> Polygon:
+    def geometry(self) -> Union[Polygon, MultiPolygon]:
         """
-        A shapely :class:`Polygon` that represents the geometry of the entire dataset.
+        A :class:`shapely.Polygon` or :class:`shapely.MultiPolygon` that represents
+        the geometry of the entire dataset.
 
         This is equivalent to the union of all polygons in the dataset,
         although specific conventions may have a simpler way of constructing this.
@@ -1090,15 +1095,15 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @utils.timed_func
     def spatial_index(self) -> SpatialIndex[SpatialIndexItem[Index]]:
         """
-        A shapely :class:`strtree.STRtree` spatial index of all cells in this dataset.
+        A :class:`shapely.strtree.STRtree` spatial index of all cells in this dataset.
         This allows for fast spatial lookups, querying which cells lie at
         a point, or which cells intersect a geometry.
 
-        Querying the index with :meth:`strtree.STRtree.query_items` will return a list
-        of :class:`SpatialIndexItem` instances. This will contain all cells
-        which have envelopes overlapping the queried geometry. The caller must
-        then refine the results further, by checking for intersection, cover,
-        or contains for example.
+        Querying the index with :meth:`~shapely.strtree.STRtree.query_items`
+        will return a list of :class:`SpatialIndexItem` instances
+        representing all cells which have envelopes overlapping the queried geometry.
+        The caller must then refine the results further,
+        for example by checking for intersection, covers, or contains.
 
         Example
         -------
@@ -1129,11 +1134,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         point: Point,
     ) -> Optional[SpatialIndexItem[Index]]:
         """
-        Find the index for a :class:`point <Point>` in the dataset.
+        Find the index for a :class:`~shapely.Point` in the dataset.
 
         Parameters
         ----------
-        point : :class:`Point`
+        point : shapely.Point
             The geographic point to query
 
         Returns
@@ -1243,12 +1248,12 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        point : :class:`Point`
+        point : shapely.Point
             The point to select
 
         Returns
         -------
-        :class:`xarray.Dataset`
+        xarray.Dataset
             A dataset of values at the point
         """
         index = self.get_index_for_point(point)
@@ -1335,7 +1340,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        clip_geometry : BaseGeometry
+        clip_geometry : shapely.BaseGeometry
             The desired area to cut out. This can be any shapely geometry type,
             but will most likely be a polygon
         buffer : int, optional
@@ -1404,7 +1409,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        clip_geometry : BaseGeometry
+        clip_geometry : shapely.BaseGeometry
             The desired area to cut out.
             This can be any shapely geometry type,
             but will most likely be a polygon
