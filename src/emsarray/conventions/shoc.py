@@ -22,6 +22,8 @@ from typing import Hashable, List, Optional, Tuple
 
 import xarray as xr
 
+from emsarray.exceptions import NoSuchCoordinateError
+
 from ._base import Specificity
 from .arakawa_c import ArakawaC, ArakawaCGridKind
 from .grid import CFGrid2D, CFGrid2DTopology
@@ -48,13 +50,21 @@ class ShocStandard(ArakawaC):
     }
 
     def get_depth_name(self) -> Hashable:
-        return 'z_centre'
+        name = 'z_centre'
+        if name not in self.dataset.variables:
+            raise NoSuchCoordinateError(
+                f"SHOC dataset did not have expected depth coordinate {name!r}")
+        return name
 
     def get_all_depth_names(self) -> List[Hashable]:
         return ['z_centre', 'z_grid']
 
     def get_time_name(self) -> Hashable:
-        return 't'
+        name = 't'
+        if name not in self.dataset.variables:
+            raise NoSuchCoordinateError(
+                f"SHOC dataset did not have expected time coordinate {name!r}")
+        return name
 
     def drop_geometry(self) -> xr.Dataset:
         dataset = super().drop_geometry()
@@ -99,10 +109,18 @@ class ShocSimple(CFGrid2D):
         return Specificity.HIGH
 
     def get_time_name(self) -> Hashable:
-        return 'time'
+        name = 'time'
+        if name not in self.dataset.variables:
+            raise NoSuchCoordinateError(
+                f"SHOC dataset did not have expected time coordinate {name!r}")
+        return name
 
     def get_depth_name(self) -> Hashable:
-        return 'zc'
+        name = 'zc'
+        if name not in self.dataset.variables:
+            raise NoSuchCoordinateError(
+                f"SHOC dataset did not have expected depth coordinate {name!r}")
+        return name
 
     def get_all_depth_names(self) -> List[Hashable]:
         return [self.get_depth_name()]

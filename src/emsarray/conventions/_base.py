@@ -19,6 +19,7 @@ from shapely.geometry.base import BaseGeometry
 
 from emsarray import utils
 from emsarray.compat.shapely import SpatialIndex
+from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.operations import depth
 from emsarray.plot import (
     _requires_plot, animate_on_figure, plot_on_figure, polygons_to_collection
@@ -285,20 +286,27 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def get_time_name(self) -> Hashable:
         """Get the name of the time variable in this dataset.
 
-        If no time variable can be found, a KeyError is raised.
-
         Returns
         -------
         Hashable
-            The name of the time coordinate, if one was found.
+            The name of the time coordinate.
+
+        Raises
+        ------
+        exceptions.NoSuchCoordinateError
+            If no time coordinate was found
 
         Notes
         -----
-        According to the CF Conventions,
+        The CF Conventions state that
         a time variable is defined by having a `units` attribute
-        formatted according to the UDUNITS package.
+        formatted according to the UDUNITS package [1]_.
 
         xarray will find all time variables and convert them to numpy datetimes.
+
+        References
+        ----------
+        .. [1] `CF Conventions v1.10, 4.4 Time Coordinate <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#time-coordinate>`_
         """
         for name, variable in self.dataset.variables.items():
             # xarray will automatically decode all time variables
@@ -310,17 +318,47 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                     # The variable must now be a numpy datetime
                     if variable.dtype.type == np.datetime64:
                         return name
-        raise KeyError("Dataset does not have a time dimension")
+        raise NoSuchCoordinateError("Could not find time coordinate in dataset")
 
     def get_depth_name(self) -> Hashable:
         """Get the name of the layer depth coordinate variable.
+
         For datasets with multiple depth variables, this should be the one that
         represents the centre of the layer, not the bounds.
 
         Note that this is the name of the coordinate variable,
         not the name of the dimension, for datasets where these differ.
+
+        Returns
+        -------
+        Hashable
+            The name of the depth coordinate.
+
+        Raises
+        ------
+        exceptions.NoSuchCoordinateError
+            If no time coordinate was found
+
+        Notes
+        -----
+        The CF Conventions state that
+        a depth variable is identifiable by units of pressure; or
+        the presence of the ``positive`` attribute with value of ``up`` or ``down``
+        [2]_.
+
+        In practice, many datasets do not follow this convention.
+        In addition to checking for the ``positive`` attribute,
+        all coordinates are checked for a ``standard_name: "depth"``,
+        ``coordinate_type: "Z"``, or ``axiz: "Z"``.
+
+        References
+        ----------
+        .. [2] `CF Conventions v1.10, 4.3 Vertical (Height or Depth) Coordinate <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#vertical-coordinate>`_
         """
-        return self.get_all_depth_names()[0]
+        try:
+            return self.get_all_depth_names()[0]
+        except IndexError:
+            raise NoSuchCoordinateError("Could not find depth coordinate in dataset")
 
     def get_all_depth_names(self) -> List[Hashable]:
         """Get the names of all depth layers.
@@ -335,7 +373,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             data_array = self.dataset[name]
 
             if not (
-                data_array.attrs.get('axis') == 'Z'
+                data_array.attrs.get('positive', '').lower() in {'up', 'down'}
+                or data_array.attrs.get('axis') == 'Z'
                 or data_array.attrs.get('cartesian_axis') == 'Z'
                 or data_array.attrs.get('coordinate_type') == 'Z'
                 or data_array.attrs.get('standard_name') == 'depth'
