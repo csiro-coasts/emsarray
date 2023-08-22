@@ -111,6 +111,7 @@ def test_get_time_name(datasets: pathlib.Path) -> None:
     dataset = xr.open_dataset(datasets / 'times.nc')
     SimpleConvention(dataset).bind()
     assert dataset.ems.get_time_name() == 'time'
+    xr.testing.assert_equal(dataset.ems.time_coordinate, dataset['time'])
 
 
 def test_get_time_name_missing() -> None:
@@ -132,6 +133,7 @@ def test_get_depth_name(attrs: dict) -> None:
     })
     SimpleConvention(dataset).bind()
     assert dataset.ems.get_depth_name() == 'name'
+    xr.testing.assert_equal(dataset.ems.depth_coordinate, dataset['name'])
 
 
 def test_get_depth_name_missing() -> None:

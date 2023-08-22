@@ -283,6 +283,46 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         else:
             return self.dataset[data_array]
 
+    @cached_property
+    def time_coordinate(self) -> xr.DataArray:
+        """The time coordinate for this dataset.
+
+        Returns
+        -------
+        xarray.DataArray
+            The variable for the time coordinate for this dataset.
+
+        Raises
+        ------
+        exceptions.NoSuchCoordinateError
+            If no time coordinate was found
+
+        See Also
+        --------
+        get_time_name
+        """
+        return self.dataset[self.get_time_name()]
+
+    @cached_property
+    def depth_coordinate(self) -> xr.DataArray:
+        """The depth coordinate for this dataset.
+
+        Returns
+        -------
+        xarray.DataArray
+            The variable for the depth coordinate for this dataset.
+
+        Raises
+        ------
+        exceptions.NoSuchCoordinateError
+            If no depth coordinate was found
+
+        See Also
+        --------
+        get_depth_name
+        """
+        return self.dataset[self.get_depth_name()]
+
     def get_time_name(self) -> Hashable:
         """Get the name of the time variable in this dataset.
 
