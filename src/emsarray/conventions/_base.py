@@ -74,11 +74,12 @@ Index = TypeVar("Index")
 
 @dataclasses.dataclass
 class SpatialIndexItem(Generic[Index]):
-    """Information about an item in the STRtree spatial index for a dataset.
+    """Information about an item in the :class:`~shapely.strtree.STRtree`
+    spatial index for a dataset.
 
     See Also
     --------
-    :attr:`.Convention.spatial_index`
+    Convention.spatial_index
     """
 
     #: The linear index of this cell
@@ -161,7 +162,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @classmethod
     def check_validity(cls, dataset: xr.Dataset) -> None:
         """Checks that the dataset is OK to use.
-        Called during __init__, and raises exceptions if the dataset has problems.
+        Called during ``__init__``, and raises an exception if the dataset has problems.
         """
         pass  # Subclasses can override this. By default, no checks are made
 
@@ -191,7 +192,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        dataset : :class:`xarray.Dataset`
+        dataset : xarray.Dataset
             The dataset instance to inspect.
 
         Returns
@@ -234,8 +235,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             to autodetect the dataset convention you do not need to call this method.
             :meth:`Convention.bind` is only useful if you manually construct a :class:`Convention`.
 
-        Example
-        -------
+        Examples
+        --------
 
         .. code-block:: python
 
@@ -521,7 +522,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         See Also
         --------
-        :meth:`.unravel_index`
+        :meth:`.Convention.unravel_index` : The inverse operation
         """
         pass
 
@@ -540,7 +541,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         linear_index : int
             The linear index to unravel.
-        grid_kind : GridKind, optional
+        grid_kind : :data:`.GridKind`, optional
             Used to indicate what kind of index is being unravelled,
             for conventions with multiple grids.
             Optional, if not provided this will return the unravelled face index.
@@ -568,7 +569,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         See Also
         --------
-        :meth:`.ravel_index`
+        :meth:`.Convention.ravel_index` : The inverse operation
         """
         pass
 
@@ -576,7 +577,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @abc.abstractmethod
     def grid_kinds(self) -> FrozenSet[GridKind]:
         """
-        All of the :data:`grid kinds <GridKind>` this dataset includes.
+        All of the :data:`grid kinds <.GridKind>` this dataset includes.
         """
         pass
 
@@ -584,7 +585,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @abc.abstractmethod
     def default_grid_kind(self) -> GridKind:
         """
-        The default :data:`grid kind <GridKind>` for this dataset.
+        The default :data:`grid kind <.GridKind>` for this dataset.
         For most datasets this should be the face grid.
         """
         pass
@@ -602,16 +603,16 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        data_array
+        data_array : xarray.DataArray
             The data array to introspect
 
         Returns
         -------
-        tuple of :data:`GridKind` and int
+        tuple of :data:`.GridKind` and int
 
         Raises
         ------
-        `ValueError`
+        ValueError
             If the data array passed in is not indexable using any native index type
             a ValueError is raised.
             Depth coordinates or time coordinates are examples of data arrays
@@ -644,7 +645,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
         """
         Flatten the surface dimensions of a :class:`~xarray.DataArray`,
-        returning a flatter :class:`np.ndarray` indexed in the same order as the linear index.
+        returning a flatter :class:`numpy.ndarray` indexed in the same order as the linear index.
 
         For DataArrays with extra dimensions such as time or depth,
         only the surface dimensions are flattened.
@@ -657,7 +658,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        data_array
+        data_array : xarray.DataArray
             One of the data variables from this dataset.
 
         Returns
@@ -675,7 +676,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         The coordinate reference system that coordinates in this dataset are
         defined in.
-        Used by :meth:`.make_poly_collection` and :meth:`.make_quiver`.
+        Used by :meth:`.Convention.make_poly_collection` and :meth:`.Convention.make_quiver`.
         Defaults to :class:`cartopy.crs.PlateCarree`.
         """
         # Lazily imported here as cartopy is an optional dependency
@@ -698,21 +699,20 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         The data array does not have to come from the same dataset,
         as long as the dimensions are the same.
 
+        This method will only plot a single time step and depth layer.
+        Callers are responsible for selecting a single slice before calling this method.
+
         Parameters
         ----------
-        figure
+        figure : matplotlib.figure.Figure
             The :class:`~matplotlib.figure.Figure` instance to plot this on.
-        scalar : data array
+        scalar : xarray.DataArray or str
             The :class:`~xarray.DataArray` to plot,
             or the name of an existing DataArray in this Dataset.
-            This method will only plot a single time step and depth layer.
-            Callers are responsible for selecting a single slice.
-        vector : tuple of data arrays
+        vector : tuple of xarray.DataArray or str
             A tuple of the *u* and *v* components of a vector.
             The components should be a :class:`~xarray.DataArray`,
             or the name of an existing DataArray in this Dataset.
-            This method will only plot a single time step and depth layer.
-            Callers are responsible for selecting a single slice.
 
         See Also
         --------
@@ -967,6 +967,25 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         v: Optional[DataArrayOrName] = None,
         **kwargs: Any,
     ) -> Quiver:
+        """
+        Make a :class:`matplotlib.quiver.Quiver` instance to plot vector data.
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+            The axes to make this quiver on.
+        u, v : xarray.DataArray or str, optional
+            The DataArrays or the names of DataArrays in this dataset
+            that make up the *u* and *v* components of the vector.
+            If omitted, a Quiver will be constructed with all components set to 0.
+        **kwargs
+            Any keyword arguments are passed on to the Quiver constructor.
+
+        Returns
+        -------
+        matplotlib.quiver.Quiver
+            A quiver instance that can be added to a plot
+        """
         from matplotlib.quiver import Quiver
 
         x, y = np.transpose(self.face_centres)
@@ -1006,7 +1025,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @property
     @abc.abstractmethod
     def polygons(self) -> np.ndarray:
-        """A :class:`np.ndarray` of :class:`shapely.Polygon` instances
+        """A :class:`numpy.ndarray` of :class:`shapely.Polygon` instances
         representing the cells in this dataset.
 
         The order of the polygons in the list
@@ -1047,7 +1066,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @cached_property
     def mask(self) -> np.ndarray:
         """
-        A boolean :class:`np.ndarray` indicating which cells have valid polygons.
+        A boolean :class:`numpy.ndarray` indicating which cells have valid polygons.
         This can be used to select only items from linear arrays
         that have a corresponding polygon.
 
