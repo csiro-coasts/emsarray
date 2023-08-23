@@ -1,7 +1,7 @@
 """
 Unstructured grid convention.
 
-See also
+See Also
 --------
 `UGRID conventions <https://ugrid-conventions.github.io/ugrid-conventions/>`_
 """
@@ -1186,9 +1186,10 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         """
         Make a new dataset by applying a clip mask to this dataset.
 
-        See also:
-        * :meth:`make_clip_mask`
-        * :func:`mask_from_face_indices`
+        See Also
+        --------
+        :meth:`make_clip_mask`
+        :func:`mask_from_face_indices`
         """
         logger.info("Applying clip mask")
         dataset = self.dataset

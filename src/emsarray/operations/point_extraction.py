@@ -6,7 +6,7 @@ subsets the dataset at the point specified in each row,
 and merges the dataset with the dataframe.
 The points extracted will form the coordinates for the new dataset.
 
-:func:`.extract_points` takes a list of Shapely :class:`Points <Point>`,
+:func:`.extract_points` takes a list of :class:`Points <shapely.Point>`,
 subsets the dataset at these points,
 and returns a new dataset with out any associated geometry.
 This is useful if you want to add your own metadata to the subset dataset.

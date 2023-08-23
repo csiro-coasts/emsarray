@@ -10,7 +10,7 @@ SHOC standard datasets can be simplified in to a SHOC simple dataset,
 which is a :class:`curvilinear CF grid <.grid.CFGrid2D>`
 with known coordinate names.
 
-See also
+See Also
 --------
 `SHOC documentation <https://research.csiro.au/cem/software/ems/hydro/strucutured-shoc/>`_
 """

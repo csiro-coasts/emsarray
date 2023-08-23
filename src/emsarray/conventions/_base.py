@@ -14,7 +14,7 @@ from typing import (
 import numpy as np
 import xarray as xr
 from shapely import unary_union
-from shapely.geometry import Point, Polygon
+from shapely.geometry import MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import utils
@@ -74,11 +74,12 @@ Index = TypeVar("Index")
 
 @dataclasses.dataclass
 class SpatialIndexItem(Generic[Index]):
-    """Information about an item in the STRtree spatial index for a dataset.
+    """Information about an item in the :class:`~shapely.strtree.STRtree`
+    spatial index for a dataset.
 
-    See also
+    See Also
     --------
-    :attr:`.Convention.spatial_index`
+    Convention.spatial_index
     """
 
     #: The linear index of this cell
@@ -147,9 +148,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     You can convert between a linear and a native index
     using :meth:`.ravel_index` and :meth:`.unravel_index`.
     Refer to :ref:`indexing` for more information.
-
-    The depths of each layer can be found using :meth:`.get_depths`.
-    The timesteps in a dataset can be found using :meth:`.get_times`.
     """
     #: The :class:`xarray.Dataset` instance for this :class:`Convention`
     dataset: xr.Dataset
@@ -164,7 +162,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @classmethod
     def check_validity(cls, dataset: xr.Dataset) -> None:
         """Checks that the dataset is OK to use.
-        Called during __init__, and raises exceptions if the dataset has problems.
+        Called during ``__init__``, and raises an exception if the dataset has problems.
         """
         pass  # Subclasses can override this. By default, no checks are made
 
@@ -189,11 +187,12 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         so the CF Grid convention classes will match many datasets.
         However this match is very generic.
         A more specific implementation such as SHOC may be supported.
-        The SHOC convention implementation should return a higher specicifity than the CF grid convention.
+        The SHOC convention implementation should return a higher specicifity
+        than the CF grid convention.
 
         Parameters
         ----------
-        dataset : :class:`xarray.Dataset`
+        dataset : xarray.Dataset
             The dataset instance to inspect.
 
         Returns
@@ -236,8 +235,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             to autodetect the dataset convention you do not need to call this method.
             :meth:`Convention.bind` is only useful if you manually construct a :class:`Convention`.
 
-        Example
-        -------
+        Examples
+        --------
 
         .. code-block:: python
 
@@ -521,9 +520,9 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             >>> linear_index = dataset.ems.ravel_index(index)
             >>> polygon = dataset.ems.polygons[linear_index]
 
-        See also
+        See Also
         --------
-        :meth:`.unravel_index`
+        :meth:`.Convention.unravel_index` : The inverse operation
         """
         pass
 
@@ -542,7 +541,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         linear_index : int
             The linear index to unravel.
-        grid_kind : GridKind, optional
+        grid_kind : :data:`.GridKind`, optional
             Used to indicate what kind of index is being unravelled,
             for conventions with multiple grids.
             Optional, if not provided this will return the unravelled face index.
@@ -568,9 +567,9 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             >>> dataset.ems.unravel_index(124)
             (3, 4)
 
-        See also
+        See Also
         --------
-        :meth:`.ravel_index`
+        :meth:`.Convention.ravel_index` : The inverse operation
         """
         pass
 
@@ -578,7 +577,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @abc.abstractmethod
     def grid_kinds(self) -> FrozenSet[GridKind]:
         """
-        All of the :data:`grid kinds <GridKind>` this dataset includes.
+        All of the :data:`grid kinds <.GridKind>` this dataset includes.
         """
         pass
 
@@ -586,7 +585,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @abc.abstractmethod
     def default_grid_kind(self) -> GridKind:
         """
-        The default :data:`grid kind <GridKind>` for this dataset.
+        The default :data:`grid kind <.GridKind>` for this dataset.
         For most datasets this should be the face grid.
         """
         pass
@@ -604,16 +603,16 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        data_array
+        data_array : xarray.DataArray
             The data array to introspect
 
         Returns
         -------
-        tuple of :data:`GridKind` and int
+        tuple of :data:`.GridKind` and int
 
         Raises
         ------
-        `ValueError`
+        ValueError
             If the data array passed in is not indexable using any native index type
             a ValueError is raised.
             Depth coordinates or time coordinates are examples of data arrays
@@ -646,7 +645,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
         """
         Flatten the surface dimensions of a :class:`~xarray.DataArray`,
-        returning a flatter :class:`np.ndarray` indexed in the same order as the linear index.
+        returning a flatter :class:`numpy.ndarray` indexed in the same order as the linear index.
 
         For DataArrays with extra dimensions such as time or depth,
         only the surface dimensions are flattened.
@@ -659,7 +658,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        data_array
+        data_array : xarray.DataArray
             One of the data variables from this dataset.
 
         Returns
@@ -677,7 +676,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         The coordinate reference system that coordinates in this dataset are
         defined in.
-        Used by :meth:`.make_poly_collection` and :meth:`.make_quiver`.
+        Used by :meth:`.Convention.make_poly_collection` and :meth:`.Convention.make_quiver`.
         Defaults to :class:`cartopy.crs.PlateCarree`.
         """
         # Lazily imported here as cartopy is an optional dependency
@@ -700,23 +699,22 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         The data array does not have to come from the same dataset,
         as long as the dimensions are the same.
 
+        This method will only plot a single time step and depth layer.
+        Callers are responsible for selecting a single slice before calling this method.
+
         Parameters
         ----------
-        figure
+        figure : matplotlib.figure.Figure
             The :class:`~matplotlib.figure.Figure` instance to plot this on.
-        scalar : data array
+        scalar : xarray.DataArray or str
             The :class:`~xarray.DataArray` to plot,
             or the name of an existing DataArray in this Dataset.
-            This method will only plot a single time step and depth layer.
-            Callers are responsible for selecting a single slice.
-        vector : tuple of data arrays
+        vector : tuple of xarray.DataArray or str
             A tuple of the *u* and *v* components of a vector.
             The components should be a :class:`~xarray.DataArray`,
             or the name of an existing DataArray in this Dataset.
-            This method will only plot a single time step and depth layer.
-            Callers are responsible for selecting a single slice.
 
-        See also
+        See Also
         --------
         :func:`.plot.plot_on_figure` : The underlying implementation
         """
@@ -767,7 +765,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         This method is most useful when working in Jupyter notebooks
         which display figures automatically.
 
-        See also
+        See Also
         --------
         :meth:`.plot_on_figure`
         """
@@ -814,7 +812,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             to save animation to a file, or display it in a Notebook using
             :meth:`Animation.to_jshtml() <matplotlib.animation.Animation.to_jshtml>`.
 
-        See also
+        See Also
         --------
         :func:`.plot.animate_on_figure`
         """
@@ -969,6 +967,25 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         v: Optional[DataArrayOrName] = None,
         **kwargs: Any,
     ) -> Quiver:
+        """
+        Make a :class:`matplotlib.quiver.Quiver` instance to plot vector data.
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+            The axes to make this quiver on.
+        u, v : xarray.DataArray or str, optional
+            The DataArrays or the names of DataArrays in this dataset
+            that make up the *u* and *v* components of the vector.
+            If omitted, a Quiver will be constructed with all components set to 0.
+        **kwargs
+            Any keyword arguments are passed on to the Quiver constructor.
+
+        Returns
+        -------
+        matplotlib.quiver.Quiver
+            A quiver instance that can be added to a plot
+        """
         from matplotlib.quiver import Quiver
 
         x, y = np.transpose(self.face_centres)
@@ -1008,10 +1025,13 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @property
     @abc.abstractmethod
     def polygons(self) -> np.ndarray:
-        """A :class:`np.ndarray` of :class:`Polygon` instances representing the cells in this dataset.
+        """A :class:`numpy.ndarray` of :class:`shapely.Polygon` instances
+        representing the cells in this dataset.
 
-        The order of the polygons in the list corresponds to the linear index of this dataset.
-        Not all valid cell indices have a polygon, these holes are represented as :data:`None` in the list.
+        The order of the polygons in the list
+        corresponds to the linear index of this dataset.
+        Not all valid cell indices have a polygon,
+        these holes are represented as :data:`None` in the list.
         If you want a list of just polygons, apply the :attr:`mask <Convention.mask>`:
 
         .. code-block:: python
@@ -1019,7 +1039,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             dataset = emsarray.open_dataset("...")
             only_polygons = dataset.ems.polygons[dataset.ems.mask]
 
-        See also
+        See Also
         --------
         :meth:`ravel_index`
         :attr:`mask`
@@ -1046,7 +1066,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @cached_property
     def mask(self) -> np.ndarray:
         """
-        A boolean :class:`np.ndarray` indicating which cells have valid polygons.
+        A boolean :class:`numpy.ndarray` indicating which cells have valid polygons.
         This can be used to select only items from linear arrays
         that have a corresponding polygon.
 
@@ -1057,7 +1077,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             plottable_polygons = dataset.ems.polygons[mask]
             plottable_values = dataset.ems.make_linear("eta")[mask]
 
-        See also
+        See Also
         --------
         :meth:`Convention.make_linear`
         """
@@ -1067,9 +1087,10 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return cast(np.ndarray, mask)
 
     @cached_property
-    def geometry(self) -> Polygon:
+    def geometry(self) -> Union[Polygon, MultiPolygon]:
         """
-        A shapely :class:`Polygon` that represents the geometry of the entire dataset.
+        A :class:`shapely.Polygon` or :class:`shapely.MultiPolygon` that represents
+        the geometry of the entire dataset.
 
         This is equivalent to the union of all polygons in the dataset,
         although specific conventions may have a simpler way of constructing this.
@@ -1090,15 +1111,15 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @utils.timed_func
     def spatial_index(self) -> SpatialIndex[SpatialIndexItem[Index]]:
         """
-        A shapely :class:`strtree.STRtree` spatial index of all cells in this dataset.
+        A :class:`shapely.strtree.STRtree` spatial index of all cells in this dataset.
         This allows for fast spatial lookups, querying which cells lie at
         a point, or which cells intersect a geometry.
 
-        Querying the index with :meth:`strtree.STRtree.query_items` will return a list
-        of :class:`SpatialIndexItem` instances. This will contain all cells
-        which have envelopes overlapping the queried geometry. The caller must
-        then refine the results further, by checking for intersection, cover,
-        or contains for example.
+        Querying the index with :meth:`~shapely.strtree.STRtree.query_items`
+        will return a list of :class:`SpatialIndexItem` instances
+        representing all cells which have envelopes overlapping the queried geometry.
+        The caller must then refine the results further,
+        for example by checking for intersection, covers, or contains.
 
         Example
         -------
@@ -1113,7 +1134,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 if polygon.intersects(shape)
             ]
 
-        See also
+        See Also
         --------
         :class:`.SpatialIndexItem`
         """
@@ -1129,11 +1150,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         point: Point,
     ) -> Optional[SpatialIndexItem[Index]]:
         """
-        Find the index for a :class:`point <Point>` in the dataset.
+        Find the index for a :class:`~shapely.Point` in the dataset.
 
         Parameters
         ----------
-        point : :class:`Point`
+        point : shapely.Point
             The geographic point to query
 
         Returns
@@ -1179,7 +1200,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             A dict suitable for passing to :meth:`xarray.Dataset.isel`
             that will select values at this index.
 
-        See also
+        See Also
         --------
         :meth:`.select_index`
         :meth:`.select_point`
@@ -1243,12 +1264,12 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        point : :class:`Point`
+        point : shapely.Point
             The point to select
 
         Returns
         -------
-        :class:`xarray.Dataset`
+        xarray.Dataset
             A dataset of values at the point
         """
         index = self.get_index_for_point(point)
@@ -1335,7 +1356,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        clip_geometry : BaseGeometry
+        clip_geometry : shapely.BaseGeometry
             The desired area to cut out. This can be any shapely geometry type,
             but will most likely be a polygon
         buffer : int, optional
@@ -1349,7 +1370,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :class:`xarray.Dataset`
             The mask
 
-        See also
+        See Also
         --------
         :func:`apply_clip_mask`
         :func:`clip`
@@ -1404,7 +1425,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        clip_geometry : BaseGeometry
+        clip_geometry : shapely.BaseGeometry
             The desired area to cut out.
             This can be any shapely geometry type,
             but will most likely be a polygon

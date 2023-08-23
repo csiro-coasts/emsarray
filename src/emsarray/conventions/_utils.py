@@ -33,7 +33,7 @@ def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
         import emsarray
         dataset = emsarray.open_dataset("./tests/datasets/ugrid_mesh2d.nc")
 
-    See also
+    See Also
     --------
     :func:`xarray.open_dataset`
     """

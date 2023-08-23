@@ -293,7 +293,7 @@ def test_clip_unmasked_dataset(tmp_path: pathlib.Path):
     stored as a int with a _FillValue, add_offset, and scale_factor.
     If opened with mask_and_scale=False, clipping must use _FillValue directly.
 
-    See also
+    See Also
     --------
     https://github.com/csiro-coasts/emsarray/pull/4
     """

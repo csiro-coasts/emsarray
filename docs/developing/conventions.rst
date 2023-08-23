@@ -99,7 +99,7 @@ This selector can be used to subset the dataset to a single grid index.
 .. literalinclude:: ./grass.py
    :pyobject: Grass.selector_for_index
 
-:attr:`.Convention.polygons` is an array of shapely :class:`Polygon` instances,
+:attr:`.Convention.polygons` is an array of :class:`shapely.Polygon` instances,
 one for each face in the dataset.
 If a cell does not have a valid polygon
 --- for example, if the coordinates for that polygon have been dropped

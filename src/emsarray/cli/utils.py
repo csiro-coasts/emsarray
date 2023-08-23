@@ -99,7 +99,7 @@ def console_entrypoint(
 
             ...  # Continue on with the rest of the program
 
-    See also
+    See Also
     --------
 
     :func:`.nice_console_errors`
@@ -336,7 +336,7 @@ def geometry_argument(argument_string: str) -> BaseGeometry:
 def bounds_argument(bounds_string: str) -> BaseGeometry:
     """
     Parse a comma separated string of (lon_min, lat_min, lon_max, lat_max)
-    in to a :class:`shapely.geometry.Polygon`. Used as an :mod:`argparse`
+    in to a :class:`shapely.Polygon`. Used as an :mod:`argparse`
     parameter ``type``.
 
     Example

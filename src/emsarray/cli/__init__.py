@@ -33,7 +33,7 @@ def main(options: argparse.Namespace) -> None:
     """
     The main entry point for :mod:`emsarray` as a command line utility.
 
-    See also
+    See Also
     --------
     :ref:`cli`
     """
