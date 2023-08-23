@@ -147,9 +147,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     You can convert between a linear and a native index
     using :meth:`.ravel_index` and :meth:`.unravel_index`.
     Refer to :ref:`indexing` for more information.
-
-    The depths of each layer can be found using :meth:`.get_depths`.
-    The timesteps in a dataset can be found using :meth:`.get_times`.
     """
     #: The :class:`xarray.Dataset` instance for this :class:`Convention`
     dataset: xr.Dataset
