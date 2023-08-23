@@ -14,3 +14,6 @@ Next release (in development)
   deprecate :meth:`.Convention.get_times()` and :meth:`.Convention.get_depths()`
   (:pr:`92`).
 * Add :meth:`.Convention.select_variables` (:pr:`93`).
+* Fix various small issues with the docs.
+  Use newer version of ``sphinx-book-theme`` for documentation
+  (:pr:`91`).
