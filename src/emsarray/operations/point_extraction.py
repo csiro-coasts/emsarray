@@ -11,19 +11,16 @@ subsets the dataset at these points,
 and returns a new dataset with out any associated geometry.
 This is useful if you want to add your own metadata to the subset dataset.
 
-If any of the supplied points does not intersect the dataset geometry,
-a :exc:`.NonIntersectingPoints` exception is raised.
-This will include the indices of the points that do not intersect.
-
 :ref:`emsarray extract-points` is a command line interface to :func:`.extract_dataframe`.
 """
 import dataclasses
-from typing import Hashable, List, Tuple
+from typing import Any, Hashable, List, Literal, Tuple
 
 import numpy as np
 import pandas as pd
+import shapely
 import xarray as xr
-from shapely.geometry import Point
+import xarray.core.dtypes as xrdtypes
 
 from emsarray.conventions import Convention
 
@@ -38,7 +35,7 @@ class NonIntersectingPoints(ValueError):
     indices: np.ndarray
 
     #: The non-intersecting points
-    points: List[Point]
+    points: List[shapely.Point]
 
     def __post_init__(self) -> None:
         super().__init__(f"{self.points[0].wkt} does not intersect the dataset geometry")
@@ -49,24 +46,19 @@ def _dataframe_to_dataset(
     *,
     dimension_name: Hashable,
 ) -> xr.Dataset:
-    """
-    Convert a pandas DataFrame to an xarray Dataset.
-    pandas adds an 'index' coordinate that numbers the 'index' dimension.
-    We don't need the coordinate, and the dimension needs to be renamed.
-    """
-    index_name = dataframe.index.name or 'index'
+    """Convert a pandas DataFrame to an xarray Dataset."""
+    dataframe = dataframe.copy()
+    dataframe.index.name = dimension_name
     dataset = dataframe.to_xarray()
-    dataset = dataset.drop_vars(index_name)
-    if dimension_name != index_name:
-        dataset = dataset.rename_dims({index_name: dimension_name})
     return dataset
 
 
 def extract_points(
     dataset: xr.Dataset,
-    points: List[Point],
+    points: List[shapely.Point],
     *,
     point_dimension: Hashable = 'point',
+    missing_points: Literal['error', 'drop'] = 'error',
 ) -> xr.Dataset:
     """
     Drop all data except for cells that intersect the given points.
@@ -80,19 +72,27 @@ def extract_points(
     ----------
     dataset : xarray.Dataset
         The dataset to extract point data from.
-    points : list of :class:`Point`
+    points : list of :class:`shapely.Point`
         The points to select.
     point_dimension : Hashable, optional
         The name of the new dimension to index points along.
         Defaults to ``"point"``.
+    errors : {'raise', 'drop'}, default 'raise'
+        How to handle points which do not intersect the dataset.
+
+        - If 'raise', a :exc:`NonIntersectingPoints` is raised.
+        - If 'drop', the points are dropped from the returned dataset.
 
     Returns
     -------
     xarray.Dataset
         A subset of the input dataset that only contains data at the given points.
-        The dataset will only contain the values, without any coordinate information.
+        The dataset will only contain the values, without any geometry coordinates.
+        The `point_dimension` dimension will have a coordinate with the same name
+        whose values match the indices of the `points` array.
+        This is useful when `errors` is 'drop' to find out which points were dropped.
 
-    See also
+    See Also
     --------
     :func:`extract_dataframe`
     """
@@ -101,23 +101,28 @@ def extract_points(
     # Find the indexer for each given point
     indexes = np.array([convention.get_index_for_point(point) for point in points])
 
-    # TODO It would be nicer if out-of-bounds points were represented in the
-    # output by masked values, rather than raising an error.
-    out_of_bounds = np.flatnonzero(np.equal(indexes, None))  # type: ignore
-    if len(out_of_bounds):
-        raise NonIntersectingPoints(
-            indices=out_of_bounds,
-            points=[points[i] for i in out_of_bounds])
+    if missing_points == 'error':
+        out_of_bounds = np.flatnonzero(np.equal(indexes, None))  # type: ignore
+        if len(out_of_bounds):
+            raise NonIntersectingPoints(
+                indices=out_of_bounds,
+                points=[points[i] for i in out_of_bounds])
 
     # Make a DataFrame out of all point indexers
     selector_df = pd.DataFrame([
         convention.selector_for_index(index.index)
         for index in indexes
         if index is not None])
+    point_indexes = [i for i, index in enumerate(indexes) if index is not None]
 
     # Subset the dataset to the points
+    point_ds = convention.drop_geometry()
     selector_ds = _dataframe_to_dataset(selector_df, dimension_name=point_dimension)
-    return convention.drop_geometry().isel(selector_ds)
+    point_ds = point_ds.isel(selector_ds)
+    point_ds = point_ds.assign_coords({
+        point_dimension: ([point_dimension], point_indexes),
+    })
+    return point_ds
 
 
 def extract_dataframe(
@@ -126,6 +131,8 @@ def extract_dataframe(
     coordinate_columns: Tuple[str, str],
     *,
     point_dimension: Hashable = 'point',
+    missing_points: Literal['error', 'drop', 'fill'] = 'error',
+    fill_value: Any = xrdtypes.NA,
 ) -> xr.Dataset:
     """
     Extract the points listed in a pandas :class:`~pandas.DataFrame`,
@@ -143,12 +150,27 @@ def extract_dataframe(
     point_dimension : Hashable, optional
         The name of the new dimension to create in the dataset.
         Optional, defaults to "point".
+    missing_points : {'error', 'drop', 'fill'}, default 'error'
+        How to handle points that do not intersect the dataset geometry:
+
+        - 'error' will raise a :class:`.NonIntersectingPoints` exception.
+        - 'drop' will drop those points from the dataset.
+        - 'fill' will include those points but all data variables
+          will be filled with an appropriate fill value
+          such as :data:`numpy.nan` for float values.
+    fill_value
+        Passed to :meth:`xarray.Dataset.merge` when `missing_points` is 'fill'.
+        See the documentation for that method for all options.
+        Defaults to a sensible fill value for each variables dtype.
 
     Returns
     -------
     xarray.Dataset
         A new dataset that only contains data at the given points,
         plus any new columns present in the dataframe.
+        The `point_dimension` dimension will have a coordinate with the same name
+        whose values match the row numbers of the dataframe.
+        This is useful when `missing_points` is "drop" to find out which points were dropped.
 
     Example
     -------
@@ -176,9 +198,10 @@ def extract_dataframe(
         Coordinates:
             zc       (k) float32 ...
           * time     (time) datetime64[ns] 2022-05-11T14:00:00
+          * point    (point) int64 0 1 2
             lon      (point) float64 152.8 152.7 153.5
             lat      (point) float64 -24.96 -24.59 -25.49
-        Dimensions without coordinates: k, point
+        Dimensions without coordinates: k
         Data variables:
             botz     (point) float32 ...
             eta      (time, point) float32 ...
@@ -191,24 +214,26 @@ def extract_dataframe(
     lon_coord, lat_coord = coordinate_columns
 
     # Extract the points from the dataset
-    points = [
-        Point(row[lon_coord], row[lat_coord])
-        for i, row in dataframe.iterrows()]
-    point_dataset = extract_points(dataset, points, point_dimension=point_dimension)
+    points = shapely.points(np.c_[dataframe[lon_coord], dataframe[lat_coord]])
+
+    point_dataset = extract_points(
+        dataset, points, point_dimension=point_dimension,
+        missing_points='error' if missing_points == 'error' else 'drop')
+    coord_dataset = _dataframe_to_dataset(dataframe, dimension_name=point_dimension)
 
     # Merge in the dataframe
-    point_dataset = point_dataset.merge(_dataframe_to_dataset(
-        dataframe, dimension_name=point_dimension))
+    join: Literal['outer', 'inner'] = 'outer' if missing_points == 'fill' else 'inner'
+    point_dataset = point_dataset.merge(coord_dataset, join=join, fill_value=fill_value)
     point_dataset = point_dataset.set_coords(coordinate_columns)
 
     # Add CF attributes to the new coordinate variables
     point_dataset[lon_coord].attrs.update({
-        "long_name": "longitude",
+        "long_name": "Longitude",
         "units": "degrees_east",
         "standard_name": "longitude",
     })
     point_dataset[lat_coord].attrs.update({
-        "long_name": "latitude",
+        "long_name": "Latitude",
         "units": "degrees_north",
         "standard_name": "latitude",
     })
