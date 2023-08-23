@@ -83,7 +83,7 @@ def ocean_floor(
         Data variables:
             temp     (y, x) float64 0.0 1.0 2.0 3.0 4.0 1.0 ... 4.0 4.0 4.0 4.0 4.0
 
-    See also
+    See Also
     --------
     :meth:`.Convention.ocean_floor`
     :meth:`.Convention.get_all_depth_names`
@@ -227,7 +227,7 @@ def normalize_depth_variables(
         When true (the default), the layers are ordered such that deeper layers
         have lower indices.
 
-    See also
+    See Also
     --------
 
     :meth:`.Convention.normalize_depth_variables`

@@ -141,7 +141,7 @@ def _triangulate_polygon(polygon: Polygon) -> List[Tuple[Vertex, Vertex, Vertex]
         POLYGON ((0 0, 2 2, 1 3, 0 0))
         POLYGON ((0 0, 1 3, 0 2, 0 0))
 
-    See also
+    See Also
     --------
     :func:`triangulate_dataset`,
     `Polygon triangulation <https://en.wikipedia.org/wiki/Polygon_triangulation>`_

@@ -39,7 +39,7 @@ class ConventionRegistry:
         list of Convention subclasses
             All the registered :class:`~emsarray.conventions.Convention` subclasses
 
-        See also
+        See Also
         --------
         :func:`entry_point_conventions`
         :func:`register_convention`
@@ -191,7 +191,7 @@ def register_convention(convention: Type[Convention]) -> Type[Convention]:
     ... class FooConvention(Convention):
     ...     pass
 
-    See also
+    See Also
     --------
     :func:`entry_point_conventions`
     """

@@ -3,7 +3,7 @@ These are low-level functions that apply fixes to datasets,
 or provide functionality missing in xarray.
 Most users will not have to call these functions directly.
 
-See also
+See Also
 --------
 :mod:`emsarray.operations`
 """
@@ -406,7 +406,7 @@ def extract_vars(
     :class:`xr.Dataset`
         A new dataset with only the named variables included.
 
-    See also
+    See Also
     --------
     :meth:`xarray.Dataset.drop_vars`
     """
@@ -651,7 +651,7 @@ class RequiresExtraException(Exception):
     Raised when the optional dependencies for some functionality have not been installed,
     and a function requiring them is called.
 
-    See also
+    See Also
     --------
     :func:`requires_extra`
     """

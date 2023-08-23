@@ -99,7 +99,7 @@ def console_entrypoint(
 
             ...  # Continue on with the rest of the program
 
-    See also
+    See Also
     --------
 
     :func:`.nice_console_errors`

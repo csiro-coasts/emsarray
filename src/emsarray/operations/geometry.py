@@ -68,7 +68,7 @@ def to_geojson(
     ``geojson.FeatureCollection``
         The geometry of this dataset as a FeatureCollection.
 
-    See also
+    See Also
     --------
     :func:`.write_geojson`
     """
@@ -100,7 +100,7 @@ def write_geojson(
     path : str or pathlib.Path
         The path where the geometry should be written to.
 
-    See also
+    See Also
     --------
     :func:`.to_geojson`
     """

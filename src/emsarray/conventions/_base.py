@@ -76,7 +76,7 @@ Index = TypeVar("Index")
 class SpatialIndexItem(Generic[Index]):
     """Information about an item in the STRtree spatial index for a dataset.
 
-    See also
+    See Also
     --------
     :attr:`.Convention.spatial_index`
     """
@@ -522,7 +522,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             >>> linear_index = dataset.ems.ravel_index(index)
             >>> polygon = dataset.ems.polygons[linear_index]
 
-        See also
+        See Also
         --------
         :meth:`.unravel_index`
         """
@@ -569,7 +569,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             >>> dataset.ems.unravel_index(124)
             (3, 4)
 
-        See also
+        See Also
         --------
         :meth:`.ravel_index`
         """
@@ -717,7 +717,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             This method will only plot a single time step and depth layer.
             Callers are responsible for selecting a single slice.
 
-        See also
+        See Also
         --------
         :func:`.plot.plot_on_figure` : The underlying implementation
         """
@@ -768,7 +768,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         This method is most useful when working in Jupyter notebooks
         which display figures automatically.
 
-        See also
+        See Also
         --------
         :meth:`.plot_on_figure`
         """
@@ -815,7 +815,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             to save animation to a file, or display it in a Notebook using
             :meth:`Animation.to_jshtml() <matplotlib.animation.Animation.to_jshtml>`.
 
-        See also
+        See Also
         --------
         :func:`.plot.animate_on_figure`
         """
@@ -1023,7 +1023,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             dataset = emsarray.open_dataset("...")
             only_polygons = dataset.ems.polygons[dataset.ems.mask]
 
-        See also
+        See Also
         --------
         :meth:`ravel_index`
         :attr:`mask`
@@ -1061,7 +1061,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             plottable_polygons = dataset.ems.polygons[mask]
             plottable_values = dataset.ems.make_linear("eta")[mask]
 
-        See also
+        See Also
         --------
         :meth:`Convention.make_linear`
         """
@@ -1118,7 +1118,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 if polygon.intersects(shape)
             ]
 
-        See also
+        See Also
         --------
         :class:`.SpatialIndexItem`
         """
@@ -1184,7 +1184,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             A dict suitable for passing to :meth:`xarray.Dataset.isel`
             that will select values at this index.
 
-        See also
+        See Also
         --------
         :meth:`.select_index`
         :meth:`.select_point`
@@ -1354,7 +1354,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :class:`xarray.Dataset`
             The mask
 
-        See also
+        See Also
         --------
         :func:`apply_clip_mask`
         :func:`clip`

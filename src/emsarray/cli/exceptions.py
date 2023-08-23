@@ -1,7 +1,7 @@
 class CommandException(RuntimeError):
     """Raise this to exit a command line script gracefully.
 
-    See also
+    See Also
     --------
     :func:`.utils.console_entrypoint`
     """

@@ -81,7 +81,7 @@ class CFGridTopology(abc.ABC):
         ``units = "degree_north"``
         attribute.
 
-        See also
+        See Also
         --------
         https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#latitude-coordinate
         """
@@ -105,7 +105,7 @@ class CFGridTopology(abc.ABC):
         ``units = "degree_east"``
         attribute.
 
-        See also
+        See Also
         --------
         https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#longitude-coordinate
         """

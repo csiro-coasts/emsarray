@@ -1,7 +1,7 @@
 """
 Curvilinear Arakawa C grids.
 
-See also
+See Also
 --------
 `Arakawa grids <https://en.wikipedia.org/wiki/Arakawa_grids>`_ on Wikipedia
 
