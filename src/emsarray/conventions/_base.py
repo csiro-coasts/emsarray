@@ -7,8 +7,8 @@ import logging
 import warnings
 from functools import cached_property
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Generic, Hashable, List,
-    Optional, Tuple, TypeVar, Union, cast
+    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Generic, Hashable, Iterable,
+    List, Optional, Tuple, TypeVar, Union, cast
 )
 
 import numpy as np
@@ -1257,14 +1257,63 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return self.select_index(index.index)
 
     @abc.abstractmethod
+    def get_all_geometry_names(self) -> List[Hashable]:
+        """
+        Return a list of the names of all geometry variables used by this convention.
+
+        See Also
+        --------
+        drop_geometry
+        select_variables
+        """
+        pass
+
     def drop_geometry(self) -> xr.Dataset:
         """
         Return a new :class:`xarray.Dataset`
         with all geometry variables dropped.
         Useful when significantly transforming the dataset,
         such as :mod:`extracting point data <emsarray.operations.point_extraction>`.
+
+        See Also
+        --------
+        get_all_geometry_names
+        select_variables
         """
-        pass
+        return self.dataset.drop_vars(self.get_all_geometry_names())
+
+    def select_variables(self, variables: Iterable[Hashable]) -> xr.Dataset:
+        """Select only a subset of the variables in this dataset, dropping all others.
+
+        This will keep all coordinate variables and all geometry variables.
+
+        Parameters
+        ----------
+        variables : iterable of Hashable
+            The names of all data variables to select.
+
+        Returns
+        -------
+        xarray.DataArray
+            A new dataset with the same geometry and coordinates,
+            but only the selected data variables.
+
+        See also
+        --------
+        get_all_geometry_names
+        drop_geometry
+        """
+        all_vars = set(self.dataset.variables.keys())
+        keep_vars = {
+            *variables,
+            *self.get_all_geometry_names(),
+            *self.get_all_depth_names(),
+        }
+        try:
+            keep_vars.add(self.get_time_name())
+        except NoSuchCoordinateError:
+            pass
+        return self.dataset.drop_vars(all_vars - keep_vars)
 
     @abc.abstractmethod
     def make_clip_mask(

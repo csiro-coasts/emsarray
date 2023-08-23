@@ -1315,34 +1315,34 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         new_dataset = xr.open_mfdataset(mfdataset_paths, lock=False)
         return utils.dataset_like(dataset, new_dataset)
 
-    def drop_geometry(self) -> xr.Dataset:
-        dataset = self.dataset
+    def get_all_geometry_names(self) -> List[Hashable]:
         topology = self.topology
 
-        geometry_variables = [
+        names = [
             topology.mesh_variable.name,
             topology.face_node_connectivity.name,
             topology.node_x.name,
             topology.node_y.name,
         ]
         if topology.has_valid_face_edge_connectivity:
-            geometry_variables.append(topology.face_edge_connectivity.name)
+            names.append(topology.face_edge_connectivity.name)
         if topology.has_valid_face_face_connectivity:
-            geometry_variables.append(topology.face_face_connectivity.name)
+            names.append(topology.face_face_connectivity.name)
         if topology.has_valid_edge_node_connectivity:
-            geometry_variables.append(topology.edge_node_connectivity.name)
+            names.append(topology.edge_node_connectivity.name)
         if topology.has_valid_edge_face_connectivity:
-            geometry_variables.append(topology.edge_face_connectivity.name)
+            names.append(topology.edge_face_connectivity.name)
         if topology.edge_x is not None:
-            geometry_variables.append(topology.edge_x.name)
+            names.append(topology.edge_x.name)
         if topology.edge_y is not None:
-            geometry_variables.append(topology.edge_y.name)
+            names.append(topology.edge_y.name)
         if topology.face_x is not None:
-            geometry_variables.append(topology.face_x.name)
+            names.append(topology.face_x.name)
         if topology.face_y is not None:
-            geometry_variables.append(topology.face_y.name)
+            names.append(topology.face_y.name)
+        return names
 
-        dataset = dataset.drop_vars(geometry_variables)
+    def drop_geometry(self) -> xr.Dataset:
+        dataset = super().drop_geometry()
         dataset.attrs.pop('Conventions', None)
-
         return dataset
