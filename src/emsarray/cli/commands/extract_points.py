@@ -49,7 +49,16 @@ class Command(BaseCommand):
             metavar=('DIM'),
             default="point",
             help=(
-                "Name of the new dimension to index the point data"
+                "Name of the new dimension to index the point data."
+            ))
+
+        parser.add_argument(
+            "--missing-points",
+            choices=['error', 'drop', 'fill'],
+            default='error',
+            help=(
+                "What to do when a point does not intersect the dataset geometry. "
+                "Defaults to 'error'."
             ))
 
     def handle(self, options: argparse.Namespace) -> None:
@@ -60,7 +69,8 @@ class Command(BaseCommand):
         try:
             point_data = point_extraction.extract_dataframe(
                 dataset, dataframe, options.coordinate_columns,
-                point_dimension=options.point_dimension)
+                point_dimension=options.point_dimension,
+                missing_points=options.missing_points)
         except point_extraction.NonIntersectingPoints as err:
             rows = dataframe.iloc[err.indices]
             raise CommandException(
