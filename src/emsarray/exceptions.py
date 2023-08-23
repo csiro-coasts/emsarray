@@ -22,3 +22,11 @@ class ConventionViolationWarning(UserWarning):
     For example, an attribute has an invalid type,
     but is still interpretable.
     """
+
+
+class NoSuchCoordinateError(KeyError, EmsarrayError):
+    """
+    Raised when a dataset does not have a particular coordinate,
+    such as in :attr:`.Convention.time_coordinate` and
+    :attr:`.Convention.depth_coordinate`.
+    """

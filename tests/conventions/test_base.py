@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import pathlib
 from functools import cached_property
-from typing import Dict, Hashable, List, Optional, Tuple
+from typing import Dict, Hashable, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,6 +15,7 @@ from shapely.geometry.base import BaseGeometry
 
 from emsarray import masking, utils
 from emsarray.conventions import Convention, SpatialIndexItem
+from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.types import Pathish
 
 
@@ -40,15 +42,6 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     @classmethod
     def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
         return None
-
-    def get_time_name(self) -> Hashable:
-        return 't'
-
-    def get_depth_name(self) -> Hashable:
-        return 'z'
-
-    def get_all_depth_names(self) -> List[Hashable]:
-        return [self.get_depth_name()]
 
     @cached_property
     def shape(self) -> Tuple[int, int]:
@@ -112,6 +105,42 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
 
     def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
+
+
+def test_get_time_name(datasets: pathlib.Path) -> None:
+    dataset = xr.open_dataset(datasets / 'times.nc')
+    SimpleConvention(dataset).bind()
+    assert dataset.ems.get_time_name() == 'time'
+    xr.testing.assert_equal(dataset.ems.time_coordinate, dataset['time'])
+
+
+def test_get_time_name_missing() -> None:
+    dataset = xr.Dataset()
+    SimpleConvention(dataset).bind()
+    with pytest.raises(NoSuchCoordinateError):
+        dataset.ems.get_time_name()
+
+
+@pytest.mark.parametrize('attrs', [
+    {'positive': 'up'},
+    {'positive': 'DOWN'},
+    {'standard_name': 'depth'},
+    {'axis': 'Z'},
+], ids=lambda a: '{}:{}'.format(*next(iter(a.items()))))
+def test_get_depth_name(attrs: dict) -> None:
+    dataset = xr.Dataset({
+        'name': (['dim'], [0, 1, 2], attrs),
+    })
+    SimpleConvention(dataset).bind()
+    assert dataset.ems.get_depth_name() == 'name'
+    xr.testing.assert_equal(dataset.ems.depth_coordinate, dataset['name'])
+
+
+def test_get_depth_name_missing() -> None:
+    dataset = xr.Dataset()
+    SimpleConvention(dataset).bind()
+    with pytest.raises(NoSuchCoordinateError):
+        dataset.ems.get_depth_name()
 
 
 def test_mask():

@@ -19,6 +19,7 @@ from shapely.geometry.base import BaseGeometry
 
 from emsarray import utils
 from emsarray.compat.shapely import SpatialIndex
+from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.operations import depth
 from emsarray.plot import (
     _requires_plot, animate_on_figure, plot_on_figure, polygons_to_collection
@@ -282,22 +283,122 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         else:
             return self.dataset[data_array]
 
+    @cached_property
+    def time_coordinate(self) -> xr.DataArray:
+        """The time coordinate for this dataset.
+
+        Returns
+        -------
+        xarray.DataArray
+            The variable for the time coordinate for this dataset.
+
+        Raises
+        ------
+        exceptions.NoSuchCoordinateError
+            If no time coordinate was found
+
+        See Also
+        --------
+        get_time_name
+        """
+        return self.dataset[self.get_time_name()]
+
+    @cached_property
+    def depth_coordinate(self) -> xr.DataArray:
+        """The depth coordinate for this dataset.
+
+        Returns
+        -------
+        xarray.DataArray
+            The variable for the depth coordinate for this dataset.
+
+        Raises
+        ------
+        exceptions.NoSuchCoordinateError
+            If no depth coordinate was found
+
+        See Also
+        --------
+        get_depth_name
+        """
+        return self.dataset[self.get_depth_name()]
+
     def get_time_name(self) -> Hashable:
-        """Get the name of the time variable in this dataset."""
+        """Get the name of the time variable in this dataset.
+
+        Returns
+        -------
+        Hashable
+            The name of the time coordinate.
+
+        Raises
+        ------
+        exceptions.NoSuchCoordinateError
+            If no time coordinate was found
+
+        Notes
+        -----
+        The CF Conventions state that
+        a time variable is defined by having a `units` attribute
+        formatted according to the UDUNITS package [1]_.
+
+        xarray will find all time variables and convert them to numpy datetimes.
+
+        References
+        ----------
+        .. [1] `CF Conventions v1.10, 4.4 Time Coordinate <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#time-coordinate>`_
+        """
         for name, variable in self.dataset.variables.items():
-            if variable.attrs.get('standard_name') == 'time':
-                return name
-        raise KeyError("Dataset does not have a time dimension")
+            # xarray will automatically decode all time variables
+            # and move the 'units' attribute over to encoding to store this change.
+            if 'units' in variable.encoding:
+                units = variable.encoding['units']
+                # A time variable must have units of the form '<units> since <epoc>'
+                if 'since' in units:
+                    # The variable must now be a numpy datetime
+                    if variable.dtype.type == np.datetime64:
+                        return name
+        raise NoSuchCoordinateError("Could not find time coordinate in dataset")
 
     def get_depth_name(self) -> Hashable:
         """Get the name of the layer depth coordinate variable.
+
         For datasets with multiple depth variables, this should be the one that
         represents the centre of the layer, not the bounds.
 
         Note that this is the name of the coordinate variable,
         not the name of the dimension, for datasets where these differ.
+
+        Returns
+        -------
+        Hashable
+            The name of the depth coordinate.
+
+        Raises
+        ------
+        exceptions.NoSuchCoordinateError
+            If no time coordinate was found
+
+        Notes
+        -----
+        The CF Conventions state that
+        a depth variable is identifiable by units of pressure; or
+        the presence of the ``positive`` attribute with value of ``up`` or ``down``
+        [2]_.
+
+        In practice, many datasets do not follow this convention.
+        In addition to checking for the ``positive`` attribute,
+        all coordinates are checked for a ``standard_name: "depth"``,
+        ``coordinate_type: "Z"``, or ``axiz: "Z"``.
+
+        References
+        ----------
+        .. [2] `CF Conventions v1.10, 4.3 Vertical (Height or Depth) Coordinate <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#vertical-coordinate>`_
         """
-        return self.get_all_depth_names()[0]
+        try:
+            return self.get_all_depth_names()[0]
+        except IndexError:
+            raise NoSuchCoordinateError("Could not find depth coordinate in dataset")
 
     def get_all_depth_names(self) -> List[Hashable]:
         """Get the names of all depth layers.
@@ -312,7 +413,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             data_array = self.dataset[name]
 
             if not (
-                data_array.attrs.get('axis') == 'Z'
+                data_array.attrs.get('positive', '').lower() in {'up', 'down'}
+                or data_array.attrs.get('axis') == 'Z'
                 or data_array.attrs.get('cartesian_axis') == 'Z'
                 or data_array.attrs.get('coordinate_type') == 'Z'
                 or data_array.attrs.get('standard_name') == 'depth'
@@ -333,18 +435,40 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         return depth_names
 
+    @utils.deprecated(
+        (
+            "Convention.get_depths() is deprecated. "
+            "Use Convention.depth_coordinate.values instead."
+        ),
+        DeprecationWarning,
+    )
     def get_depths(self) -> np.ndarray:
         """Get the depth of each vertical layer in this dataset.
+
+        .. deprecated:: 0.5.0
+            This method is replaced by
+            :attr:`Convention.depth_coordinate.values <Convention.depth_coordinate>`.
 
         Returns
         -------
         :class:`numpy.ndarray`
             An array of depths, one per vertical layer in the dataset.
         """
-        return cast(np.ndarray, self.dataset.variables[self.get_depth_name()].values)
+        return cast(np.ndarray, self.depth_coordinate.values)
 
+    @utils.deprecated(
+        (
+            "Convention.get_times() is deprecated. "
+            "Use Convention.time_coordinate.values instead."
+        ),
+        DeprecationWarning,
+    )
     def get_times(self) -> np.ndarray:
         """Get all timesteps in this dataset.
+
+        .. deprecated:: 0.5.0
+            This method is replaced by
+            :attr:`Convention.time_coordinate.values <Convention.time_coordinate>`.
 
         Returns
         -------
@@ -353,7 +477,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             The datetimes will be whatever native format the dataset uses,
             likely :class:`numpy.datetime64`.
         """
-        return cast(np.ndarray, self.dataset.variables[self.get_time_name()].values)
+        return cast(np.ndarray, self.time_coordinate.values)
 
     @abc.abstractmethod
     def ravel_index(self, index: Index) -> int:
