@@ -6,7 +6,7 @@ import warnings
 from typing import Tuple
 
 import geojson
-import numpy as np
+import numpy
 import pandas as pd
 import pytest
 import xarray
@@ -26,7 +26,7 @@ from emsarray.operations import geometry
 from tests.utils import assert_property_not_cached, filter_warning
 
 
-def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def make_faces(width: int, height, fill_value: int) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     triangle_nodes = sum(range(width + 2))
     square_rows = height
     square_columns = width
@@ -41,10 +41,10 @@ def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndar
     square_edges = 2 * square_rows * square_columns + square_rows + square_columns
     total_edges = triangle_edges + square_edges - width
 
-    face_node: np.ndarray = np.ma.masked_array(
-        np.full((total_faces, 4), fill_value, dtype=np.int32),
+    face_node: numpy.ndarray = numpy.ma.masked_array(
+        numpy.full((total_faces, 4), fill_value, dtype=numpy.int32),
         mask=True, fill_value=fill_value)
-    edge_node = np.zeros((total_edges, 2), dtype=np.int32)
+    edge_node = numpy.zeros((total_edges, 2), dtype=numpy.int32)
 
     for row in range(1, width + 1):
         # Rows are 1-indexed. Row 1 has one triangle, row 2 has 3 triangles,
@@ -57,8 +57,8 @@ def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndar
 
         # The node at the top of the first upwards triangle
         top_left_node = sum(range(row))
-        up_tri_shape = np.array([0, row, row + 1]) + top_left_node
-        down_tri_shape = np.array([1, 0, row + 1]) + top_left_node
+        up_tri_shape = numpy.array([0, row, row + 1]) + top_left_node
+        down_tri_shape = numpy.array([1, 0, row + 1]) + top_left_node
 
         # There are n upwards triangles on the nth row
         for up_tri in range(row):
@@ -72,9 +72,9 @@ def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndar
         for down_tri in range(row - 1):
             face_node[face_index + down_tri * 2 + 1, :3] = down_tri_shape + down_tri
 
-    square_node_shape = np.array([0, square_columns + 1, square_columns + 2, 1])
-    vertical_edge_shape = np.array([0, square_columns + 1])
-    horizontal_edge_shape = np.array([square_columns + 1, square_columns + 2])
+    square_node_shape = numpy.array([0, square_columns + 1, square_columns + 2, 1])
+    vertical_edge_shape = numpy.array([0, square_columns + 1])
+    horizontal_edge_shape = numpy.array([square_columns + 1, square_columns + 2])
     for row in range(square_rows):
         node_row_offset = triangle_nodes - square_columns - 1 + (row * (square_columns + 1))
 
@@ -89,8 +89,8 @@ def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndar
                 horizontal_edge_shape + node_row_offset + column
         edge_node[edge_row_index + square_columns * 2] = vertical_edge_shape + node_row_offset + square_columns
 
-    coords = np.full((total_nodes, 2), dtype=np.double, fill_value=np.nan)
-    layer_height = np.sin(np.pi / 3)
+    coords = numpy.full((total_nodes, 2), dtype=numpy.double, fill_value=numpy.nan)
+    layer_height = numpy.sin(numpy.pi / 3)
     for layer in range(0, width + 1):
         # Each layer n has n points evenly distributed around the central axis
         offset = (width - layer) / 2
@@ -99,11 +99,11 @@ def make_faces(width: int, height, fill_value: int) -> Tuple[np.ndarray, np.ndar
             coords[points_till_now + point, :] = [point + offset, (width - layer) * layer_height]
 
     for row in range(square_rows):
-        angle = -((row + 1) * np.pi) / (4 * square_rows)
+        angle = -((row + 1) * numpy.pi) / (4 * square_rows)
         for column in range(square_columns + 1):
             coords[triangle_nodes + row * (square_columns + 1) + column] = [
-                np.cos(angle) * (column + square_rows) - square_rows,
-                np.sin(angle) * (column + square_rows),
+                numpy.cos(angle) * (column + square_rows) - square_rows,
+                numpy.sin(angle) * (column + square_rows),
             ]
 
     return face_node, edge_node, coords
@@ -192,7 +192,7 @@ def make_dataset(
         },
     )
     z = xarray.DataArray(
-        data=-np.arange(0, depth_size),
+        data=-numpy.arange(0, depth_size),
         dims=[depth_dimension],
         name=depth_dimension,
         attrs={
@@ -208,7 +208,7 @@ def make_dataset(
     t.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
 
     botz = xarray.DataArray(
-        data=np.random.random(cell_size) * 10 + 50,
+        data=numpy.random.random(cell_size) * 10 + 50,
         dims=[face_dimension],
         name="Mesh2_depth",
         attrs={
@@ -220,7 +220,7 @@ def make_dataset(
         }
     )
     eta = xarray.DataArray(
-        data=np.random.normal(0, 0.2, (time_size, cell_size)),
+        data=numpy.random.normal(0, 0.2, (time_size, cell_size)),
         dims=[time_dimension, face_dimension],
         name="eta",
         attrs={
@@ -230,7 +230,7 @@ def make_dataset(
         },
     )
     temp = xarray.DataArray(
-        data=np.random.normal(12, 0.5, (time_size, depth_size, cell_size)),
+        data=numpy.random.normal(12, 0.5, (time_size, depth_size, cell_size)),
         dims=[time_dimension, depth_dimension, face_dimension],
         name="temp",
         attrs={
@@ -239,11 +239,11 @@ def make_dataset(
         },
     )
 
-    one_day = np.timedelta64(1, 'D').astype('timedelta64[ns]')
+    one_day = numpy.timedelta64(1, 'D').astype('timedelta64[ns]')
     period = xarray.DataArray(
-        data=np.concatenate([
-            np.arange(cell_size - 2, dtype=int) * one_day,
-            [np.timedelta64('nat', 'ns')] * 2,
+        data=numpy.concatenate([
+            numpy.arange(cell_size - 2, dtype=int) * one_day,
+            [numpy.timedelta64('nat', 'ns')] * 2,
         ]),
         dims=[face_dimension],
         name="period",
@@ -253,8 +253,8 @@ def make_dataset(
     )
     period.encoding.update({
         "units": "days",
-        "_FillValue": np.int16(-1),
-        "dtype": np.dtype('int16'),
+        "_FillValue": numpy.int16(-1),
+        "dtype": numpy.dtype('int16'),
     })
 
     dataset = xarray.Dataset(
@@ -287,7 +287,7 @@ def make_dataset(
         })
 
         u1 = xarray.DataArray(
-            data=np.random.normal(0, 2, (time_size, depth_size, edge_size)),
+            data=numpy.random.normal(0, 2, (time_size, depth_size, edge_size)),
             dims=[time_dimension, depth_dimension, edge_dimension],
             name='u1',
             attrs={
@@ -300,7 +300,7 @@ def make_dataset(
     if make_face_coordinates:
         face_x = xarray.DataArray(
             data=[
-                np.average(coordinate_values[face_nodes.compressed(), 0])
+                numpy.average(coordinate_values[face_nodes.compressed(), 0])
                 for face_nodes in face_node_values
             ],
             dims=[face_dimension],
@@ -313,7 +313,7 @@ def make_dataset(
 
         face_y = xarray.DataArray(
             data=[
-                np.average(coordinate_values[face_nodes.compressed(), 1])
+                numpy.average(coordinate_values[face_nodes.compressed(), 1])
                 for face_nodes in face_node_values
             ],
             dims=[face_dimension],
@@ -347,16 +347,16 @@ def test_make_dataset():
     node_y = dataset.variables["Mesh2_node_y"]
     assert_allclose(node_x[0:3], [1.5, 1, 2])
     assert_allclose(node_x[6:10], [0, 1, 2, 3])
-    assert_allclose(node_y[0:1], 3 * np.sin(np.pi / 3))
-    assert_allclose(node_y[1:3], 2 * np.sin(np.pi / 3))
+    assert_allclose(node_y[0:1], 3 * numpy.sin(numpy.pi / 3))
+    assert_allclose(node_y[1:3], 2 * numpy.sin(numpy.pi / 3))
     assert_allclose(node_y[6:10], 0)
 
     # Check the mesh generation worked
     face_node = dataset.variables["Mesh2_face_nodes"]
-    assert_equal(face_node.values[0], [0., 1., 2., np.nan])
-    assert_equal(face_node.values[1], [1., 3., 4., np.nan])
-    assert_equal(face_node.values[2], [2., 1., 4., np.nan])
-    assert_equal(face_node.values[3], [2., 4., 5., np.nan])
+    assert_equal(face_node.values[0], [0., 1., 2., numpy.nan])
+    assert_equal(face_node.values[1], [1., 3., 4., numpy.nan])
+    assert_equal(face_node.values[2], [2., 1., 4., numpy.nan])
+    assert_equal(face_node.values[3], [2., 4., 5., numpy.nan])
     assert_equal(face_node.values[9], [6., 10., 11., 7.])
     assert_equal(face_node.values[10], [7., 11., 12., 8.])
     assert_equal(face_node.values[12], [10., 14., 15., 11.])
@@ -383,7 +383,7 @@ def test_polygons():
     topology = dataset.ems.topology
 
     # Check the coordinates for the generated polygons.
-    height = np.sin(np.pi / 3)
+    height = numpy.sin(numpy.pi / 3)
     triangle = polygons[0]
     assert triangle.equals_exact(Polygon([(1.5, height * 3), (1, height * 2), (2, height * 2), (1.5, height * 3)]), 1e-6)
     square = polygons[-1]
@@ -405,7 +405,7 @@ def test_face_centres_from_variables():
         lon = lons[face]
         lat = lats[face]
         linear_index = convention.ravel_index((UGridKind.face, face))
-        np.testing.assert_equal(face_centres[linear_index], [lon, lat])
+        numpy.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
 
 def test_face_centres_from_centroids():
@@ -417,7 +417,7 @@ def test_face_centres_from_centroids():
         linear_index = convention.ravel_index((UGridKind.face, face))
         polygon = convention.polygons[linear_index]
         lon, lat = polygon.centroid.coords[0]
-        np.testing.assert_equal(face_centres[linear_index], [lon, lat])
+        numpy.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
 
 def test_bounds(datasets: pathlib.Path):
@@ -552,11 +552,11 @@ def test_drop_geometry_full():
             dims=[topology.face_dimension, topology.max_node_dimension],
         ),
         'Mesh2_edge_x': xarray.DataArray(
-            np.arange(topology.edge_count),
+            numpy.arange(topology.edge_count),
             dims=[topology.edge_dimension],
         ),
         'Mesh2_edge_y': xarray.DataArray(
-            np.arange(topology.edge_count),
+            numpy.arange(topology.edge_count),
             dims=[topology.edge_dimension],
         ),
     })
@@ -629,17 +629,17 @@ def test_plot_on_figure():
         ([32], [26, 27, 28, 31, 32, 33, 36, 37, 38]),
         # The last row of triangles : The last two rows of triangles plus the
         # first row of squares
-        (np.arange(16, 25), np.arange(9, 30)),
+        (numpy.arange(16, 25), numpy.arange(9, 30)),
         # All the squares : All the squares plus the last row of triangles
-        (np.arange(25, 75), np.arange(16, 75)),
+        (numpy.arange(25, 75), numpy.arange(16, 75)),
         # All faces : All faces
-        (np.arange(75), np.arange(75))
+        (numpy.arange(75), numpy.arange(75))
     ],
 )
 def test_buffer_faces(face_indices, expected):
     dataset = make_dataset(width=5)
     topology = Mesh2DTopology(dataset)
-    assert_equal(buffer_faces(np.array(face_indices, dtype=int), topology), expected)
+    assert_equal(buffer_faces(numpy.array(face_indices, dtype=int), topology), expected)
 
 
 def test_mask_from_face_indices_without_edges():
@@ -649,18 +649,18 @@ def test_mask_from_face_indices_without_edges():
     face_indices = [20, 21, 22, 23, 24, 27, 28, 29]
     node_indices = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
 
-    mask = mask_from_face_indices(np.array(face_indices), topology)
+    mask = mask_from_face_indices(numpy.array(face_indices), topology)
     assert mask.dims == {
         'old_node_index': topology.node_count,
         'old_face_index': topology.face_count,
     }
 
-    expected_face = np.full(topology.face_count, fill_value=np.nan)
-    expected_face[face_indices] = np.arange(len(face_indices))
+    expected_face = numpy.full(topology.face_count, fill_value=numpy.nan)
+    expected_face[face_indices] = numpy.arange(len(face_indices))
     assert_equal(expected_face, mask.data_vars['new_face_index'].values)
 
-    expected_node = np.full(topology.node_count, fill_value=np.nan)
-    expected_node[node_indices] = np.arange(len(node_indices))
+    expected_node = numpy.full(topology.node_count, fill_value=numpy.nan)
+    expected_node[node_indices] = numpy.arange(len(node_indices))
     assert_equal(expected_node, mask.data_vars['new_node_index'].values)
 
 
@@ -672,23 +672,23 @@ def test_mask_from_face_indices_with_edges():
     edge_indices = [25, 28, 36, 37, 38, 39, 40, 41, 42, 43, 44, 49, 50, 51, 52, 53, 54, 55]
     node_indices = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
 
-    mask = mask_from_face_indices(np.array(face_indices), topology)
+    mask = mask_from_face_indices(numpy.array(face_indices), topology)
     assert mask.dims == {
         'old_node_index': topology.node_count,
         'old_edge_index': topology.edge_count,
         'old_face_index': topology.face_count,
     }
 
-    expected_face = np.full(topology.face_count, fill_value=np.nan)
-    expected_face[face_indices] = np.arange(len(face_indices))
+    expected_face = numpy.full(topology.face_count, fill_value=numpy.nan)
+    expected_face[face_indices] = numpy.arange(len(face_indices))
     assert_equal(expected_face, mask.data_vars['new_face_index'].values)
 
-    expected_edge = np.full(topology.edge_count, fill_value=np.nan)
-    expected_edge[edge_indices] = np.arange(len(edge_indices))
+    expected_edge = numpy.full(topology.edge_count, fill_value=numpy.nan)
+    expected_edge[edge_indices] = numpy.arange(len(edge_indices))
     assert_equal(expected_edge, mask.data_vars['new_edge_index'].values)
 
-    expected_node = np.full(topology.node_count, fill_value=np.nan)
-    expected_node[node_indices] = np.arange(len(node_indices))
+    expected_node = numpy.full(topology.node_count, fill_value=numpy.nan)
+    expected_node[node_indices] = numpy.arange(len(node_indices))
     assert_equal(expected_node, mask.data_vars['new_node_index'].values)
 
 
@@ -702,7 +702,7 @@ def test_apply_clip_mask(tmp_path):
     node_indices = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
 
     # Clip it!
-    mask = mask_from_face_indices(np.array(face_indices), topology)
+    mask = mask_from_face_indices(numpy.array(face_indices), topology)
     clipped = dataset.ems.apply_clip_mask(mask, tmp_path)
 
     assert isinstance(clipped.ems, UGrid)
@@ -769,9 +769,9 @@ def test_make_and_apply_clip_mask(tmp_path):
     # and inspect the index attributes. This list is built from that.
     face_indices = [6, 7, 8, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 27, 28, 29, 32, 33, 34]
     fill_value = topology.sensible_fill_value
-    new_face_indices = np.ma.masked_array(
-        np.full(topology.face_count, fill_value, dtype=np.float64), mask=True)
-    new_face_indices[face_indices] = np.arange(len(face_indices))
+    new_face_indices = numpy.ma.masked_array(
+        numpy.full(topology.face_count, fill_value, dtype=numpy.float64), mask=True)
+    new_face_indices[face_indices] = numpy.arange(len(face_indices))
     assert_equal(clip_mask.data_vars['new_face_index'].values, new_face_indices)
 
     # Apply the clip mask
@@ -796,7 +796,7 @@ def test_derive_connectivity():
     assert not topology.has_valid_face_edge_connectivity
     assert not topology.has_valid_face_face_connectivity
 
-    fv = np.ma.masked
+    fv = numpy.ma.masked
 
     with pytest.raises(NoEdgeDimensionException):
         edge_node = topology.edge_node_array
@@ -892,8 +892,8 @@ def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
     assert topology.has_valid_face_node_connectivity
     assert topology.face_node_connectivity.attrs['start_index'] == 1
     assert_equal(topology.face_node_connectivity.values[0], [1, 10, 9])
-    assert np.min(topology.face_node_connectivity.values) == 1
-    assert np.max(topology.face_node_connectivity.values) == topology.node_count
+    assert numpy.min(topology.face_node_connectivity.values) == 1
+    assert numpy.max(topology.face_node_connectivity.values) == topology.node_count
 
     assert_equal(topology.face_node_array[0], [0, 9, 8])
     assert_equal(topology.face_node_array, topology.face_node_connectivity.values - 1)

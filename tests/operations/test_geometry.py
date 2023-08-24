@@ -3,7 +3,7 @@ import pathlib
 from typing import Any
 
 import geojson
-import numpy as np
+import numpy
 import pandas as pd
 import shapefile
 import shapely
@@ -36,7 +36,7 @@ def test_write_geojson(datasets: pathlib.Path, tmp_path: pathlib.Path):
     with open(out_path, 'rb') as f:
         saved_geometry = geojson.load(f)
     assert saved_geometry['type'] == 'FeatureCollection'
-    assert len(saved_geometry['features']) == np.count_nonzero(dataset.ems.polygons)
+    assert len(saved_geometry['features']) == numpy.count_nonzero(dataset.ems.polygons)
 
     polygons = _polygons(dataset)
     assert len(polygons) == len(saved_geometry['features'])

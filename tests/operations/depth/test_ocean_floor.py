@@ -1,4 +1,4 @@
-import numpy as np
+import numpy
 import pandas as pd
 import pytest
 import xarray
@@ -16,7 +16,7 @@ def test_ocean_floor():
     # d 222..
     #   11...
     #   0....
-    values = np.full((5, 5, 5, 5), fill_value=np.nan)
+    values = numpy.full((5, 5, 5, 5), fill_value=numpy.nan)
     for i in range(5):
         values[:, i, :i + 1, :i + 1] = i
 
@@ -28,9 +28,9 @@ def test_ocean_floor():
         data_vars={"temp": temp},
         coords={
             'time': (['t'], pd.date_range('2022-02-08', periods=5)),
-            'lon': (['x'], -np.arange(5)),
-            'lat': (['y'], np.arange(5)),
-            'depth': (['z'], 4.25 - np.arange(5), {'positive': 'down'}),
+            'lon': (['x'], -numpy.arange(5)),
+            'lat': (['y'], numpy.arange(5)),
+            'depth': (['z'], 4.25 - numpy.arange(5), {'positive': 'down'}),
         }
     )
 
@@ -52,7 +52,7 @@ def test_ocean_floor():
     ]
     assert_equal(
         floor_dataset['temp'].values,
-        np.array([expected_values] * 5))
+        numpy.array([expected_values] * 5))
 
 
 @pytest.mark.tutorial

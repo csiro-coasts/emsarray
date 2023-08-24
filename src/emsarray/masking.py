@@ -12,7 +12,7 @@ import operator
 import pathlib
 from typing import Any, Dict, Hashable, List, cast
 
-import numpy as np
+import numpy
 import xarray
 from xarray.core.dtypes import maybe_promote
 
@@ -186,10 +186,10 @@ def find_fill_value(data_array: xarray.DataArray) -> Any:
         * If none of the above are true, a :exc:`ValueError` is raised.
 
     """
-    if np.ma.is_masked(data_array.values):
+    if numpy.ma.is_masked(data_array.values):
         # xarray does not use masked arrays, but just in case someone has
         # constructed a dataset using one...
-        return np.ma.masked
+        return numpy.ma.masked
 
     attrs = ['_FillValue', 'missing_value']
     for attr in attrs:
@@ -247,7 +247,7 @@ def calculate_grid_mask_bounds(mask: xarray.Dataset) -> Dict[Hashable, slice]:
     return bounds
 
 
-def smear_mask(arr: np.ndarray, pad_axes: List[bool]) -> np.ndarray:
+def smear_mask(arr: numpy.ndarray, pad_axes: List[bool]) -> numpy.ndarray:
     """
     Take a boolean numpy array and a list indicating which axes to smear along.
     Return a new array, expanded along the axes, with the boolean values
@@ -303,10 +303,10 @@ def smear_mask(arr: np.ndarray, pad_axes: List[bool]) -> np.ndarray:
         [(1, 0), (0, 1)] if pad_axis else [(0, 0)]
         for pad_axis in pad_axes
     ))
-    return functools.reduce(operator.or_, (np.pad(arr, pad) for pad in paddings))
+    return functools.reduce(operator.or_, (numpy.pad(arr, pad) for pad in paddings))
 
 
-def blur_mask(arr: np.ndarray, size: int = 1) -> np.ndarray:
+def blur_mask(arr: numpy.ndarray, size: int = 1) -> numpy.ndarray:
     """
     Take a boolean numpy array and blur it, such that all indices neighbouring
     a True value in the input array are True in the output array. The output
@@ -347,17 +347,17 @@ def blur_mask(arr: np.ndarray, size: int = 1) -> np.ndarray:
     # Pad the mask with a `size` sized buffer.
     # This allows simple slicing to pull out a rectangular region around an
     # index, without worrying about the edges of the array.
-    padded = np.pad(arr, size, constant_values=False)
+    padded = numpy.pad(arr, size, constant_values=False)
 
     # For each cell in the original mask shape,
     # the blurred mask is true if the original mask was true,
     # or any cells in a `size` sized slice around the original cell.
-    arr_iter = np.nditer(arr, ['multi_index'])
+    arr_iter = numpy.nditer(arr, ['multi_index'])
     indices = (arr_iter.multi_index for _ in arr_iter)
     values = (
-        arr[index] or np.any(padded[tuple(slice(i, i + size * 2 + 1) for i in index)])
+        arr[index] or numpy.any(padded[tuple(slice(i, i + size * 2 + 1) for i in index)])
         for index in indices
     )
 
-    arr = np.fromiter(values, count=arr.size, dtype=arr.dtype).reshape(arr.shape)
-    return cast(np.ndarray, arr)
+    arr = numpy.fromiter(values, count=arr.size, dtype=arr.dtype).reshape(arr.shape)
+    return cast(numpy.ndarray, arr)

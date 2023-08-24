@@ -1,6 +1,6 @@
 import pathlib
 
-import numpy as np
+import numpy
 import pandas as pd
 import pytest
 import xarray
@@ -15,10 +15,10 @@ def test_extract_dataframe(
 ) -> None:
     num_points = 10
     names = [f'{chr(97 + i)}{i + 1}' for i in range(num_points)]
-    rs = np.random.sample(num_points) * 3
-    θs = np.random.sample(num_points) * 2 * np.pi
-    xs = np.cos(θs) * rs
-    ys = np.sin(θs) * rs
+    rs = numpy.random.sample(num_points) * 3
+    θs = numpy.random.sample(num_points) * 2 * numpy.pi
+    xs = numpy.cos(θs) * rs
+    ys = numpy.sin(θs) * rs
     points_df = pd.DataFrame({'name': names, 'lon': xs, 'lat': ys})
 
     in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
@@ -126,9 +126,9 @@ def test_extract_points_missing_point_fill(
     assert 'values' in point_dataset.data_vars
     assert_equal(point_dataset['values'].values, [
         in_dataset.ems.select_point(Point(0, 0))['values'].values,
-        np.nan,
+        numpy.nan,
         in_dataset.ems.select_point(Point(1, 0))['values'].values,
-        np.nan,
+        numpy.nan,
     ])
     assert_equal(point_dataset['point'].values, [0, 1, 2, 3])
     assert_equal(point_dataset['name'].values, ['a', 'b', 'c', 'd'])

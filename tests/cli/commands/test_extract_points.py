@@ -1,6 +1,6 @@
 import pathlib
 
-import numpy as np
+import numpy
 import pandas as pd
 import pytest
 import xarray
@@ -20,10 +20,10 @@ def test_extract_points(
 
     num_points = 10
     names = [f'{chr(97 + i)}{i + 1}' for i in range(num_points)]
-    rs = np.random.sample(num_points) * 3
-    θs = np.random.sample(num_points) * 2 * np.pi
-    xs = np.cos(θs) * rs
-    ys = np.sin(θs) * rs
+    rs = numpy.random.sample(num_points) * 3
+    θs = numpy.random.sample(num_points) * 2 * numpy.pi
+    xs = numpy.cos(θs) * rs
+    ys = numpy.sin(θs) * rs
     points_df = pd.DataFrame({'name': names, 'lon': xs, 'lat': ys})
     points_df.to_csv(csv_path, index=False)
 
@@ -63,7 +63,7 @@ def test_extract_points_out_of_bounds(
     csv_path = tmp_path / 'points.csv'
     out_path = tmp_path / 'out.nc'
 
-    points_df = pd.DataFrame({'lon': np.arange(10), 'lat': np.zeros(10)})
+    points_df = pd.DataFrame({'lon': numpy.arange(10), 'lat': numpy.zeros(10)})
     points_df.to_csv(csv_path, index=False)
     print(points_df.iloc[[4, 5, 6, 7, 8, 9]])
 

@@ -24,7 +24,7 @@ from typing import (
 
 import cftime
 import netCDF4
-import numpy as np
+import numpy
 import pandas as pd
 import pytz
 import shapely
@@ -298,7 +298,7 @@ def fix_bad_time_units(dataset_or_array: Union[xarray.Dataset, xarray.DataArray]
     for variable in _get_variables(dataset_or_array):
         # This is the same check xarray uses in xarray.coding.times.CFDatetimeCoder
         is_datetime = (
-            np.issubdtype(variable.data.dtype, np.datetime64)
+            numpy.issubdtype(variable.data.dtype, numpy.datetime64)
             or contains_cftime_datetimes(variable)
         )
         if is_datetime and 'units' in variable.encoding:
@@ -597,7 +597,7 @@ def linearise_dimensions(
     .. code-block:: python
 
         >>> data_array = xarray.DataArray(
-        ...     data=np.random.random((3, 5, 7)),
+        ...     data=numpy.random.random((3, 5, 7)),
         ...     dims=['x', 'y', 'z'],
         ... )
         >>> flattened = linearise_dimensions(data_array, ['y', 'x'])
@@ -605,7 +605,7 @@ def linearise_dimensions(
         ('z', 'index')
         >>> flattened.shape
         (7, 15)
-        >>> expected = np.transpose(data_array.isel(z=0).values).ravel()
+        >>> expected = numpy.transpose(data_array.isel(z=0).values).ravel()
         >>> all(flattened.isel(z=0).values == expected)
         True
     """
@@ -628,7 +628,7 @@ def linearise_dimensions(
     return xarray.DataArray(data=new_data, dims=new_dims, coords=coords)
 
 
-def datetime_from_np_time(np_time: np.datetime64) -> datetime.datetime:
+def datetime_from_np_time(np_time: numpy.datetime64) -> datetime.datetime:
     """
     Convert a numpy :class:`~numpy.datetime64`
     to a python :class:`~datetime.datetime`.
@@ -689,34 +689,34 @@ def requires_extra(
 
 
 def make_polygons_with_holes(
-    points: np.ndarray,
+    points: numpy.ndarray,
     *,
-    out: Optional[np.ndarray] = None,
-) -> np.ndarray:
+    out: Optional[numpy.ndarray] = None,
+) -> numpy.ndarray:
     """
     Make a :class:`numpy.ndarray` of :class:`shapely.Polygon` from an array of (n, m, 2) points.
     ``n`` is the number of polygons, ``m`` is the number of vertices per polygon.
-    If any point in a polygon is :data:`np.nan`,
+    If any point in a polygon is :data:`numpy.nan`,
     that Polygon is skipped and will be :class:`None` in the returned array.
 
     Parameters
     ----------
 
-    points : np.ndarray
+    points : numpy.ndarray
         A (n, m, 2) array. Each row represents the m points of a polygon.
-    out : np.ndarray, optional
+    out : numpy.ndarray, optional
         Optional. An array to fill with polygons.
 
     Returns
     -------
 
-    np.ndarray
+    numpy.ndarray
         The polygons in a array of size n.
     """
     if out is None:
-        out = np.full(points.shape[0], None, dtype=np.object_)
+        out = numpy.full(points.shape[0], None, dtype=numpy.object_)
 
-    complete_row_indices = np.flatnonzero(np.isfinite(points).all(axis=(1, 2)))
+    complete_row_indices = numpy.flatnonzero(numpy.isfinite(points).all(axis=(1, 2)))
     shapely.polygons(
         points[complete_row_indices],
         indices=complete_row_indices,

@@ -3,7 +3,7 @@ import enum
 from functools import cached_property
 from typing import Optional, Tuple, Dict
 
-import numpy as np
+import numpy
 import xarray
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
@@ -95,12 +95,12 @@ class Grass(Convention[GrassGridKind, GrassIndex]):
         return {'warp': warp, 'weft': weft}
 
     @cached_property
-    def polygons(self) -> np.ndarray:
+    def polygons(self) -> numpy.ndarray:
         def make_polygon_for_cell(warp: int, weft: int) -> Polygon:
             # Implementation left as an exercise for the reader
             return Polygon(...)
 
-        return np.array([
+        return numpy.array([
             make_polygon_for_cell(warp, weft)
             for warp in range(self.dataset.dimensions['warp'])
             for weft in range(self.dataset.dimensions['weft'])

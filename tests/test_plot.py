@@ -1,4 +1,4 @@
-import numpy as np
+import numpy
 import pytest
 from shapely.geometry import Polygon
 
@@ -11,7 +11,7 @@ def test_polygons_to_collection():
         Polygon([(i, 0), (i + 1, 0), (i + 1, 1), (i, 1), (i, 0)])
         for i in range(10)
     ]
-    data = np.random.random(10) * 10
+    data = numpy.random.random(10) * 10
     patch_collection = polygons_to_collection(
         polygons, array=data, cmap='autumn', clim=(0, 10))
 
@@ -20,4 +20,4 @@ def test_polygons_to_collection():
 
     # Check that keyword arguments were passed through
     assert patch_collection.get_cmap().name == 'autumn'
-    np.testing.assert_equal(patch_collection.get_array(), data)
+    numpy.testing.assert_equal(patch_collection.get_array(), data)

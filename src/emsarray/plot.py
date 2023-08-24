@@ -5,7 +5,7 @@ from typing import (
     Union
 )
 
-import numpy as np
+import numpy
 import xarray
 
 from emsarray.utils import requires_extra
@@ -119,7 +119,7 @@ def polygons_to_collection(
     """
     return PolyCollection(
         verts=[
-            np.asarray(polygon.exterior.coords)
+            numpy.asarray(polygon.exterior.coords)
             for polygon in polygons
         ],
         closed=False,
@@ -275,7 +275,7 @@ def animate_on_figure(
         scalar_values = convention.make_linear(scalar).values[:, convention.mask]
         collection = convention.make_poly_collection(
             cmap='jet', edgecolor='face',
-            clim=(np.nanmin(scalar_values), np.nanmax(scalar_values)))
+            clim=(numpy.nanmin(scalar_values), numpy.nanmax(scalar_values)))
         axes.add_collection(collection)
         collection.set_animated(True)
         units = scalar.attrs.get('units')
@@ -305,11 +305,11 @@ def animate_on_figure(
     axes.autoscale()
 
     repeat_arg = True
-    coordinate_indexes = np.arange(coordinate.size)
+    coordinate_indexes = numpy.arange(coordinate.size)
     if repeat is False:
         repeat_arg = False
     elif repeat == 'bounce':
-        coordinate_indexes = np.concatenate(
+        coordinate_indexes = numpy.concatenate(
             (coordinate_indexes, coordinate_indexes[1:-1][::-1]))
 
     # Set up the animation

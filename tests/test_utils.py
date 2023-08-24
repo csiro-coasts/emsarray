@@ -3,7 +3,7 @@ import logging
 import pathlib
 
 import netCDF4
-import numpy as np
+import numpy
 import numpy.testing
 import pandas as pd
 import pytest
@@ -62,30 +62,30 @@ def test_fix_time_units_for_ems(tmp_path: pathlib.Path):
 
 def test_disable_default_fill_value(tmp_path: pathlib.Path):
     int_var = xarray.DataArray(
-        data=np.arange(35, dtype=int).reshape(5, 7),
+        data=numpy.arange(35, dtype=int).reshape(5, 7),
         dims=['j', 'i'],
         attrs={"Hello": "World"},
     )
 
     float_var = xarray.DataArray(
-        data=np.arange(35, dtype=np.float64).reshape(5, 7),
+        data=numpy.arange(35, dtype=numpy.float64).reshape(5, 7),
         dims=['j', 'i'])
 
-    f_data = np.where(
-        np.tri(5, 7, dtype=bool),
-        np.arange(35, dtype=np.float64).reshape(5, 7),
-        np.nan)
+    f_data = numpy.where(
+        numpy.tri(5, 7, dtype=bool),
+        numpy.arange(35, dtype=numpy.float64).reshape(5, 7),
+        numpy.nan)
     float_with_fill_value_var = xarray.DataArray(data=f_data, dims=['j', 'i'])
-    float_with_fill_value_var.encoding["_FillValue"] = np.nan
+    float_with_fill_value_var.encoding["_FillValue"] = numpy.nan
 
-    td_data = np.where(
-        np.tri(5, 7, dtype=bool),
-        np.arange(35).reshape(5, 7) * np.timedelta64(1, 'D').astype('timedelta64[ns]'),
-        np.timedelta64('nat', 'ns'))
+    td_data = numpy.where(
+        numpy.tri(5, 7, dtype=bool),
+        numpy.arange(35).reshape(5, 7) * numpy.timedelta64(1, 'D').astype('timedelta64[ns]'),
+        numpy.timedelta64('nat', 'ns'))
     logger.info('%r', td_data)
     timedelta_with_missing_value_var = xarray.DataArray(
         data=td_data, dims=['j', 'i'])
-    timedelta_with_missing_value_var.encoding['missing_value'] = np.float64('1e35')
+    timedelta_with_missing_value_var.encoding['missing_value'] = numpy.float64('1e35')
     timedelta_with_missing_value_var.encoding['units'] = 'days'
 
     dataset = xarray.Dataset(data_vars={
@@ -113,11 +113,11 @@ def test_disable_default_fill_value(tmp_path: pathlib.Path):
         assert '_FillValue' not in nc_dataset.variables["int_var"].ncattrs()
         # This one shouldn't be here as we didnt set it, and the array is full!
         # This is the problem we are trying to solve
-        assert np.isnan(nc_dataset.variables["float_var"].getncattr("_FillValue"))
+        assert numpy.isnan(nc_dataset.variables["float_var"].getncattr("_FillValue"))
         # This one is quite alright, we did explicitly set it after all
-        assert np.isnan(nc_dataset.variables["float_with_fill_value_var"].getncattr("_FillValue"))
+        assert numpy.isnan(nc_dataset.variables["float_with_fill_value_var"].getncattr("_FillValue"))
         # This one is incorrect, a `missing_value` attribute has already been set
-        assert np.isnan(nc_dataset.variables["timedelta_with_missing_value_var"].getncattr("_FillValue"))
+        assert numpy.isnan(nc_dataset.variables["timedelta_with_missing_value_var"].getncattr("_FillValue"))
 
     utils.disable_default_fill_value(dataset)
 
@@ -137,32 +137,32 @@ def test_disable_default_fill_value(tmp_path: pathlib.Path):
         # This one should now be unset
         assert '_FillValue' not in nc_dataset.variables["float_var"].ncattrs()
         # Make sure this didn't get clobbered
-        assert np.isnan(nc_dataset.variables["float_with_fill_value_var"].getncattr("_FillValue"))
+        assert numpy.isnan(nc_dataset.variables["float_with_fill_value_var"].getncattr("_FillValue"))
         # This one should now be unset
         nc_timedelta = nc_dataset.variables["timedelta_with_missing_value_var"]
         assert '_FillValue' not in nc_timedelta.ncattrs()
-        assert nc_timedelta.getncattr('missing_value') == np.float64('1e35')
+        assert nc_timedelta.getncattr('missing_value') == numpy.float64('1e35')
 
 
 def test_dataset_like():
     sample_foo = xarray.DataArray(
-        data=np.arange(10, dtype=np.int32),
-        coords=[np.arange(10) * 2], dims=['x'])
+        data=numpy.arange(10, dtype=numpy.int32),
+        coords=[numpy.arange(10) * 2], dims=['x'])
     sample_foo.attrs = {'units': 'meters'}
     sample_foo.encoding = {'_FillValue': 10}
     sample_bar = xarray.DataArray(
-        data=np.arange(20, dtype=np.double),
+        data=numpy.arange(20, dtype=numpy.double),
         coords=[list("abcdefghijklmnopqrst")], dims=['y'])
     sample_bar.attrs = {'units': 'seconds', 'long_name': 'Seconds since lunch'}
-    sample_bar.encoding = {'_FillValue': np.nan}
+    sample_bar.encoding = {'_FillValue': numpy.nan}
     sample_dataset = xarray.Dataset({'foo': sample_foo, 'bar': sample_bar})
     sample_dataset.attrs = {"hello": "world", "from": "sample"}
     sample_dataset.encoding = {"reticulation": "spline"}
 
     new_foo = xarray.DataArray(
-        data=np.arange(5, dtype=np.int32), coords=[np.arange(5) * 3], dims=['x'])
+        data=numpy.arange(5, dtype=numpy.int32), coords=[numpy.arange(5) * 3], dims=['x'])
     new_bar = xarray.DataArray(
-        data=np.arange(10, dtype=np.double), coords=[list("ABCDEFGHIJ")], dims=['y'])
+        data=numpy.arange(10, dtype=numpy.double), coords=[list("ABCDEFGHIJ")], dims=['y'])
     new_bar.attrs = {'long_name': 'Seconds since breakfast'}
     new_bar.encoding = {'_FillValue': -9999.}
     new_dataset = xarray.Dataset({'bar': new_bar, 'foo': new_foo})
@@ -200,26 +200,26 @@ def test_dataset_like():
 def test_extract_vars():
     time_size, depth_size = 4, 10
     lon_size, lat_size = 10, 15
-    lon_grid, lat_grid = np.arange(lon_size + 1), np.arange(lat_size + 1)
+    lon_grid, lat_grid = numpy.arange(lon_size + 1), numpy.arange(lat_size + 1)
 
     dataset = xarray.Dataset(
         data_vars={
-            'lon_bounds': (["lon", 2], np.stack([lon_grid[:-1], lon_grid[1:]], axis=-1)),
-            'lat_bounds': (["lat", 2], np.stack([lat_grid[:-1], lat_grid[1:]], axis=-1)),
-            'botz': (["lat", "lon"], 50 + 25 * np.random.random_sample((lat_size, lon_size))),
+            'lon_bounds': (["lon", 2], numpy.stack([lon_grid[:-1], lon_grid[1:]], axis=-1)),
+            'lat_bounds': (["lat", 2], numpy.stack([lat_grid[:-1], lat_grid[1:]], axis=-1)),
+            'botz': (["lat", "lon"], 50 + 25 * numpy.random.random_sample((lat_size, lon_size))),
             'eta': (
                 ["time", "lat", "lon"],
-                np.random.random_sample((time_size, lat_size, lon_size))),
+                numpy.random.random_sample((time_size, lat_size, lon_size))),
             'temp': (
                 ["time", "depth", "lat", "lon"],
-                15 + 3 * np.random.random_sample((time_size, depth_size, lat_size, lon_size))),
+                15 + 3 * numpy.random.random_sample((time_size, depth_size, lat_size, lon_size))),
             'salt': (
                 ["time", "depth", "lat", "lon"],
-                34 + np.random.random_sample((time_size, depth_size, lat_size, lon_size))),
+                34 + numpy.random.random_sample((time_size, depth_size, lat_size, lon_size))),
         },
         coords={
             'time': (["time"], pd.date_range("2021-12-21", periods=time_size)),
-            'depth': (["depth"], np.arange(depth_size), {"positive": "down"}),
+            'depth': (["depth"], numpy.arange(depth_size), {"positive": "down"}),
             'lon': (["lon"], (lon_grid[1:] + lon_grid[:-1]) / 2, {"bounds": "lon_bounds"}),
             'lat': (["lat"], (lat_grid[1:] + lat_grid[:-1]) / 2, {"bounds": "lat_bounds"}),
         },
@@ -253,16 +253,16 @@ def test_check_data_array_dimensions_match_complete():
 
     dataset = xarray.Dataset(
         data_vars={
-            'botz': (["lat", "lon"], 50 + 25 * np.random.random_sample((lat_size, lon_size))),
+            'botz': (["lat", "lon"], 50 + 25 * numpy.random.random_sample((lat_size, lon_size))),
             'eta': (
                 ["time", "lat", "lon"],
-                np.random.random_sample((time_size, lat_size, lon_size)),
+                numpy.random.random_sample((time_size, lat_size, lon_size)),
             ),
         },
         coords={
             'time': (["time"], pd.date_range("2021-12-21", periods=time_size)),
-            'lon': (["lon"], np.arange(lon_size) + 0.5),
-            'lat': (["lat"], np.arange(lat_size) + 0.5),
+            'lon': (["lon"], numpy.arange(lon_size) + 0.5),
+            'lat': (["lat"], numpy.arange(lat_size) + 0.5),
         }
     )
 
@@ -270,7 +270,7 @@ def test_check_data_array_dimensions_match_complete():
     # above, but is otherwise unrelated. The data can still be plotted using
     # the spatial data of the dataset, assuming the dimensions match.
     surface_temp = xarray.DataArray(
-        data=15 + 3 * np.random.random_sample((time_size, lat_size, lon_size)),
+        data=15 + 3 * numpy.random.random_sample((time_size, lat_size, lon_size)),
         dims=['time', 'lat', 'lon'],
     )
 
@@ -286,17 +286,17 @@ def test_check_data_array_dimensions_match_subset():
 
     dataset = xarray.Dataset(
         data_vars={
-            'botz': (["lat", "lon"], 50 + 25 * np.random.random_sample((lat_size, lon_size))),
+            'botz': (["lat", "lon"], 50 + 25 * numpy.random.random_sample((lat_size, lon_size))),
             'temp': (
                 ["time", "depth", "lat", "lon"],
-                np.random.random_sample((time_size, depth_size, lat_size, lon_size)),
+                numpy.random.random_sample((time_size, depth_size, lat_size, lon_size)),
             ),
         },
         coords={
             'time': (["time"], pd.date_range("2021-12-21", periods=time_size)),
-            'depth': (["depth"], np.arange(depth_size), {'positive': 'down'}),
-            'lon': (["lon"], np.arange(lon_size) + 0.5),
-            'lat': (["lat"], np.arange(lat_size) + 0.5),
+            'depth': (["depth"], numpy.arange(depth_size), {'positive': 'down'}),
+            'lon': (["lon"], numpy.arange(lon_size) + 0.5),
+            'lat': (["lat"], numpy.arange(lat_size) + 0.5),
         }
     )
 
@@ -316,31 +316,31 @@ def test_check_data_array_dimensions_match_size_mismatch():
 
     dataset = xarray.Dataset(
         data_vars={
-            'botz': (["lat", "lon"], 50 + 25 * np.random.random_sample((lat_size, lon_size))),
+            'botz': (["lat", "lon"], 50 + 25 * numpy.random.random_sample((lat_size, lon_size))),
             'temp': (
                 ["time", "depth", "lat", "lon"],
-                np.random.random_sample((time_size, depth_size, lat_size, lon_size)),
+                numpy.random.random_sample((time_size, depth_size, lat_size, lon_size)),
             ),
         },
         coords={
             'time': (["time"], pd.date_range("2021-12-21", periods=time_size)),
-            'depth': (["depth"], np.arange(depth_size), {'positive': 'down'}),
-            'lon': (["lon"], np.arange(lon_size) + 0.5),
-            'lat': (["lat"], np.arange(lat_size) + 0.5),
+            'depth': (["depth"], numpy.arange(depth_size), {'positive': 'down'}),
+            'lon': (["lon"], numpy.arange(lon_size) + 0.5),
+            'lat': (["lat"], numpy.arange(lat_size) + 0.5),
         }
     )
 
     # Slicing the temperature to get a subset of the lat/lon grid will cause
     # the dimensions to differ
     surface_temp = dataset.data_vars['temp'].isel(
-        {'lon': np.s_[2:-2], 'lat': np.s_[3:-3], 'depth': 0},
+        {'lon': numpy.s_[2:-2], 'lat': numpy.s_[3:-3], 'depth': 0},
         drop=True)
 
     with pytest.raises(ValueError):
         utils.check_data_array_dimensions_match(dataset, surface_temp)
 
     # If you subset the dataset as well, this should work fine though!
-    dataset_subset = dataset.isel({'lon': np.s_[2:-2], 'lat': np.s_[3:-3]})
+    dataset_subset = dataset.isel({'lon': numpy.s_[2:-2], 'lat': numpy.s_[3:-3]})
     surface_temp_subset = dataset_subset.data_vars['temp'].isel({'depth': 0}, drop=True)
     utils.check_data_array_dimensions_match(dataset_subset, surface_temp_subset)
 
@@ -354,23 +354,23 @@ def test_check_data_array_dimensions_match_unknown_dimension():
 
     dataset = xarray.Dataset(
         data_vars={
-            'botz': (["lat", "lon"], 50 + 25 * np.random.random_sample((lat_size, lon_size))),
+            'botz': (["lat", "lon"], 50 + 25 * numpy.random.random_sample((lat_size, lon_size))),
             'eta': (
                 ["time", "lat", "lon"],
-                np.random.random_sample((time_size, lat_size, lon_size)),
+                numpy.random.random_sample((time_size, lat_size, lon_size)),
             ),
         },
         coords={
             'time': (["time"], pd.date_range("2021-12-21", periods=time_size)),
-            'lon': (["lon"], np.arange(lon_size) + 0.5),
-            'lat': (["lat"], np.arange(lat_size) + 0.5),
+            'lon': (["lon"], numpy.arange(lon_size) + 0.5),
+            'lat': (["lat"], numpy.arange(lat_size) + 0.5),
         }
     )
 
     # Slicing the temperature to get a subset of the lat/lon grid will cause
     # the dimensions to differ
     temp = xarray.DataArray(
-        data=15 + 3 * np.random.random_sample((time_size, depth_size, lat_size, lon_size)),
+        data=15 + 3 * numpy.random.random_sample((time_size, depth_size, lat_size, lon_size)),
         dims=['time', 'depth', 'lat', 'lon'],
     )
 
@@ -384,7 +384,7 @@ def test_check_data_array_dimensions_match_unknown_dimension():
 
 def test_move_dimensions_to_end():
     data_array = xarray.DataArray(
-        data=np.random.random((2, 7, 5, 3)),
+        data=numpy.random.random((2, 7, 5, 3)),
         dims=['t', 'x', 'y', 'z'],
     )
 
@@ -398,7 +398,7 @@ def test_move_dimensions_to_end():
     # Check that the values were rearranged as expected
     numpy.testing.assert_equal(
         transposed.isel(t=1, z=2).values,
-        np.transpose(data_array.isel(t=1, z=2).values))
+        numpy.transpose(data_array.isel(t=1, z=2).values))
 
     # This should be a no-op, as those dimensions are already at the end
     xarray.testing.assert_equal(
@@ -408,7 +408,7 @@ def test_move_dimensions_to_end():
 
 def test_move_dimensions_to_end_missing():
     data_array = xarray.DataArray(
-        data=np.random.random((2, 7, 5, 3)),
+        data=numpy.random.random((2, 7, 5, 3)),
         dims=['t', 'x', 'y', 'z'],
     )
 
@@ -421,7 +421,7 @@ def test_move_dimensions_to_end_missing():
 
 def test_linearize_dimensions_exact_dimensions():
     data_array = xarray.DataArray(
-        data=np.random.random((3, 5)),
+        data=numpy.random.random((3, 5)),
         dims=['y', 'x'],
     )
     expected = xarray.DataArray(
@@ -434,17 +434,17 @@ def test_linearize_dimensions_exact_dimensions():
 
 def test_linearize_dimensions_extra_dimensions():
     data_array = xarray.DataArray(
-        data=np.random.random((2, 7, 5, 3)),
+        data=numpy.random.random((2, 7, 5, 3)),
         dims=['t', 'x', 'y', 'z'],
         coords={
             't': pd.date_range("2022-03-02", periods=2),
-            'x': np.arange(7),
-            'y': np.arange(5),
+            'x': numpy.arange(7),
+            'y': numpy.arange(5),
             'z': [0.25, 0.5, 1.5],
         }
     )
     expected = xarray.DataArray(
-        data=np.reshape(np.transpose(data_array.values, (0, 3, 2, 1)), (2, 3, -1)),
+        data=numpy.reshape(numpy.transpose(data_array.values, (0, 3, 2, 1)), (2, 3, -1)),
         dims=['t', 'z', 'index'],
         coords={
             't': data_array.coords['t'],
@@ -457,11 +457,11 @@ def test_linearize_dimensions_extra_dimensions():
 
 def test_linearize_dimensions_custom_name():
     data_array = xarray.DataArray(
-        data=np.random.random((2, 7, 5, 3)),
+        data=numpy.random.random((2, 7, 5, 3)),
         dims=['t', 'x', 'y', 'z'],
     )
     expected = xarray.DataArray(
-        data=np.reshape(np.transpose(data_array.values, (0, 3, 2, 1)), (2, 3, -1)),
+        data=numpy.reshape(numpy.transpose(data_array.values, (0, 3, 2, 1)), (2, 3, -1)),
         dims=['t', 'z', 'i'],
     )
     linearized = utils.linearise_dimensions(data_array, ['y', 'x'], linear_dimension='i')
@@ -470,11 +470,11 @@ def test_linearize_dimensions_custom_name():
 
 def test_linearize_dimensions_auto_name_conflict():
     data_array = xarray.DataArray(
-        data=np.random.random((2, 7, 5, 3)),
+        data=numpy.random.random((2, 7, 5, 3)),
         dims=['index', 'index_0', 'index_1', 'index_2'],
     )
     expected = xarray.DataArray(
-        data=np.reshape(np.transpose(data_array.values, (0, 1, 3, 2)), (2, 7, -1)),
+        data=numpy.reshape(numpy.transpose(data_array.values, (0, 1, 3, 2)), (2, 7, -1)),
         dims=['index', 'index_0', 'index_1'],
     )
     linearized = utils.linearise_dimensions(data_array, ['index_2', 'index_1'])

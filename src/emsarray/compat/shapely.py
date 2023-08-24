@@ -1,7 +1,7 @@
 import warnings
 from typing import Generic, Iterable, Tuple, TypeVar, Union, cast
 
-import numpy as np
+import numpy
 import shapely
 from packaging.version import parse
 from shapely.errors import ShapelyDeprecationWarning
@@ -23,16 +23,16 @@ class SpatialIndex(Generic[T]):
     This also handles the version differences in STRtree between
     shapely ~= 1.8.x and shapely >= 2.0.0
     """
-    items: np.ndarray
+    items: numpy.ndarray
     index: STRtree
 
-    dtype: np.dtype = np.dtype([('geom', np.object_), ('data', np.object_)])
+    dtype: numpy.dtype = numpy.dtype([('geom', numpy.object_), ('data', numpy.object_)])
 
     def __init__(
         self,
-        items: Union[np.ndarray, Iterable[Tuple[BaseGeometry, T]]],
+        items: Union[numpy.ndarray, Iterable[Tuple[BaseGeometry, T]]],
     ):
-        self.items = np.array(items, dtype=self.dtype)
+        self.items = numpy.array(items, dtype=self.dtype)
 
         if shapely_version >= v2:
             self.index = STRtree(self.items['geom'])
@@ -46,19 +46,19 @@ class SpatialIndex(Generic[T]):
     def query(
         self,
         geom: BaseGeometry,
-    ) -> np.ndarray:
+    ) -> numpy.ndarray:
         if shapely_version >= v2:
             indices = self.index.query(geom)
         else:
             indices = self.index._query(geom)
-        return cast(np.ndarray, self.items.take(indices))
+        return cast(numpy.ndarray, self.items.take(indices))
 
     def nearest(
         self,
         geom: BaseGeometry,
-    ) -> np.ndarray:
+    ) -> numpy.ndarray:
         if shapely_version >= v2:
             indices = self.index.nearest(geom)
         else:
             indices = self.index._nearest(geom)
-        return cast(np.ndarray, self.items.take(indices))
+        return cast(numpy.ndarray, self.items.take(indices))

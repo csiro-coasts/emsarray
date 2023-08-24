@@ -5,7 +5,7 @@ import json
 import pathlib
 from typing import Type
 
-import numpy as np
+import numpy
 import pandas as pd
 import pytest
 import xarray
@@ -54,14 +54,14 @@ def make_dataset(
     The (i=i_size, j=j_size) corner will have coordinates,
     but data variables will be masked off
     """
-    coordinate_centre_mask = np.full((j_size, i_size), True)
+    coordinate_centre_mask = numpy.full((j_size, i_size), True)
     # Cut a chunk out of the corner where the coordinates will not be defined.
     if corner_size > 1:
         coordinate_centre_mask[-(corner_size - 1):, :+(corner_size - 1)] = False
 
     # SHOC files have a 1-cell border around the outside where the cells have
     # coordinates, but no data.
-    wet_centre_mask = np.full((j_size, i_size), True)
+    wet_centre_mask = numpy.full((j_size, i_size), True)
     if corner_size > 0:
         wet_centre_mask[-corner_size:, :+corner_size] = False
         wet_centre_mask[-corner_size:, -corner_size:] = False
@@ -100,7 +100,7 @@ def make_dataset(
     t.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
 
     botz = xarray.DataArray(
-        data=np.random.random((j_size, i_size)) * 10 + 50,
+        data=numpy.random.random((j_size, i_size)) * 10 + 50,
         dims=wet_mask["face_mask"].dims,
         attrs={
             "units": "metre",
@@ -114,7 +114,7 @@ def make_dataset(
     botz.values[1, 1] = -99.
 
     eta = xarray.DataArray(
-        data=np.random.normal(0, 0.2, (time_size, j_size, i_size)),
+        data=numpy.random.normal(0, 0.2, (time_size, j_size, i_size)),
         dims=["record", *wet_mask["face_mask"].dims],
         attrs={
             "units": "metre",
@@ -123,7 +123,7 @@ def make_dataset(
         }
     ).where(wet_mask.data_vars["face_mask"])
     temp = xarray.DataArray(
-        data=np.random.normal(12, 0.5, (time_size, k_size, j_size, i_size)),
+        data=numpy.random.normal(12, 0.5, (time_size, k_size, j_size, i_size)),
         dims=["record", "k_centre", *wet_mask["face_mask"].dims],
         attrs={
             "units": "degrees C",
@@ -132,7 +132,7 @@ def make_dataset(
     ).where(wet_mask.data_vars["face_mask"])
 
     u1 = xarray.DataArray(
-        data=np.random.normal(0, 2, (time_size, k_size, j_size, i_size + 1)),
+        data=numpy.random.normal(0, 2, (time_size, k_size, j_size, i_size + 1)),
         dims=["record", "k_centre", *wet_mask.data_vars["left_mask"].dims],
         attrs={
             "units": "metre second-1",
@@ -140,7 +140,7 @@ def make_dataset(
         }
     )
     u2 = xarray.DataArray(
-        data=np.random.normal(0, 2, (time_size, k_size, j_size + 1, i_size)),
+        data=numpy.random.normal(0, 2, (time_size, k_size, j_size + 1, i_size)),
         dims=["record", "k_centre", *wet_mask.data_vars["back_mask"].dims],
         attrs={
             "units": "metre per second",
@@ -148,7 +148,7 @@ def make_dataset(
         }
     )
     flag = xarray.DataArray(
-        data=np.random.randint(0, 256, (time_size, k_size, j_size + 1, i_size + 1)),
+        data=numpy.random.randint(0, 256, (time_size, k_size, j_size + 1, i_size + 1)),
         dims=["record", "k_centre", *wet_mask.data_vars["node_mask"].dims],
         attrs={"long_name": "SHOC masking flags"},
     )
@@ -257,7 +257,7 @@ def test_face_centres():
             lon = lons[j, i]
             lat = lats[j, i]
             linear_index = convention.ravel_index((ArakawaCGridKind.face, j, i))
-            np.testing.assert_equal(face_centres[linear_index], [lon, lat])
+            numpy.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
 
 def test_make_geojson_geometry():
@@ -440,7 +440,7 @@ def test_values():
     assert len(values) == len(dataset.ems.polygons)
 
     # The values should be in a specific order
-    assert np.allclose(values, eta.values.ravel(), equal_nan=True)
+    assert numpy.allclose(values, eta.values.ravel(), equal_nan=True)
 
 
 @pytest.mark.matplotlib
@@ -592,12 +592,12 @@ def test_apply_clip_mask(tmp_path):
     assert clipped.ems.node.latitude.shape == (4, 4)
 
     # Check that the data were preserved, beyond being clipped
-    def clip_values(values: np.ndarray) -> np.ndarray:
+    def clip_values(values: numpy.ndarray) -> numpy.ndarray:
         values = values[..., 3:6, 2:5].copy()
-        values[..., 0, 0] = np.nan
-        values[..., 0, -1] = np.nan
-        values[..., -1, -1] = np.nan
-        values[..., -1, 0] = np.nan
+        values[..., 0, 0] = numpy.nan
+        values[..., 0, -1] = numpy.nan
+        values[..., -1, -1] = numpy.nan
+        values[..., -1, 0] = numpy.nan
         return values
 
     assert_equal(clipped.data_vars['botz'].values, clip_values(dataset.data_vars['botz'].values))

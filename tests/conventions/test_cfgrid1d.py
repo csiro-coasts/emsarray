@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import pathlib
 
-import numpy as np
+import numpy
 import pandas as pd
 import pytest
 import xarray
@@ -34,7 +34,7 @@ def make_dataset(
     time_name = 'time'
 
     lon = xarray.DataArray(
-        data=np.arange(width) * 0.1,
+        data=numpy.arange(width) * 0.1,
         dims=[longitude_name],
         name=longitude_name,
         attrs={
@@ -46,7 +46,7 @@ def make_dataset(
         },
     )
     lat = xarray.DataArray(
-        data=np.arange(height) * 0.1,
+        data=numpy.arange(height) * 0.1,
         dims=[latitude_name],
         name=latitude_name,
         attrs={
@@ -58,7 +58,7 @@ def make_dataset(
         },
     )
     depth_var = xarray.DataArray(
-        data=(-1 * np.arange(0, depth))[::-1],
+        data=(-1 * numpy.arange(0, depth))[::-1],
         dims=[depth_name],
         name=depth_name,
         attrs={
@@ -88,7 +88,7 @@ def make_dataset(
     time.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
 
     botz = xarray.DataArray(
-        data=np.random.random((height, width)) * 10 + 50,
+        data=numpy.random.random((height, width)) * 10 + 50,
         dims=[latitude_name, longitude_name],
         name="botz",
         attrs={
@@ -100,7 +100,7 @@ def make_dataset(
         }
     )
     eta = xarray.DataArray(
-        data=np.random.normal(0, 0.2, (time_size, height, width)),
+        data=numpy.random.normal(0, 0.2, (time_size, height, width)),
         dims=[time_name, latitude_name, longitude_name],
         name="eta",
         attrs={
@@ -110,7 +110,7 @@ def make_dataset(
         },
     )
     temp = xarray.DataArray(
-        data=np.random.normal(12, 0.5, (time_size, depth, height, width)),
+        data=numpy.random.normal(12, 0.5, (time_size, depth, height, width)),
         dims=[time_name, depth_name, latitude_name, longitude_name],
         name="temp",
         attrs={
@@ -125,21 +125,21 @@ def make_dataset(
     ]
 
     if bounds:
-        lon_grid = np.concatenate([
+        lon_grid = numpy.concatenate([
             lon.values - 0.08,
             [lon.values[-1] + 0.02]
         ])
-        lat_grid = np.concatenate([
+        lat_grid = numpy.concatenate([
             lat.values - 0.07,
             [lat.values[-1] + 0.03]
         ])
         lon_bounds = xarray.DataArray(
-            np.c_[lon_grid[:-1], lon_grid[1:]],
+            numpy.c_[lon_grid[:-1], lon_grid[1:]],
             dims=[longitude_name, 'bounds'],
             name="lon_bounds",
         )
         lat_bounds = xarray.DataArray(
-            np.c_[lat_grid[:-1], lat_grid[1:]],
+            numpy.c_[lat_grid[:-1], lat_grid[1:]],
             dims=[latitude_name, 'bounds'],
             name="lat_bounds",
         )
@@ -170,8 +170,8 @@ def test_make_dataset():
     # Check the coordinate generation worked.
     lats = dataset.variables["lat"]
     lons = dataset.variables["lon"]
-    assert_allclose(lats.values, np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]))
-    assert_allclose(lons.values, np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]))
+    assert_allclose(lats.values, numpy.array([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]))
+    assert_allclose(lons.values, numpy.array([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]))
 
 
 @pytest.mark.parametrize(
@@ -451,10 +451,10 @@ def test_apply_clip_mask(tmp_path):
     assert clipped.ems.topology.latitude.size == 4
 
     # Check that the data were preserved, beyond being clipped
-    def clip_values(values: np.ndarray) -> np.ndarray:
+    def clip_values(values: numpy.ndarray) -> numpy.ndarray:
         values = values[..., 3:7, 2:7].copy()
-        values[..., 0, -2:] = np.nan
-        values[..., 1, -1:] = np.nan
+        values[..., 0, -2:] = numpy.nan
+        values[..., 1, -1:] = numpy.nan
         return values
 
     assert_equal(clipped.data_vars['botz'].values, clip_values(dataset.data_vars['botz'].values))
@@ -463,7 +463,7 @@ def test_apply_clip_mask(tmp_path):
 
     # Check that the new geometry matches the relevant polygons in the old geometry
     assert len(clipped.ems.polygons) == 5 * 4
-    original_polys = np.concatenate([
+    original_polys = numpy.concatenate([
         dataset.ems.polygons[(i * 10 + 2):(i * 10 + 7)]
         for i in range(3, 7)
     ], axis=None)
@@ -491,10 +491,10 @@ def test_topology():
     assert longitude_bounds.dims == (topology.longitude_name, 'bounds')
     assert_allclose(
         longitude_bounds.values,
-        0.1 * np.array([[i - 0.5, i + 0.5] for i in range(10)]))
+        0.1 * numpy.array([[i - 0.5, i + 0.5] for i in range(10)]))
 
     latitude_bounds = topology.latitude_bounds
     assert latitude_bounds.dims == (topology.latitude_name, 'bounds')
     assert_allclose(
         latitude_bounds.values,
-        0.1 * np.array([[i - 0.5, i + 0.5] for i in range(11)]))
+        0.1 * numpy.array([[i - 0.5, i + 0.5] for i in range(11)]))

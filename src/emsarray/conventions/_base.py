@@ -11,7 +11,7 @@ from typing import (
     List, Optional, Tuple, TypeVar, Union, cast
 )
 
-import numpy as np
+import numpy
 import xarray
 from shapely import unary_union
 from shapely.geometry import MultiPolygon, Point, Polygon
@@ -355,7 +355,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 # A time variable must have units of the form '<units> since <epoc>'
                 if 'since' in units:
                     # The variable must now be a numpy datetime
-                    if variable.dtype.type == np.datetime64:
+                    if variable.dtype.type == numpy.datetime64:
                         return name
         raise NoSuchCoordinateError("Could not find time coordinate in dataset")
 
@@ -441,7 +441,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ),
         DeprecationWarning,
     )
-    def get_depths(self) -> np.ndarray:
+    def get_depths(self) -> numpy.ndarray:
         """Get the depth of each vertical layer in this dataset.
 
         .. deprecated:: 0.5.0
@@ -453,7 +453,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :class:`numpy.ndarray`
             An array of depths, one per vertical layer in the dataset.
         """
-        return cast(np.ndarray, self.depth_coordinate.values)
+        return cast(numpy.ndarray, self.depth_coordinate.values)
 
     @utils.deprecated(
         (
@@ -462,7 +462,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ),
         DeprecationWarning,
     )
-    def get_times(self) -> np.ndarray:
+    def get_times(self) -> numpy.ndarray:
         """Get all timesteps in this dataset.
 
         .. deprecated:: 0.5.0
@@ -476,7 +476,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             The datetimes will be whatever native format the dataset uses,
             likely :class:`numpy.datetime64`.
         """
-        return cast(np.ndarray, self.time_coordinate.values)
+        return cast(numpy.ndarray, self.time_coordinate.values)
 
     @abc.abstractmethod
     def ravel_index(self, index: Index) -> int:
@@ -940,7 +940,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             values = data_array.values[self.mask]
             kwargs['array'] = values
             if 'clim' not in kwargs:
-                kwargs['clim'] = (np.nanmin(values), np.nanmax(values))
+                kwargs['clim'] = (numpy.nanmin(values), numpy.nanmax(values))
 
         if 'transform' not in kwargs:
             kwargs['transform'] = self.data_crs
@@ -988,15 +988,15 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         from matplotlib.quiver import Quiver
 
-        x, y = np.transpose(self.face_centres)
+        x, y = numpy.transpose(self.face_centres)
 
         # A Quiver needs some values when being initialized.
         # We don't always want to provide values to the quiver,
         # sometimes preferring to fill them in later,
         # so `u` and `v` are optional.
-        # If they are not provided, we set default quiver values of `np.nan`.
-        values: Union[Tuple[np.ndarray, np.ndarray], Tuple[float, float]]
-        values = np.nan, np.nan
+        # If they are not provided, we set default quiver values of `numpy.nan`.
+        values: Union[Tuple[numpy.ndarray, numpy.ndarray], Tuple[float, float]]
+        values = numpy.nan, numpy.nan
 
         if u is not None and v is not None:
             u, v = self._get_data_array(u), self._get_data_array(v)
@@ -1024,7 +1024,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     @property
     @abc.abstractmethod
-    def polygons(self) -> np.ndarray:
+    def polygons(self) -> numpy.ndarray:
         """A :class:`numpy.ndarray` of :class:`shapely.Polygon` instances
         representing the cells in this dataset.
 
@@ -1047,7 +1047,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         pass
 
     @cached_property
-    def face_centres(self) -> np.ndarray:
+    def face_centres(self) -> numpy.ndarray:
         """
         A numpy :class:`~numpy.ndarray` of face centres, which are (x, y) pairs.
         The first dimension will be the same length and in the same order
@@ -1057,14 +1057,14 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         # This default implementation simply finds the centroid of each polygon.
         # Subclasses are free to override this if the particular convention and dataset
         # provides the cell centres as a data array.
-        centres = np.array([
-            polygon.centroid.coords[0] if polygon is not None else [np.nan, np.nan]
+        centres = numpy.array([
+            polygon.centroid.coords[0] if polygon is not None else [numpy.nan, numpy.nan]
             for polygon in self.polygons
         ])
-        return cast(np.ndarray, centres)
+        return cast(numpy.ndarray, centres)
 
     @cached_property
-    def mask(self) -> np.ndarray:
+    def mask(self) -> numpy.ndarray:
         """
         A boolean :class:`numpy.ndarray` indicating which cells have valid polygons.
         This can be used to select only items from linear arrays
@@ -1081,10 +1081,10 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         --------
         :meth:`Convention.make_linear`
         """
-        mask = np.fromiter(
+        mask = numpy.fromiter(
             (p is not None for p in self.polygons),
             dtype=bool, count=self.polygons.size)
-        return cast(np.ndarray, mask)
+        return cast(numpy.ndarray, mask)
 
     @cached_property
     def geometry(self) -> Union[Polygon, MultiPolygon]:

@@ -6,7 +6,7 @@ import warnings
 from collections import defaultdict
 from typing import Dict, FrozenSet, Hashable, List, Optional, cast
 
-import numpy as np
+import numpy
 import xarray
 
 from emsarray import utils
@@ -282,6 +282,6 @@ def normalize_depth_variables(
 
         # Flip the order of the coordinate
         if data_deep_to_shallow != deep_to_shallow:
-            new_dataset = new_dataset.isel({dimension: np.s_[::-1]})
+            new_dataset = new_dataset.isel({dimension: numpy.s_[::-1]})
 
     return new_dataset

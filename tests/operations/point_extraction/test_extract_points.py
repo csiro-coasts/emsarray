@@ -1,6 +1,6 @@
 import pathlib
 
-import numpy as np
+import numpy
 import pytest
 import xarray
 from numpy.testing import assert_equal
@@ -13,9 +13,9 @@ def test_extract_points(
     datasets: pathlib.Path,
 ) -> None:
     num_points = 10
-    rs = np.random.sample(num_points) * 3
-    θs = np.random.sample(num_points) * 2 * np.pi
-    coords = np.c_[np.cos(θs) * rs, np.sin(θs) * rs]
+    rs = numpy.random.sample(num_points) * 3
+    θs = numpy.random.sample(num_points) * 2 * numpy.pi
+    coords = numpy.c_[numpy.cos(θs) * rs, numpy.sin(θs) * rs]
     points = [Point(x, y) for x, y in coords]
 
     in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
@@ -35,7 +35,7 @@ def test_extract_points(
 
     point_coord = point_dataset.coords['point']
     assert point_coord.dims == ('point',)
-    assert_equal(point_coord.values, np.arange(num_points))
+    assert_equal(point_coord.values, numpy.arange(num_points))
 
 
 def test_extract_points_point_dimension(

@@ -13,7 +13,7 @@ import logging
 from functools import cached_property
 from typing import Dict, Hashable, List, Optional, Tuple, cast
 
-import numpy as np
+import numpy
 import xarray
 from shapely.geometry.base import BaseGeometry
 from xarray.core.dataset import DatasetCoordinates
@@ -74,7 +74,7 @@ class ArakawaCGridTopology:
     @cached_property
     def size(self) -> int:
         """The size of this grid, ``j * i``."""
-        return cast(int, np.prod(self.shape))
+        return cast(int, numpy.prod(self.shape))
 
     def __repr__(self) -> str:
         bits = (f"{key}: {value!r}" for key, value in [
@@ -260,13 +260,13 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
         if grid_kind is None:
             grid_kind = ArakawaCGridKind.face
         topology = self._topology_for_grid_kind[grid_kind]
-        j, i = map(int, np.unravel_index(index, topology.shape))
+        j, i = map(int, numpy.unravel_index(index, topology.shape))
         return (grid_kind, j, i)
 
     def ravel_index(self, indices: ArakawaCIndex) -> int:
         grid_kind, j, i = indices
         topology = self._topology_for_grid_kind[grid_kind]
-        return int(np.ravel_multi_index((j, i), topology.shape))
+        return int(numpy.ravel_multi_index((j, i), topology.shape))
 
     def get_grid_kind_and_size(self, data_array: xarray.DataArray) -> Tuple[ArakawaCGridKind, int]:
         dims = set(data_array.dims)
@@ -280,12 +280,12 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
 
     @cached_property
     @utils.timed_func
-    def polygons(self) -> np.ndarray:
+    def polygons(self) -> numpy.ndarray:
         # Make an array of shape (j, i, 2) of all the nodes
-        grid = np.stack([self.node.longitude.values, self.node.latitude.values], axis=-1)
+        grid = numpy.stack([self.node.longitude.values, self.node.latitude.values], axis=-1)
 
         # Transform this in to an array of shape (topology.size, 4, 2)
-        points = np.stack([
+        points = numpy.stack([
             grid[:-1, :-1],
             grid[:-1, +1:],
             grid[+1:, +1:],
@@ -295,12 +295,12 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
         return utils.make_polygons_with_holes(points)
 
     @cached_property
-    def face_centres(self) -> np.ndarray:
-        centres = np.column_stack((
+    def face_centres(self) -> numpy.ndarray:
+        centres = numpy.column_stack((
             self.make_linear(self.face.longitude).values,
             self.make_linear(self.face.latitude).values,
         ))
-        return cast(np.ndarray, centres)
+        return cast(numpy.ndarray, centres)
 
     def selector_for_index(self, index: ArakawaCIndex) -> Dict[Hashable, int]:
         kind, j, i = index
@@ -342,7 +342,7 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
             item.linear_index
             for polygon, item in self.spatial_index.query(clip_geometry)
             if polygon.intersects(clip_geometry)]
-        face_mask = np.full(self.face.shape, fill_value=False)
+        face_mask = numpy.full(self.face.shape, fill_value=False)
         face_mask.ravel()[intersecting_indices] = True
 
         # Expand the mask by one cell around the clipped region, as a buffer
@@ -357,7 +357,7 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
 
 
 def c_mask_from_centres(
-    face_mask: np.ndarray,
+    face_mask: numpy.ndarray,
     dimensions: ArakawaCDimensions,
     coords: Optional[DatasetCoordinates] = None,
 ) -> xarray.Dataset:

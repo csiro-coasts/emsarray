@@ -16,7 +16,7 @@ This is useful if you want to add your own metadata to the subset dataset.
 import dataclasses
 from typing import Any, Hashable, List, Literal, Tuple
 
-import numpy as np
+import numpy
 import pandas as pd
 import shapely
 import xarray
@@ -32,7 +32,7 @@ class NonIntersectingPoints(ValueError):
     """
 
     #: The indices of the points that do not intersect
-    indices: np.ndarray
+    indices: numpy.ndarray
 
     #: The non-intersecting points
     points: List[shapely.Point]
@@ -99,10 +99,10 @@ def extract_points(
     convention: Convention = dataset.ems
 
     # Find the indexer for each given point
-    indexes = np.array([convention.get_index_for_point(point) for point in points])
+    indexes = numpy.array([convention.get_index_for_point(point) for point in points])
 
     if missing_points == 'error':
-        out_of_bounds = np.flatnonzero(np.equal(indexes, None))  # type: ignore
+        out_of_bounds = numpy.flatnonzero(numpy.equal(indexes, None))  # type: ignore
         if len(out_of_bounds):
             raise NonIntersectingPoints(
                 indices=out_of_bounds,
@@ -214,7 +214,7 @@ def extract_dataframe(
     lon_coord, lat_coord = coordinate_columns
 
     # Extract the points from the dataset
-    points = shapely.points(np.c_[dataframe[lon_coord], dataframe[lat_coord]])
+    points = shapely.points(numpy.c_[dataframe[lon_coord], dataframe[lat_coord]])
 
     point_dataset = extract_points(
         dataset, points, point_dimension=point_dimension,

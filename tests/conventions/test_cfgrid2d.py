@@ -12,7 +12,7 @@ import json
 import pathlib
 from typing import Type
 
-import numpy as np
+import numpy
 import pandas as pd
 import pytest
 import xarray
@@ -64,12 +64,12 @@ def make_dataset(
     The (i=i_size, j=j_size) corner will have coordinates,
     but data variables will be masked off
     """
-    coordinate_centre_mask = np.full((j_size, i_size), True)
+    coordinate_centre_mask = numpy.full((j_size, i_size), True)
     # Cut a chunk out of the corner where the coordinates will not be defined.
     if corner_size > 0:
         coordinate_centre_mask[-(corner_size):, :+(corner_size)] = False
 
-    wet_centre_mask = np.full((j_size, i_size), True)
+    wet_centre_mask = numpy.full((j_size, i_size), True)
     if corner_size > 0:
         wet_centre_mask[-corner_size:, :+corner_size] = False
         wet_centre_mask[-corner_size:, -corner_size:] = False
@@ -96,7 +96,7 @@ def make_dataset(
     )
 
     botz = xarray.DataArray(
-        data=np.random.random((j_size, i_size)) * 10 + 50,
+        data=numpy.random.random((j_size, i_size)) * 10 + 50,
         dims=["j", "i"],
         attrs={
             "units": "metre",
@@ -110,7 +110,7 @@ def make_dataset(
     botz.values[1, 1] = -99.
 
     eta = xarray.DataArray(
-        data=np.random.normal(0, 0.2, (time_size, j_size, i_size)),
+        data=numpy.random.normal(0, 0.2, (time_size, j_size, i_size)),
         dims=["time", "j", "i"],
         attrs={
             "units": "metre",
@@ -119,7 +119,7 @@ def make_dataset(
         }
     ).where(wet_mask)
     temp = xarray.DataArray(
-        data=np.random.normal(12, 0.5, (time_size, k_size, j_size, i_size)),
+        data=numpy.random.normal(12, 0.5, (time_size, k_size, j_size, i_size)),
         dims=["time", "k", "j", "i"],
         attrs={
             "units": "degrees C",
@@ -320,7 +320,7 @@ def test_face_centres():
             lon = lons[j, i]
             lat = lats[j, i]
             linear_index = convention.ravel_index((j, i))
-            np.testing.assert_equal(face_centres[linear_index], [lon, lat])
+            numpy.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
 
 def test_selector_for_index():
@@ -389,7 +389,7 @@ def test_values():
     assert len(values) == len(dataset.ems.polygons)
 
     # The values should be in a specific order
-    assert np.allclose(values, eta.values.ravel(), equal_nan=True)
+    assert numpy.allclose(values, eta.values.ravel(), equal_nan=True)
 
 
 @pytest.mark.matplotlib

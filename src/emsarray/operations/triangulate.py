@@ -65,19 +65,19 @@ def triangulate_dataset(
     .. code-block:: python
 
         import emsarray
-        import numpy as np
+        import numpy
         import trimesh
         from emsarray.operations import triangulate_dataset
 
         dataset = emsarray.tutorial.open_dataset("gbr4")
         vertices, triangles, cell_indices = triangulate_dataset(dataset)
         # Trimesh expects 3D vertices.
-        vertices = np.c_[vertices, np.zeros(len(vertices))]
+        vertices = numpy.c_[vertices, numpy.zeros(len(vertices))]
         mesh = trimesh.Trimesh(vertices=vertices, faces=triangles)
         mesh.invert()  # Trimesh grids expect the opposite winding order
 
         depth = 1 - (dataset.data_vars["Mesh2_depth"].values / -200)
-        depth_colour = np.c_[depth, depth, depth, np.ones_like(depth)] * 255
+        depth_colour = numpy.c_[depth, depth, depth, numpy.ones_like(depth)] * 255
         mesh.visual.face_colors = depth_colour[cell_indices]
         mesh.show()
 

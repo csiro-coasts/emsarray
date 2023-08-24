@@ -7,7 +7,7 @@ import warnings
 from functools import cached_property
 from typing import Any, Dict, Hashable, List, Optional, Tuple
 
-import numpy as np
+import numpy
 import shapely
 import xarray
 
@@ -40,7 +40,7 @@ def box(minx, miny, maxx, maxy) -> shapely.Polygon:
     ])
 
 
-def reduce_axes(arr: np.ndarray, axes: Optional[Tuple[bool, ...]] = None) -> np.ndarray:
+def reduce_axes(arr: numpy.ndarray, axes: Optional[Tuple[bool, ...]] = None) -> numpy.ndarray:
     """
     Reduce the size of an array by one on an axis-by-axis basis. If an axis is
     reduced, neigbouring values are averaged together
@@ -51,11 +51,11 @@ def reduce_axes(arr: np.ndarray, axes: Optional[Tuple[bool, ...]] = None) -> np.
     """
     if axes is None:
         axes = tuple(True for _ in arr.shape)
-    axes_slices = [[np.s_[+1:], np.s_[:-1]] if axis else [np.s_[:]] for axis in axes]
-    return np.mean([arr[tuple(p)] for p in itertools.product(*axes_slices)], axis=0)  # type: ignore
+    axes_slices = [[numpy.s_[+1:], numpy.s_[:-1]] if axis else [numpy.s_[:]] for axis in axes]
+    return numpy.mean([arr[tuple(p)] for p in itertools.product(*axes_slices)], axis=0)  # type: ignore
 
 
-def mask_from_strings(mask_strings: List[str]) -> np.ndarray:
+def mask_from_strings(mask_strings: List[str]) -> numpy.ndarray:
     """
     Make a boolean mask array from a list of strings:
 
@@ -68,7 +68,7 @@ def mask_from_strings(mask_strings: List[str]) -> np.ndarray:
                [False,  True, False],
                [ True,  True,  True]])
     """
-    return np.array([list(map(int, line)) for line in mask_strings]).astype(bool)
+    return numpy.array([list(map(int, line)) for line in mask_strings]).astype(bool)
 
 
 class ShocLayerGenerator(abc.ABC):
@@ -115,12 +115,12 @@ class ShocLayerGenerator(abc.ABC):
         }
 
     @cached_property
-    def z_grid(self) -> np.ndarray:
+    def z_grid(self) -> numpy.ndarray:
         # k=0 is the deepest layer. The highest layer is at 0m
-        return (self.k_size - np.arange(self.k_size + 1)) * 0.5
+        return (self.k_size - numpy.arange(self.k_size + 1)) * 0.5
 
     @cached_property
-    def z_centre(self) -> np.ndarray:
+    def z_centre(self) -> numpy.ndarray:
         return reduce_axes(self.z_grid)
 
 
@@ -136,7 +136,7 @@ class ShocGridGenerator(abc.ABC):
         self, *,
         j: int,
         i: int,
-        face_mask: Optional[np.ndarray] = None,
+        face_mask: Optional[numpy.ndarray] = None,
         include_bounds: bool = False,
     ):
         self.j_size = j
@@ -145,25 +145,25 @@ class ShocGridGenerator(abc.ABC):
         self.include_bounds = include_bounds
 
     @abc.abstractmethod
-    def make_x_grid(self, j: np.ndarray, i: np.ndarray) -> np.ndarray:
+    def make_x_grid(self, j: numpy.ndarray, i: numpy.ndarray) -> numpy.ndarray:
         pass
 
     @abc.abstractmethod
-    def make_y_grid(self, j: np.ndarray, i: np.ndarray) -> np.ndarray:
+    def make_y_grid(self, j: numpy.ndarray, i: numpy.ndarray) -> numpy.ndarray:
         pass
 
     @cached_property
     def standard_mask(self) -> xarray.Dataset:
         face_mask = self.face_mask
         if face_mask is None:
-            face_mask = np.full((self.j_size, self.i_size), True)
+            face_mask = numpy.full((self.j_size, self.i_size), True)
         return c_mask_from_centres(face_mask, self.dimensions)
 
     @cached_property
     def simple_mask(self) -> xarray.Dataset:
         face_mask = self.face_mask
         if face_mask is None:
-            face_mask = np.full((self.j_size, self.i_size), True)
+            face_mask = numpy.full((self.j_size, self.i_size), True)
         return xarray.Dataset(data_vars={
             "centre_mask": xarray.DataArray(data=face_mask, dims=["j", "i"])
         })
@@ -261,7 +261,7 @@ class ShocGridGenerator(abc.ABC):
         if self.include_bounds:
             simple_vars.update({
                 'longitude_bounds': xarray.DataArray(
-                    np.stack([
+                    numpy.stack([
                         self.x_grid[:-1, :-1],
                         self.x_grid[:-1, +1:],
                         self.x_grid[+1:, +1:],
@@ -270,7 +270,7 @@ class ShocGridGenerator(abc.ABC):
                     dims=["j", "i", "bounds"],
                 ).where(self.simple_mask.data_vars['centre_mask']),
                 'latitude_bounds': xarray.DataArray(
-                    np.stack([
+                    numpy.stack([
                         self.y_grid[:-1, :-1],
                         self.y_grid[:-1, +1:],
                         self.y_grid[+1:, +1:],
@@ -317,12 +317,12 @@ class ShocGridGenerator(abc.ABC):
         }
 
     @cached_property
-    def x_grid(self) -> np.ndarray:
-        return np.fromfunction(self.make_x_grid, (self.j_size + 1, self.i_size + 1))
+    def x_grid(self) -> numpy.ndarray:
+        return numpy.fromfunction(self.make_x_grid, (self.j_size + 1, self.i_size + 1))
 
     @cached_property
     def y_grid(self):
-        return np.fromfunction(self.make_y_grid, (self.j_size + 1, self.i_size + 1))
+        return numpy.fromfunction(self.make_y_grid, (self.j_size + 1, self.i_size + 1))
 
     @cached_property
     def x_centre(self):
@@ -350,19 +350,19 @@ class ShocGridGenerator(abc.ABC):
 
 
 class DiagonalShocGrid(ShocGridGenerator):
-    def make_x_grid(self, j: np.ndarray, i: np.ndarray) -> np.ndarray:
+    def make_x_grid(self, j: numpy.ndarray, i: numpy.ndarray) -> numpy.ndarray:
         return 0.1 * (i + j)  # type: ignore
 
-    def make_y_grid(self, j: np.ndarray, i: np.ndarray) -> np.ndarray:
+    def make_y_grid(self, j: numpy.ndarray, i: numpy.ndarray) -> numpy.ndarray:
         return 0.1 * (self.i_size - i + j)  # type: ignore
 
 
 class RadialShocGrid(ShocGridGenerator):
-    def make_x_grid(self, j: np.ndarray, i: np.ndarray) -> np.ndarray:
-        return 0.1 * (5 + j) * np.cos(np.pi - i * np.pi / (self.i_size))  # type: ignore
+    def make_x_grid(self, j: numpy.ndarray, i: numpy.ndarray) -> numpy.ndarray:
+        return 0.1 * (5 + j) * numpy.cos(numpy.pi - i * numpy.pi / (self.i_size))  # type: ignore
 
-    def make_y_grid(self, j: np.ndarray, i: np.ndarray) -> np.ndarray:
-        return 0.1 * (5 + j) * np.sin(np.pi - i * np.pi / (self.i_size))  # type: ignore
+    def make_y_grid(self, j: numpy.ndarray, i: numpy.ndarray) -> numpy.ndarray:
+        return 0.1 * (5 + j) * numpy.sin(numpy.pi - i * numpy.pi / (self.i_size))  # type: ignore
 
 
 def assert_property_not_cached(
