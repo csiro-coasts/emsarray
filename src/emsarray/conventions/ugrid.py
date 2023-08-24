@@ -20,9 +20,9 @@ from typing import (
     Tuple, cast
 )
 
-import numpy as np
+import numpy
 import shapely
-import xarray as xr
+import xarray
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import utils
@@ -41,7 +41,7 @@ def _split_coord(attr: str) -> Tuple[str, str]:
     return (x, y)
 
 
-def buffer_faces(face_indices: np.ndarray, topology: Mesh2DTopology) -> np.ndarray:
+def buffer_faces(face_indices: numpy.ndarray, topology: Mesh2DTopology) -> numpy.ndarray:
     """
     When clipping a dataset to a region, including a buffer of extra faces
     around the included faces is desired. Given an array of face indices,
@@ -56,7 +56,7 @@ def buffer_faces(face_indices: np.ndarray, topology: Mesh2DTopology) -> np.ndarr
     face_node = topology.face_node_array
 
     # Find all nodes for the faces
-    included_nodes = set(np.unique(face_node[face_indices].compressed()))
+    included_nodes = set(numpy.unique(face_node[face_indices].compressed()))
 
     # Find all faces that are composed of any of the nodes just found
     included_faces = (
@@ -67,10 +67,10 @@ def buffer_faces(face_indices: np.ndarray, topology: Mesh2DTopology) -> np.ndarr
         # ... or shares a node with one of the original faces
         or bool(included_nodes.intersection(node_indices.compressed()))
     )
-    return cast(np.ndarray, np.fromiter(included_faces, dtype=topology.sensible_dtype))
+    return cast(numpy.ndarray, numpy.fromiter(included_faces, dtype=topology.sensible_dtype))
 
 
-def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -> xr.Dataset:
+def mask_from_face_indices(face_indices: numpy.ndarray, topology: Mesh2DTopology) -> xarray.Dataset:
     """
     Make a mask dataset from a list of face indices.
     This mask can later be applied using :meth:`~.Convention.apply_clip_mask`.
@@ -91,11 +91,11 @@ def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -
     fill_value = topology.sensible_fill_value
     data_vars = {}
 
-    def new_element_indices(size: int, indices: np.ndarray) -> np.ma.MaskedArray:
-        new_indices = np.full(
+    def new_element_indices(size: int, indices: numpy.ndarray) -> numpy.ma.MaskedArray:
+        new_indices = numpy.full(
             (size,), fill_value=fill_value, dtype=topology.sensible_dtype)
-        new_indices = np.ma.masked_array(new_indices, mask=True)
-        new_indices[indices] = np.arange(len(indices))
+        new_indices = numpy.ma.masked_array(new_indices, mask=True)
+        new_indices[indices] = numpy.arange(len(indices))
         return new_indices
 
     # Record which old face index maps to which new face index
@@ -109,7 +109,7 @@ def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -
     # dataset doesn't define an edge dimension
     if topology.has_edge_dimension:
         face_edge = topology.face_edge_array
-        edge_indices = np.sort(np.unique(face_edge[face_indices].compressed()))
+        edge_indices = numpy.sort(numpy.unique(face_edge[face_indices].compressed()))
 
         # Record which old edge index maps to which new edge index
         data_vars['new_edge_index'] = _masked_integer_data_array(
@@ -120,7 +120,7 @@ def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -
 
     # Find all nodes associated with included faces
     face_node = topology.face_node_array
-    node_indices = np.sort(np.unique(face_node[face_indices].compressed()))
+    node_indices = numpy.sort(numpy.unique(face_node[face_indices].compressed()))
 
     # Record which old node index maps to which new node index
     data_vars['new_node_index'] = _masked_integer_data_array(
@@ -130,12 +130,12 @@ def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -
     )
 
     # Make the mask dataset
-    return xr.Dataset(data_vars=data_vars, attrs={
+    return xarray.Dataset(data_vars=data_vars, attrs={
         'title': 'UGRID dataset mask',
     })
 
 
-def _get_start_index(connectivity: xr.DataArray) -> int:
+def _get_start_index(connectivity: xarray.DataArray) -> int:
     """
     Get the ``start_index`` attribute from a connectivity data array,
     while checking for common error cases.
@@ -170,13 +170,13 @@ def _get_start_index(connectivity: xr.DataArray) -> int:
 
 
 def update_connectivity(
-    connectivity: xr.DataArray,
-    old_array: np.ndarray,
-    row_indices: np.ndarray,
-    column_values: np.ndarray,
+    connectivity: xarray.DataArray,
+    old_array: numpy.ndarray,
+    row_indices: numpy.ndarray,
+    column_values: numpy.ndarray,
     primary_dimension: Hashable,
     fill_value: int,
-) -> xr.DataArray:
+) -> xarray.DataArray:
     """
     Create a new connectivity variable by reindexing existing entries.
     This is used during masking to trim off unused nodes, edges, and faces.
@@ -194,18 +194,18 @@ def update_connectivity(
         :attr:`~Mesh2DTopology.face_node_connectivity`,
         :attr:`~Mesh2DTopology.face_edge_connectivity`, or
         :attr:`~Mesh2DTopology.face_face_connectivity`.
-    old_array : np.ndarray
+    old_array : numpy.ndarray
         The old connectivity array,
         the companion to the connectivity data array.
         Each row corresponds to either an edge or a face.
-    row_indices : np.ndarray
+    row_indices : numpy.ndarray
         A one dimensional numpy masked array
         indicating which rows of ``old_array`` are to be included.
         Masked items are excluded, all other items are included.
-    column_values : np.ndarray
+    column_values : numpy.ndarray
         A one dimensional numpy masked array
         mapping values from ``old_array`` to their new values.
-        Values to be excluded in the new array should be ``np.ma.masked``
+        Values to be excluded in the new array should be ``numpy.ma.masked``
     primary_dimension : Hashable
         The name of the primary dimension for this connectivity variable.
         This will be either :attr:`Mesh2DTopology.edge_dimension`
@@ -231,7 +231,7 @@ def update_connectivity(
 
     if dtype.kind == 'i':
         # Ensure the fill value fits within the representable integers
-        max_representable = np.iinfo(dtype).max
+        max_representable = numpy.iinfo(dtype).max
         if max_representable < fill_value:
             fill_value = max_representable
 
@@ -241,18 +241,18 @@ def update_connectivity(
     # By constructing the array using new_fill_value where needed,
     # setting the dtype explicitly, and adding the _FillValue attribute,
     # xarray will cooperate.
-    include_row = ~np.ma.getmask(row_indices)
-    raw_values = np.array([
+    include_row = ~numpy.ma.getmask(row_indices)
+    raw_values = numpy.array([
         [
-            column_values[item] if item is not np.ma.masked else fill_value
+            column_values[item] if item is not numpy.ma.masked else fill_value
             for item in row
         ]
         for row in old_array[include_row]
     ], dtype=dtype)
-    values = np.ma.masked_equal(raw_values, fill_value)
+    values = numpy.ma.masked_equal(raw_values, fill_value)
 
     if connectivity.dims[1] == primary_dimension:
-        values = np.transpose(values)
+        values = numpy.transpose(values)
     elif primary_dimension not in connectivity.dims:
         raise ValueError("Connectivity variable does not contain primary dimension")
 
@@ -266,22 +266,22 @@ def update_connectivity(
 
 
 def _masked_integer_data_array(
-    data: np.ma.MaskedArray,
+    data: numpy.ma.MaskedArray,
     fill_value: int,
     **kwargs: Any,
-) -> xr.DataArray:
+) -> xarray.DataArray:
     """
     Create an :class:`xarray.DataArray` that represents
     an integer variable with a _FillValue.
     When reading such a variable from disk,
     xarray will cast it to a double
-    and replace any occurrence of _FillValue with np.nan.
+    and replace any occurrence of _FillValue with numpy.nan.
     This method replicates these actions.
     When saved to disk, a variable built using this should have
     an integer type and a _FillValue.
     """
-    float_data = np.ma.filled(data.astype(np.double), np.nan)
-    data_array = xr.DataArray(data=float_data, **kwargs)
+    float_data = numpy.ma.filled(data.astype(numpy.double), numpy.nan)
+    data_array = xarray.DataArray(data=float_data, **kwargs)
     data_array.encoding.update({'dtype': data.dtype, '_FillValue': fill_value})
     return data_array
 
@@ -346,7 +346,7 @@ class Mesh2DTopology:
           - :attr:`edge_face_array`
     """
     #: The UGRID dataset
-    dataset: xr.Dataset
+    dataset: xarray.Dataset
 
     #: The name of the mesh topology variable. Optional. If not provided, the
     #: mesh topology dummy variable will be found by checking the ``cf_role``
@@ -356,7 +356,7 @@ class Mesh2DTopology:
     #: The default dtype to use for index data arrays. Hard coded to ``int32``,
     #: which should be sufficient for all datasets. ``int16`` is too small for
     #: many datasets, even after slicing.
-    sensible_dtype = np.int32
+    sensible_dtype = numpy.int32
 
     def __repr__(self) -> str:
         attrs = {
@@ -368,7 +368,7 @@ class Mesh2DTopology:
         return f'<{type(self).__name__} {attr_str}>'
 
     @cached_property
-    def mesh_variable(self) -> xr.DataArray:
+    def mesh_variable(self) -> xarray.DataArray:
         """
         Get the dummy variable that stores the mesh topology information.
         This is variable is either named using the ``topology_key`` argument to
@@ -403,7 +403,7 @@ class Mesh2DTopology:
         This is all-nines number larger than each of
         :attr:`node_count`, :attr:`edge_count`, and :attr:`face_count`.
 
-        An alternate, simpler implementation would use ``np.iinfo(dtype).max``
+        An alternate, simpler implementation would use ``numpy.iinfo(dtype).max``
         (the maximum integer value for a given dtype),
         but using all-nines is traditional.
         """
@@ -432,17 +432,17 @@ class Mesh2DTopology:
         return _split_coord(self.mesh_attributes['face_coordinates'])
 
     @property
-    def node_x(self) -> xr.DataArray:
+    def node_x(self) -> xarray.DataArray:
         """Data array of node X / longitude coordinates."""
         return self.dataset.data_vars[self._node_coordinates[0]]
 
     @property
-    def node_y(self) -> xr.DataArray:
+    def node_y(self) -> xarray.DataArray:
         """Data array of node Y / latitude coordinates."""
         return self.dataset.data_vars[self._node_coordinates[1]]
 
     @property
-    def edge_x(self) -> Optional[xr.DataArray]:
+    def edge_x(self) -> Optional[xarray.DataArray]:
         """Data array of characteristic edge X / longitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._edge_coordinates[0]]
@@ -450,7 +450,7 @@ class Mesh2DTopology:
             return None
 
     @property
-    def edge_y(self) -> Optional[xr.DataArray]:
+    def edge_y(self) -> Optional[xarray.DataArray]:
         """Data array of characteristic edge y / latitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._edge_coordinates[1]]
@@ -458,7 +458,7 @@ class Mesh2DTopology:
             return None
 
     @property
-    def face_x(self) -> Optional[xr.DataArray]:
+    def face_x(self) -> Optional[xarray.DataArray]:
         """Data array of characteristic face x / longitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._face_coordinates[0]]
@@ -466,7 +466,7 @@ class Mesh2DTopology:
             return None
 
     @property
-    def face_y(self) -> Optional[xr.DataArray]:
+    def face_y(self) -> Optional[xarray.DataArray]:
         """Data array of characteristic face y / latitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._face_coordinates[1]]
@@ -475,9 +475,9 @@ class Mesh2DTopology:
 
     def _to_index_array(
         self,
-        data_array: xr.DataArray,
+        data_array: xarray.DataArray,
         primary_dimension: Hashable,
-    ) -> np.ndarray:
+    ) -> numpy.ndarray:
         """
         Convert a data array of node, edge, or face indices
         into a masked numpy integer array.
@@ -494,12 +494,12 @@ class Mesh2DTopology:
 
         values = data_array.values
 
-        if not issubclass(values.dtype.type, np.integer):
+        if not issubclass(values.dtype.type, numpy.integer):
             # If a data array has a fill value, xarray will convert that data array
-            # to a floating point data type, and replace masked values with np.nan.
+            # to a floating point data type, and replace masked values with numpy.nan.
             # Here we convert a floating point array to a masked integer array.
-            masked_values = np.ma.masked_invalid(values)
-            # numpy will emit a warning when converting an array with np.nan to int,
+            masked_values = numpy.ma.masked_invalid(values)
+            # numpy will emit a warning when converting an array with numpy.nan to int,
             # even if the nans are masked out.
             masked_values.data[masked_values.mask] = self.sensible_fill_value
             values = masked_values.astype(self.sensible_dtype)
@@ -508,11 +508,11 @@ class Mesh2DTopology:
             # This implied the dataset was opened with mask_and_scale=False,
             # or was constructed in memory.
             # Convert it to a mask array with _FillValue masked out.
-            values = np.ma.masked_equal(values, data_array.attrs['_FillValue'])
+            values = numpy.ma.masked_equal(values, data_array.attrs['_FillValue'])
         else:
             # If the value is still an integer then it had no fill value.
             # Convert it to a mask array with no masked values.
-            values = np.ma.masked_array(values, mask=np.ma.nomask)
+            values = numpy.ma.masked_array(values, mask=numpy.ma.nomask)
 
         # UGRID conventions allow for zero based or one based indexing.
         # To be consistent we convert all indices to zero based.
@@ -551,7 +551,7 @@ class Mesh2DTopology:
         return True
 
     @cached_property
-    def edge_node_connectivity(self) -> xr.DataArray:
+    def edge_node_connectivity(self) -> xarray.DataArray:
         """
         This data array defines unique indexes for each edge. This allows data
         to be stored 'on' an edge.
@@ -570,7 +570,7 @@ class Mesh2DTopology:
         return self.dataset.data_vars[name]
 
     @cached_property
-    def edge_node_array(self) -> np.ndarray:
+    def edge_node_array(self) -> numpy.ndarray:
         """
         An integer numpy array with shape
         (:attr:`edge_dimension`, 2),
@@ -593,7 +593,7 @@ class Mesh2DTopology:
         return self.make_edge_node_array()
 
     @utils.timed_func
-    def make_edge_node_array(self) -> np.ndarray:
+    def make_edge_node_array(self) -> numpy.ndarray:
         # Each edge is composed of two nodes. Each edge may be named twice,
         # once for each face. To de-duplicate this, edges are built up using
         # this dict-of-sets, where the dict index is the node with the
@@ -604,7 +604,7 @@ class Mesh2DTopology:
             for pair in node_pairs:
                 low, high = sorted(pair)
                 low_highs[low].add(high)
-        return np.array([
+        return numpy.array([
             [low, high]
             for low, highs in low_highs.items()
             for high in highs
@@ -639,7 +639,7 @@ class Mesh2DTopology:
         return True
 
     @cached_property
-    def edge_face_connectivity(self) -> xr.DataArray:
+    def edge_face_connectivity(self) -> xarray.DataArray:
         """
         This data array shows which faces an edge borders on.
         """
@@ -650,7 +650,7 @@ class Mesh2DTopology:
         return self.dataset.data_vars[name]
 
     @cached_property
-    def edge_face_array(self) -> np.ndarray:
+    def edge_face_array(self) -> numpy.ndarray:
         """
         An integer numpy array with shape
         (:attr:`edge_dimension`, 2),
@@ -663,14 +663,14 @@ class Mesh2DTopology:
         return self.make_edge_face_array()
 
     @utils.timed_func
-    def make_edge_face_array(self) -> np.ndarray:
+    def make_edge_face_array(self) -> numpy.ndarray:
         # The edge_face connectivity matrix
         shape = (self.edge_count, 2)
-        filled = np.full(shape, self.sensible_fill_value, dtype=self.sensible_dtype)
-        edge_face: np.ndarray = np.ma.masked_array(filled, mask=True)
+        filled = numpy.full(shape, self.sensible_fill_value, dtype=self.sensible_dtype)
+        edge_face: numpy.ndarray = numpy.ma.masked_array(filled, mask=True)
 
         # The number of faces already seen for this edge
-        edge_face_count = np.zeros(self.edge_count, dtype=self.sensible_dtype)
+        edge_face_count = numpy.zeros(self.edge_count, dtype=self.sensible_dtype)
 
         for face_index, edge_indices in enumerate(self.face_edge_array):
             for edge_index in edge_indices.compressed():
@@ -703,7 +703,7 @@ class Mesh2DTopology:
         return True
 
     @cached_property
-    def face_node_connectivity(self) -> xr.DataArray:
+    def face_node_connectivity(self) -> xarray.DataArray:
         """
         A variable that lists the nodes that make up the boundary of each face.
         This is the only required data variable in a UGRID dataset,
@@ -713,7 +713,7 @@ class Mesh2DTopology:
         return self.dataset.data_vars[name]
 
     @cached_property
-    def face_node_array(self) -> np.ndarray:
+    def face_node_array(self) -> numpy.ndarray:
         """
         An integer numpy array with shape
         (:attr:`face_dimension`, :attr:`max_node_dimension`),
@@ -748,7 +748,7 @@ class Mesh2DTopology:
         return True
 
     @cached_property
-    def face_edge_connectivity(self) -> xr.DataArray:
+    def face_edge_connectivity(self) -> xarray.DataArray:
         """
         The face_edge_connectivity variable from the dataset, if present.
         """
@@ -759,7 +759,7 @@ class Mesh2DTopology:
         return self.dataset.data_vars[name]
 
     @cached_property
-    def face_edge_array(self) -> np.ndarray:
+    def face_edge_array(self) -> numpy.ndarray:
         """
         An integer numpy array with shape
         (:attr:`face_dimension`, :attr:`max_node_dimension`),
@@ -772,11 +772,11 @@ class Mesh2DTopology:
         return self.make_face_edge_array()
 
     @utils.timed_func
-    def make_face_edge_array(self) -> np.ndarray:
+    def make_face_edge_array(self) -> numpy.ndarray:
         # Build a face_edge_connectivity matrix
         shape = (self.face_count, self.max_node_count)
-        filled = np.full(shape, self.sensible_fill_value, dtype=self.sensible_dtype)
-        face_edge: np.ndarray = np.ma.masked_array(filled, mask=True)
+        filled = numpy.full(shape, self.sensible_fill_value, dtype=self.sensible_dtype)
+        face_edge: numpy.ndarray = numpy.ma.masked_array(filled, mask=True)
 
         node_pair_to_edge_index = {
             frozenset(edge): edge_index
@@ -816,7 +816,7 @@ class Mesh2DTopology:
         return True
 
     @cached_property
-    def face_face_connectivity(self) -> xr.DataArray:
+    def face_face_connectivity(self) -> xarray.DataArray:
         """
         The face_face_connectivity variable from the dataset, if present.
         """
@@ -827,7 +827,7 @@ class Mesh2DTopology:
         return self.dataset.data_vars[name]
 
     @cached_property
-    def face_face_array(self) -> np.ndarray:
+    def face_face_array(self) -> numpy.ndarray:
         """
         An integer numpy array with shape
         (:attr:`face_dimension`, :attr:`max_node_dimension`),
@@ -839,15 +839,15 @@ class Mesh2DTopology:
 
         return self.make_face_face_array()
 
-    def make_face_face_array(self) -> np.ndarray:
+    def make_face_face_array(self) -> numpy.ndarray:
         # Build a face_face_connectivity matrix
-        face_count = np.zeros(self.face_count, dtype=self.sensible_dtype)
+        face_count = numpy.zeros(self.face_count, dtype=self.sensible_dtype)
         shape = (self.face_count, self.max_node_count)
-        filled = np.full(shape, self.sensible_fill_value, dtype=self.sensible_dtype)
-        face_face: np.ndarray = np.ma.masked_array(filled, mask=True)
+        filled = numpy.full(shape, self.sensible_fill_value, dtype=self.sensible_dtype)
+        face_face: numpy.ndarray = numpy.ma.masked_array(filled, mask=True)
 
         for edge_index, face_indices in enumerate(self.edge_face_array):
-            if np.any(np.ma.getmask(face_indices)):
+            if numpy.any(numpy.ma.getmask(face_indices)):
                 continue
             left, right = face_indices
             face_face[left, face_count[left]] = right
@@ -866,7 +866,7 @@ class Mesh2DTopology:
         face_node = self.face_node_array
         for face_index, node_indices in enumerate(face_node):
             node_indices = node_indices.compressed()
-            node_indices = np.append(node_indices, node_indices[0])
+            node_indices = numpy.append(node_indices, node_indices[0])
             yield face_index, list(utils.pairwise(node_indices))
 
     @cached_property
@@ -1022,7 +1022,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
     default_grid_kind = UGridKind.face
 
     @classmethod
-    def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         """
         A UGrid dataset needs a global attribute of Conventions = 'UGRID/...',
         and a variable with attribute cf_role = 'mesh_topology'
@@ -1071,7 +1071,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         return frozenset(items)
 
     def get_grid_kind_and_size(
-        self, data_array: xr.DataArray,
+        self, data_array: xarray.DataArray,
     ) -> Tuple[UGridKind, int]:
         if self.topology.face_dimension in data_array.dims:
             return (UGridKind.face, self.topology.face_count)
@@ -1083,44 +1083,44 @@ class UGrid(Convention[UGridKind, UGridIndex]):
 
     @cached_property
     @utils.timed_func
-    def polygons(self) -> np.ndarray:
+    def polygons(self) -> numpy.ndarray:
         """Generate list of Polygons"""
         # X,Y coords of each node
         topology = self.topology
         node_x = topology.node_x.values
         node_y = topology.node_y.values
         face_node = topology.face_node_array
-        polygons = np.full(topology.face_count, None, dtype=np.object_)
+        polygons = numpy.full(topology.face_count, None, dtype=numpy.object_)
 
         # `shapely.polygons` will make polygons with the same number of vertices.
         # UGRID polygons have arbitrary numbers of vertices.
         # Group polygons by how many vertices they have, then make them in bulk.
-        polygons_of_size: Mapping[int, Dict[int, np.ndarray]] = defaultdict(dict)
+        polygons_of_size: Mapping[int, Dict[int, numpy.ndarray]] = defaultdict(dict)
         for index, row in enumerate(face_node):
             vertices = row.compressed()
-            polygons_of_size[vertices.size][index] = np.c_[node_x[vertices], node_y[vertices]]
+            polygons_of_size[vertices.size][index] = numpy.c_[node_x[vertices], node_y[vertices]]
 
         for size, size_polygons in polygons_of_size.items():
-            coords = np.stack(list(size_polygons.values()))
+            coords = numpy.stack(list(size_polygons.values()))
             shapely.polygons(coords, indices=list(size_polygons.keys()), out=polygons)
 
         return polygons
 
     @cached_property
-    def face_centres(self) -> np.ndarray:
+    def face_centres(self) -> numpy.ndarray:
         face_x, face_y = self.topology.face_x, self.topology.face_y
         if face_x is not None and face_y is not None:
-            face_centres = np.column_stack((face_x, face_y))
-            return cast(np.ndarray, face_centres)
+            face_centres = numpy.column_stack((face_x, face_y))
+            return cast(numpy.ndarray, face_centres)
         return super().face_centres
 
     @cached_property
     def bounds(self) -> Bounds:
         topology = self.topology
-        min_x = np.nanmin(topology.node_x)
-        max_x = np.nanmax(topology.node_x)
-        min_y = np.nanmin(topology.node_y)
-        max_y = np.nanmax(topology.node_y)
+        min_x = numpy.nanmin(topology.node_x)
+        max_x = numpy.nanmax(topology.node_x)
+        min_y = numpy.nanmin(topology.node_y)
+        max_y = numpy.nanmax(topology.node_y)
         return (min_x, min_y, max_x, max_y)
 
     def selector_for_index(self, index: UGridIndex) -> Dict[Hashable, int]:
@@ -1136,7 +1136,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
             return {self.topology.node_dimension: i}
         raise ValueError("Invalid index")  # pragma: no-cover
 
-    def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
+    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
         grid_kind, shape = self.get_grid_kind_and_size(data_array)
         grid_dimension = self.topology.dimension_for_grid_kind[grid_kind]
         return utils.linearise_dimensions(data_array, [grid_dimension])
@@ -1145,7 +1145,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         self,
         clip_geometry: BaseGeometry,
         buffer: int = 0,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         """
         Make a mask dataset from a clip geometry for this dataset.
         This mask can later be applied using :meth:`apply_clip_mask`.
@@ -1167,7 +1167,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         """
         # Find all faces that intersect the clip geometry
         logger.info("Making clip mask")
-        face_indices = np.array([
+        face_indices = numpy.array([
             item.linear_index
             for polygon, item in self.spatial_index.query(clip_geometry)
             if polygon.intersects(clip_geometry)
@@ -1182,7 +1182,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         # Make a mask dataset
         return mask_from_face_indices(face_indices, self.topology)
 
-    def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
+    def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         """
         Make a new dataset by applying a clip mask to this dataset.
 
@@ -1205,17 +1205,17 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         # Collect all the topology variables here. These need special handling,
         # compared to data variables. The mesh variable can be reused without
         # any changes.
-        topology_variables: List[xr.DataArray] = [topology.mesh_variable]
+        topology_variables: List[xarray.DataArray] = [topology.mesh_variable]
 
         # This is the fill value used in the mask.
         new_fill_value = clip_mask.data_vars['new_node_index'].encoding['_FillValue']
 
-        def integer_indices(data_array: xr.DataArray) -> np.ndarray:
-            masked_values = np.ma.masked_invalid(data_array.values)
-            # numpy will emit a warning when converting an array with np.nan to int,
+        def integer_indices(data_array: xarray.DataArray) -> numpy.ndarray:
+            masked_values = numpy.ma.masked_invalid(data_array.values)
+            # numpy will emit a warning when converting an array with numpy.nan to int,
             # even if the nans are masked out.
             masked_values.data[masked_values.mask] = new_fill_value
-            masked_integers: np.ndarray = masked_values.astype(np.int_)
+            masked_integers: numpy.ndarray = masked_values.astype(numpy.int_)
             return masked_integers
 
         new_node_indices = integer_indices(clip_mask.data_vars['new_node_index'])
@@ -1257,7 +1257,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
 
         # Save all the topology variables to one combined dataset
         topology_path = work_path / (str(topology.mesh_variable.name) + ".nc")
-        topology_dataset = xr.Dataset(
+        topology_dataset = xarray.Dataset(
             data_vars={variable.name: variable for variable in topology_variables},
             coords=dataset.coords,
         )
@@ -1269,12 +1269,12 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         del topology_variables
 
         logger.debug("Slicing data variables...")
-        dimension_masks: Dict[Hashable, np.ndarray] = {
-            topology.node_dimension: ~np.ma.getmask(new_node_indices),
-            topology.face_dimension: ~np.ma.getmask(new_face_indices),
+        dimension_masks: Dict[Hashable, numpy.ndarray] = {
+            topology.node_dimension: ~numpy.ma.getmask(new_node_indices),
+            topology.face_dimension: ~numpy.ma.getmask(new_face_indices),
         }
         if has_edges:
-            dimension_masks[topology.edge_dimension] = ~np.ma.getmask(new_edge_indices)
+            dimension_masks[topology.edge_dimension] = ~numpy.ma.getmask(new_edge_indices)
         mesh_dimensions = set(dimension_masks.keys())
 
         for name, data_array in dataset.data_vars.items():
@@ -1301,10 +1301,10 @@ class UGrid(Convention[UGridKind, UGridIndex]):
                     if dim in dimension_masks:
                         # ... make a tuple slice like (:, :, :, bool_array)
                         # where bool_array indicates which rows to include
-                        slice_index = tuple([np.s_[:]] * index + [dimension_masks[dim]])  # type: ignore
+                        slice_index = tuple([numpy.s_[:]] * index + [dimension_masks[dim]])  # type: ignore
                         values = values[slice_index]
 
-                data_array = xr.DataArray(data=values, dims=data_array.dims, name=name)
+                data_array = xarray.DataArray(data=values, dims=data_array.dims, name=name)
                 utils.disable_default_fill_value(data_array)
                 data_array.to_netcdf(data_array_path)
                 mfdataset_paths.append(data_array_path)
@@ -1313,7 +1313,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
                 del values
 
         logger.debug("Merging individual variables...")
-        new_dataset = xr.open_mfdataset(mfdataset_paths, lock=False)
+        new_dataset = xarray.open_mfdataset(mfdataset_paths, lock=False)
         return utils.dataset_like(dataset, new_dataset)
 
     def get_all_geometry_names(self) -> List[Hashable]:
@@ -1343,7 +1343,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
             names.append(topology.face_y.name)
         return names
 
-    def drop_geometry(self) -> xr.Dataset:
+    def drop_geometry(self) -> xarray.Dataset:
         dataset = super().drop_geometry()
         dataset.attrs.pop('Conventions', None)
         return dataset

@@ -2,7 +2,7 @@ import importlib
 import sys
 
 import pytest
-import xarray as xr
+import xarray
 
 
 @pytest.fixture(autouse=True)
@@ -19,7 +19,7 @@ def test_warning_on_get_file_format(datasets):
     with pytest.warns(DeprecationWarning):
         from emsarray.formats import get_file_format
 
-    dataset = xr.open_dataset(datasets / 'cfgrid1d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid1d.nc')
     with pytest.warns(DeprecationWarning):
         get_file_format(dataset)
 

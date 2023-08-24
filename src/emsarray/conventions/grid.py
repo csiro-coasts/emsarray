@@ -14,8 +14,8 @@ from typing import (
     Dict, Generic, Hashable, List, Optional, Tuple, Type, TypeVar, cast
 )
 
-import numpy as np
-import xarray as xr
+import numpy
+import xarray
 from shapely.geometry import Polygon, box
 from shapely.geometry.base import BaseGeometry
 
@@ -53,7 +53,7 @@ class CFGridTopology(abc.ABC):
     """
     def __init__(
         self,
-        dataset: xr.Dataset,
+        dataset: xarray.Dataset,
         longitude: Optional[Hashable] = None,
         latitude: Optional[Hashable] = None,
     ):
@@ -120,18 +120,18 @@ class CFGridTopology(abc.ABC):
             raise ValueError("Could not find longitude coordinate")
 
     @property
-    def latitude(self) -> xr.DataArray:
+    def latitude(self) -> xarray.DataArray:
         """The latitude coordinate variable"""
         return self.dataset[self.latitude_name]
 
     @property
-    def longitude(self) -> xr.DataArray:
+    def longitude(self) -> xarray.DataArray:
         """The longitude coordinate variable"""
         return self.dataset[self.longitude_name]
 
     @property
     @abc.abstractmethod
-    def latitude_bounds(self) -> xr.DataArray:
+    def latitude_bounds(self) -> xarray.DataArray:
         """
         Bounds for the latitude coordinate variable.
         If there are no bounds defined on the dataset,
@@ -141,7 +141,7 @@ class CFGridTopology(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def longitude_bounds(self) -> xr.DataArray:
+    def longitude_bounds(self) -> xarray.DataArray:
         """
         Bounds for the longitude coordinate variable.
         If there are no bounds defined on the dataset,
@@ -180,10 +180,10 @@ class CFGridTopology(abc.ABC):
         """
         The scalar size of this grid.
 
-        Equal to ``np.prod(topology.shape)``,
+        Equal to ``numpy.prod(topology.shape)``,
         i.e., the product of the grid dimensions.
         """
-        return int(np.prod(self.shape))
+        return int(numpy.prod(self.shape))
 
 
 Topology = TypeVar('Topology', bound=CFGridTopology)
@@ -201,7 +201,7 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
 
     def __init__(
         self,
-        dataset: xr.Dataset,
+        dataset: xarray.Dataset,
         *,
         latitude: Optional[Hashable] = None,
         longitude: Optional[Hashable] = None,
@@ -247,10 +247,10 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
     def bounds(self) -> Bounds:
         # This can be computed easily from the coordinate bounds
         topology = self.topology
-        min_x = np.nanmin(topology.longitude_bounds)
-        max_x = np.nanmax(topology.longitude_bounds)
-        min_y = np.nanmin(topology.latitude_bounds)
-        max_y = np.nanmax(topology.latitude_bounds)
+        min_x = numpy.nanmin(topology.longitude_bounds)
+        max_x = numpy.nanmax(topology.longitude_bounds)
+        min_y = numpy.nanmin(topology.latitude_bounds)
+        max_y = numpy.nanmax(topology.latitude_bounds)
         return (min_x, min_y, max_x, max_y)
 
     def unravel_index(
@@ -258,15 +258,15 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
         index: int,
         grid_kind: Optional[CFGridKind] = None,
     ) -> CFGridIndex:
-        y, x = map(int, np.unravel_index(index, self.topology.shape))
+        y, x = map(int, numpy.unravel_index(index, self.topology.shape))
         return (y, x)
 
     def ravel_index(self, indices: CFGridIndex) -> int:
-        return int(np.ravel_multi_index(indices, self.topology.shape))
+        return int(numpy.ravel_multi_index(indices, self.topology.shape))
 
     def get_grid_kind_and_size(
         self,
-        data_array: xr.DataArray,
+        data_array: xarray.DataArray,
     ) -> Tuple[CFGridKind, int]:
         expected = {self.topology.y_dimension, self.topology.x_dimension}
         dims = set(data_array.dims)
@@ -298,12 +298,12 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
 
         return names
 
-    def drop_geometry(self) -> xr.Dataset:
+    def drop_geometry(self) -> xarray.Dataset:
         dataset = super().drop_geometry()
         dataset.attrs.pop('Conventions', None)
         return dataset
 
-    def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
+    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
         surface_dims = [self.topology.y_dimension, self.topology.x_dimension]
         return utils.linearise_dimensions(data_array, surface_dims)
 
@@ -311,23 +311,23 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
         self,
         clip_geometry: BaseGeometry,
         buffer: int = 0,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         topology = self.topology
 
         intersecting_indices = [
             item.linear_index
             for polygon, item in self.spatial_index.query(clip_geometry)
             if polygon.intersects(clip_geometry)]
-        mask = np.full(topology.shape, fill_value=False)
+        mask = numpy.full(topology.shape, fill_value=False)
         mask.ravel()[intersecting_indices] = True
 
         if buffer > 0:
             mask = masking.blur_mask(mask, size=buffer)
         dimensions = [topology.y_dimension, topology.x_dimension]
 
-        return xr.Dataset(
+        return xarray.Dataset(
             data_vars={
-                'cell_mask': xr.DataArray(data=mask, dims=dimensions),
+                'cell_mask': xarray.DataArray(data=mask, dims=dimensions),
             },
             coords={
                 topology.latitude_name: topology.latitude.copy(),
@@ -336,7 +336,7 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
             attrs={'type': 'CFGrid mask'},
         )
 
-    def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
+    def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
 
 
@@ -361,7 +361,7 @@ class CFGrid1DTopology(CFGridTopology):
         """The name of the latitude dimension, taken from the latitude coordinate"""
         return self.longitude.dims[0]
 
-    def _get_or_make_bounds(self, coordinate: xr.DataArray) -> xr.DataArray:
+    def _get_or_make_bounds(self, coordinate: xarray.DataArray) -> xarray.DataArray:
         with suppress(KeyError):
             bounds = self.dataset.data_vars[coordinate.attrs['bounds']]
             if (
@@ -383,23 +383,23 @@ class CFGrid1DTopology(CFGridTopology):
         values = coordinate.values
         first_gap = values[1] - values[0]
         last_gap = values[-1] - values[-2]
-        mid_points = np.concatenate([
+        mid_points = numpy.concatenate([
             [values[0] - first_gap / 2],
             (values[1:] + values[:-1]) / 2,
             [values[-1] + last_gap / 2]
         ])
-        return xr.DataArray(
-            np.stack([mid_points[:-1], mid_points[1:]], axis=-1),
+        return xarray.DataArray(
+            numpy.stack([mid_points[:-1], mid_points[1:]], axis=-1),
             dims=[coordinate.dims[0], 'bounds'],
         )
 
     @cached_property
-    def latitude_bounds(self) -> xr.DataArray:
+    def latitude_bounds(self) -> xarray.DataArray:
         """North/south bounds for each latitude point"""
         return self._get_or_make_bounds(self.latitude)
 
     @cached_property
-    def longitude_bounds(self) -> xr.DataArray:
+    def longitude_bounds(self) -> xarray.DataArray:
         """East/west bounds for each longitude point"""
         return self._get_or_make_bounds(self.longitude)
 
@@ -412,7 +412,7 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
     topology_class = CFGrid1DTopology
 
     @classmethod
-    def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         """
         A dataset is a 1D CF grid if it has one dimensional
         latitude and longitude coordinate variables.
@@ -435,7 +435,7 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
 
     @cached_property
     @utils.timed_func
-    def polygons(self) -> np.ndarray:
+    def polygons(self) -> numpy.ndarray:
         lon_bounds = self.topology.longitude_bounds.values
         lat_bounds = self.topology.latitude_bounds.values
 
@@ -446,20 +446,20 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
         # then repeated along that new dimension.
         # They will come out as array with shape (lat, lon, 4)
         y_size, x_size = self.topology.shape
-        lon_bounds_2d = np.tile(lon_bounds[np.newaxis, :, [0, 1, 1, 0]], (y_size, 1, 1))
-        lat_bounds_2d = np.tile(lat_bounds[:, np.newaxis, [0, 0, 1, 1]], (1, x_size, 1))
+        lon_bounds_2d = numpy.tile(lon_bounds[numpy.newaxis, :, [0, 1, 1, 0]], (y_size, 1, 1))
+        lat_bounds_2d = numpy.tile(lat_bounds[:, numpy.newaxis, [0, 0, 1, 1]], (1, x_size, 1))
 
         # points is a (topology.size, 4, 2) array of the corners of each cell
-        points = np.stack([lon_bounds_2d, lat_bounds_2d], axis=-1).reshape((-1, 4, 2))
+        points = numpy.stack([lon_bounds_2d, lat_bounds_2d], axis=-1).reshape((-1, 4, 2))
 
         return utils.make_polygons_with_holes(points)
 
     @cached_property
-    def face_centres(self) -> np.ndarray:
+    def face_centres(self) -> numpy.ndarray:
         topology = self.topology
-        xx, yy = np.meshgrid(topology.longitude.values, topology.latitude.values)
-        centres = np.column_stack((xx.flatten(), yy.flatten()))
-        return cast(np.ndarray, centres)
+        xx, yy = numpy.meshgrid(topology.longitude.values, topology.latitude.values)
+        centres = numpy.column_stack((xx.flatten(), yy.flatten()))
+        return cast(numpy.ndarray, centres)
 
     @cached_property
     def geometry(self) -> Polygon:
@@ -494,7 +494,7 @@ class CFGrid2DTopology(CFGridTopology):
         """
         return self.latitude.dims[1]
 
-    def _get_or_make_bounds(self, coordinate: xr.DataArray) -> xr.DataArray:
+    def _get_or_make_bounds(self, coordinate: xarray.DataArray) -> xarray.DataArray:
         # Use the bounds defined on the coordinate itself, if any.
         with suppress(KeyError):
             bounds = self.dataset[coordinate.attrs['bounds']]
@@ -504,7 +504,7 @@ class CFGrid2DTopology(CFGridTopology):
                 and bounds.dims[1] == self.x_dimension
                 and self.dataset.dims[bounds.dims[2]] == 4
             ):
-                return cast(xr.DataArray, bounds)
+                return cast(xarray.DataArray, bounds)
             else:
                 expected_dims = (self.y_dimension, self.x_dimension, 2)
                 warnings.warn(
@@ -522,20 +522,20 @@ class CFGrid2DTopology(CFGridTopology):
         # On the edges where there are fewer 'surrounding' cells, the cell centres are used.
         # Edge and corner cells will be smaller than the surrounding cells because of this.
 
-        # np.nanmean will return nan for an all-nan column.
+        # numpy.nanmean will return nan for an all-nan column.
         # This is the exact behaviour that we want.
         # numpy emits a warning that can not be silenced when this happens,
         # so that warning is temporarily ignored.
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore", "Mean of empty slice", category=RuntimeWarning)
-            grid = np.nanmean([
-                np.pad(coordinate.values, pad, constant_values=np.nan)
+            grid = numpy.nanmean([
+                numpy.pad(coordinate.values, pad, constant_values=numpy.nan)
                 for pad in itertools.product([(1, 0), (0, 1)], [(1, 0), (0, 1)])
             ], axis=0)
 
         y_size, x_size = self.shape
-        bounds = np.array([
+        bounds = numpy.array([
             [
                 [grid[y, x], grid[y, x + 1], grid[y + 1, x + 1], grid[y + 1, x]]
                 for x in range(x_size)
@@ -543,20 +543,20 @@ class CFGrid2DTopology(CFGridTopology):
             for y in range(y_size)
         ])
         # Any cell that has a `nan` in its bounds will be set to all nan
-        cells_with_nans = np.isnan(bounds).any(axis=2)
-        bounds[cells_with_nans] = np.nan
+        cells_with_nans = numpy.isnan(bounds).any(axis=2)
+        bounds[cells_with_nans] = numpy.nan
 
-        return xr.DataArray(
+        return xarray.DataArray(
             bounds,
             dims=[self.y_dimension, self.x_dimension, 'bounds'],
         )
 
     @cached_property
-    def longitude_bounds(self) -> xr.DataArray:
+    def longitude_bounds(self) -> xarray.DataArray:
         return self._get_or_make_bounds(self.longitude)
 
     @property
-    def latitude_bounds(self) -> xr.DataArray:
+    def latitude_bounds(self) -> xarray.DataArray:
         return self._get_or_make_bounds(self.latitude)
 
 
@@ -568,7 +568,7 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
     topology_class = CFGrid2DTopology
 
     @classmethod
-    def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         """
         A dataset is a 2D CF grid if it has two dimensional
         latitude and longitude coordinate variables.
@@ -591,20 +591,20 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
 
     @cached_property
     @utils.timed_func
-    def polygons(self) -> np.ndarray:
+    def polygons(self) -> numpy.ndarray:
         # Construct polygons from the bounds of the cells
         lon_bounds = self.topology.longitude_bounds.values
         lat_bounds = self.topology.latitude_bounds.values
 
         # points is a (topology.size, 4, 2) array of the corners of each cell
-        points = np.stack([lon_bounds, lat_bounds], axis=-1).reshape((-1, 4, 2))
+        points = numpy.stack([lon_bounds, lat_bounds], axis=-1).reshape((-1, 4, 2))
 
         return utils.make_polygons_with_holes(points)
 
     @cached_property
-    def face_centres(self) -> np.ndarray:
-        centres = np.column_stack((
+    def face_centres(self) -> numpy.ndarray:
+        centres = numpy.column_stack((
             self.make_linear(self.topology.longitude).values,
             self.make_linear(self.topology.latitude).values,
         ))
-        return cast(np.ndarray, centres)
+        return cast(numpy.ndarray, centres)

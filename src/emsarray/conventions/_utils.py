@@ -1,14 +1,14 @@
 import logging
 from typing import Any
 
-import xarray as xr
+import xarray
 
 from emsarray.types import Pathish
 
 logger = logging.getLogger(__name__)
 
 
-def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
+def open_dataset(path: Pathish, **kwargs: Any) -> xarray.Dataset:
     """
     Open a dataset and determine the correct Convention implementation for it.
     If a valid Convention implementation can not be found, an error is raised.
@@ -37,7 +37,7 @@ def open_dataset(path: Pathish, **kwargs: Any) -> xr.Dataset:
     --------
     :func:`xarray.open_dataset`
     """
-    dataset = xr.open_dataset(path, **kwargs)
+    dataset = xarray.open_dataset(path, **kwargs)
 
     # Determine the correct convention. All the magic happens in the accessor.
     convention = dataset.ems

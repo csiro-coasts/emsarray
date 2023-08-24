@@ -1,6 +1,6 @@
-import numpy as np
+import numpy
 import pytest
-import xarray as xr
+import xarray
 from numpy.testing import assert_equal
 
 from emsarray.operations.depth import normalize_depth_variables
@@ -24,35 +24,35 @@ from emsarray.operations.depth import normalize_depth_variables
     ],
 )
 def test_normalize_depth_variable(
-    input_depths: np.ndarray, input_positive: str, input_deep_to_shallow: bool,
+    input_depths: numpy.ndarray, input_positive: str, input_deep_to_shallow: bool,
     set_positive: bool,
-    expected: np.ndarray, positive_down: bool, deep_to_shallow: bool,
+    expected: numpy.ndarray, positive_down: bool, deep_to_shallow: bool,
     recwarn,
 ):
     input_depths = input_depths[:]
     # Some datasets have a coordinate with the same dimension name
-    depth_coord = xr.DataArray(
-        data=np.array(input_depths),
+    depth_coord = xarray.DataArray(
+        data=numpy.array(input_depths),
         dims=['depth_coord'],
         attrs={'positive': input_positive if set_positive else None, 'foo': 'bar'},
     )
     # Some dimensions have different coordinate and dimension names
-    depth_name = xr.DataArray(
-        data=np.array(input_depths),
+    depth_name = xarray.DataArray(
+        data=numpy.array(input_depths),
         dims=['depth_dimension'],
         attrs={'positive': input_positive if set_positive else None, 'foo': 'bar'},
     )
-    values = np.arange(4 * 6 * 4).reshape(4, 6, 4)
-    dataset = xr.Dataset(
+    values = numpy.arange(4 * 6 * 4).reshape(4, 6, 4)
+    dataset = xarray.Dataset(
         data_vars={
             "values_coord": (["time", "depth_coord", "x"], values.copy()),
             "values_dimension": (["time", "depth_dimension", "x"], values.copy()),
         },
         coords={
-            "time": (["time"], np.arange(4)),
+            "time": (["time"], numpy.arange(4)),
             "depth_coord": depth_coord,
             "depth_name": depth_name,
-            "location": (["location"], np.arange(4)),
+            "location": (["location"], numpy.arange(4)),
         },
     )
 

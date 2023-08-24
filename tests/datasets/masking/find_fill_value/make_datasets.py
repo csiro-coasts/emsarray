@@ -17,7 +17,7 @@ If the versions have changed, the script will create new files that git thinks h
 import pathlib
 
 import netCDF4
-import numpy as np
+import numpy
 
 here = pathlib.Path(__file__).parent
 
@@ -29,7 +29,7 @@ def make_float_with_fill_value(
     ds.createDimension("x", 2)
     ds.createDimension("y", 2)
 
-    fill_value = np.float64(-999.0)
+    fill_value = numpy.float64(-999.0)
     var = ds.createVariable("var", "f8", ["y", "x"], fill_value=fill_value)
     var[:] = [[1.0, 2.0], [fill_value, 4.0]]
 
@@ -43,11 +43,11 @@ def make_float_with_fill_value_and_offset(
     ds.createDimension("x", 2)
     ds.createDimension("y", 2)
 
-    fill_value = np.float32(-999.0)
+    fill_value = numpy.float32(-999.0)
     var = ds.createVariable("var", "f4", ["y", "x"], fill_value=fill_value)
     var.add_offset = 10.
     var.scale_factor = 2.
-    var[:] = np.ma.masked_array(np.arange(4) + 1, [0, 0, 1, 0]).reshape((2, 2))
+    var[:] = numpy.ma.masked_array(numpy.arange(4) + 1, [0, 0, 1, 0]).reshape((2, 2))
 
     ds.close()
 
@@ -59,11 +59,11 @@ def make_timedelta_with_missing_value(
     ds.createDimension("x", 2)
     ds.createDimension("y", 2)
 
-    missing_value = np.float32(1.e+35)
+    missing_value = numpy.float32(1.e+35)
     var = ds.createVariable("var", "f4", ["y", "x"], fill_value=False)
     var.missing_value = missing_value
     var.units = "days"
-    var[:] = np.arange(4).reshape((2, 2))
+    var[:] = numpy.arange(4).reshape((2, 2))
     var[1, 1] = missing_value
 
     ds.close()
@@ -76,11 +76,11 @@ def make_int_with_fill_value_and_offset(
     ds.createDimension("x", 2)
     ds.createDimension("y", 2)
 
-    fill_value = np.int8(-1)
+    fill_value = numpy.int8(-1)
     var = ds.createVariable("var", "i1", ["y", "x"], fill_value=fill_value)
     var.add_offset = -10.
     var.scale_factor = .5
-    var[:] = np.ma.masked_array(np.arange(4) + 1, [0, 0, 1, 0]).reshape((2, 2))
+    var[:] = numpy.ma.masked_array(numpy.arange(4) + 1, [0, 0, 1, 0]).reshape((2, 2))
 
     ds.close()
 

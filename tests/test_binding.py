@@ -3,7 +3,7 @@ Test binding Convention instances to datasets,
 whether implicitly through the accessor autodetection or manually.
 """
 import pytest
-import xarray as xr
+import xarray
 
 import emsarray
 from emsarray.conventions import CFGrid2D, ShocStandard
@@ -11,7 +11,7 @@ from emsarray.state import State
 
 
 def test_automatic_binding_via_accessor(datasets):
-    ds = xr.open_dataset(datasets / 'cfgrid1d.nc')
+    ds = xarray.open_dataset(datasets / 'cfgrid1d.nc')
     state = State.get(ds)
 
     # Fresh datasets opened via xarray should be unbound initially
@@ -34,7 +34,7 @@ def test_automatic_binding_via_open_dataset(datasets):
 
 
 def test_manual_binding(datasets):
-    ds = xr.open_dataset(datasets / 'shoc_standard.nc')
+    ds = xarray.open_dataset(datasets / 'shoc_standard.nc')
     state = State.get(ds)
 
     # Fresh datasets opened via xarray should be unbound initially

@@ -17,3 +17,5 @@ Next release (in development)
 * Fix various small issues with the docs.
   Use newer version of ``sphinx-book-theme`` for documentation
   (:pr:`91`).
+* Remove shorthand imports such as ``import xarray as xr``
+  (:pr:`95`).

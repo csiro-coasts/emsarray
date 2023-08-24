@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import Callable, Dict
 
-import xarray as xr
+import xarray
 
 import emsarray
 from emsarray.cli import BaseCommand, CommandException
@@ -12,7 +12,7 @@ from emsarray.types import Pathish
 
 logger = logging.getLogger(__name__)
 
-Writer = Callable[[xr.Dataset, Pathish], None]
+Writer = Callable[[xarray.Dataset, Pathish], None]
 format_writers: Dict[str, Writer] = {
     'geojson': geometry.write_geojson,
     'shapefile': geometry.write_shapefile,

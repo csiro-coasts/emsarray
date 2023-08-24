@@ -12,8 +12,8 @@ import operator
 import pathlib
 from typing import Any, Dict, Hashable, List, cast
 
-import numpy as np
-import xarray as xr
+import numpy
+import xarray
 from xarray.core.dtypes import maybe_promote
 
 from emsarray import utils
@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 def mask_grid_dataset(
-    dataset: xr.Dataset,
-    mask: xr.Dataset,
+    dataset: xarray.Dataset,
+    mask: xarray.Dataset,
     work_dir: Pathish,
     **kwargs: Any,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """Apply a mask to a two-dimensional grid dataset,
     such as :class:`.CFGrid1D` and :class:`.CFGrid2D`,
     or datasets with multiple grids such as :class:`.ArakawaC`
@@ -82,12 +82,12 @@ def mask_grid_dataset(
     # shouldn't be masked. They are combined in to one dataset and saved as-is
     coords_path = work_path / "__coords__.nc"
     mfdataset_names.append(coords_path)
-    utils.to_netcdf_with_fixes(xr.Dataset(coords=dataset.coords), coords_path)
+    utils.to_netcdf_with_fixes(xarray.Dataset(coords=dataset.coords), coords_path)
 
     logger.info("Merging individual variables")
     # Happily `mfdataset` will load data in to memory in a lazy manner,
     # allowing us to combine very large datasets without running out of memory.
-    merged_dataset = xr.open_mfdataset(
+    merged_dataset = xarray.open_mfdataset(
         mfdataset_names,
         # `lock=False` prevents an issue where opening a dataset with
         # `open_mfdataset` then saving it with `.to_netcdf()` would
@@ -101,7 +101,7 @@ def mask_grid_dataset(
     return utils.dataset_like(dataset, merged_dataset)
 
 
-def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataArray:
+def mask_grid_data_array(mask: xarray.Dataset, data_array: xarray.DataArray) -> xarray.DataArray:
     """
     Apply a mask to a single data array.
     A mask dataset contains one or more mask data arrays.
@@ -142,7 +142,7 @@ def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataA
             logger.debug(
                 "Masking data array %r with mask %r",
                 data_array.name, mask_name)
-            new_data_array = cast(xr.DataArray, data_array.where(mask_data_array, other=fill_value))
+            new_data_array = cast(xarray.DataArray, data_array.where(mask_data_array, other=fill_value))
             new_data_array.attrs = data_array.attrs
             new_data_array.encoding = data_array.encoding
             return new_data_array
@@ -155,7 +155,7 @@ def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataA
     return data_array
 
 
-def find_fill_value(data_array: xr.DataArray) -> Any:
+def find_fill_value(data_array: xarray.DataArray) -> Any:
     """
     Float-typed variables can easily be masked. If they don't already have
     a fill value, they can be masked using `NaN` without issue.
@@ -186,10 +186,10 @@ def find_fill_value(data_array: xr.DataArray) -> Any:
         * If none of the above are true, a :exc:`ValueError` is raised.
 
     """
-    if np.ma.is_masked(data_array.values):
+    if numpy.ma.is_masked(data_array.values):
         # xarray does not use masked arrays, but just in case someone has
         # constructed a dataset using one...
-        return np.ma.masked
+        return numpy.ma.masked
 
     attrs = ['_FillValue', 'missing_value']
     for attr in attrs:
@@ -205,7 +205,7 @@ def find_fill_value(data_array: xr.DataArray) -> Any:
     raise ValueError("No appropriate fill value found")
 
 
-def calculate_grid_mask_bounds(mask: xr.Dataset) -> Dict[Hashable, slice]:
+def calculate_grid_mask_bounds(mask: xarray.Dataset) -> Dict[Hashable, slice]:
     """
     Calculate the included bounds of a mask dataset for each dimension.
 
@@ -247,7 +247,7 @@ def calculate_grid_mask_bounds(mask: xr.Dataset) -> Dict[Hashable, slice]:
     return bounds
 
 
-def smear_mask(arr: np.ndarray, pad_axes: List[bool]) -> np.ndarray:
+def smear_mask(arr: numpy.ndarray, pad_axes: List[bool]) -> numpy.ndarray:
     """
     Take a boolean numpy array and a list indicating which axes to smear along.
     Return a new array, expanded along the axes, with the boolean values
@@ -303,10 +303,10 @@ def smear_mask(arr: np.ndarray, pad_axes: List[bool]) -> np.ndarray:
         [(1, 0), (0, 1)] if pad_axis else [(0, 0)]
         for pad_axis in pad_axes
     ))
-    return functools.reduce(operator.or_, (np.pad(arr, pad) for pad in paddings))
+    return functools.reduce(operator.or_, (numpy.pad(arr, pad) for pad in paddings))
 
 
-def blur_mask(arr: np.ndarray, size: int = 1) -> np.ndarray:
+def blur_mask(arr: numpy.ndarray, size: int = 1) -> numpy.ndarray:
     """
     Take a boolean numpy array and blur it, such that all indices neighbouring
     a True value in the input array are True in the output array. The output
@@ -347,17 +347,17 @@ def blur_mask(arr: np.ndarray, size: int = 1) -> np.ndarray:
     # Pad the mask with a `size` sized buffer.
     # This allows simple slicing to pull out a rectangular region around an
     # index, without worrying about the edges of the array.
-    padded = np.pad(arr, size, constant_values=False)
+    padded = numpy.pad(arr, size, constant_values=False)
 
     # For each cell in the original mask shape,
     # the blurred mask is true if the original mask was true,
     # or any cells in a `size` sized slice around the original cell.
-    arr_iter = np.nditer(arr, ['multi_index'])
+    arr_iter = numpy.nditer(arr, ['multi_index'])
     indices = (arr_iter.multi_index for _ in arr_iter)
     values = (
-        arr[index] or np.any(padded[tuple(slice(i, i + size * 2 + 1) for i in index)])
+        arr[index] or numpy.any(padded[tuple(slice(i, i + size * 2 + 1) for i in index)])
         for index in indices
     )
 
-    arr = np.fromiter(values, count=arr.size, dtype=arr.dtype).reshape(arr.shape)
-    return cast(np.ndarray, arr)
+    arr = numpy.fromiter(values, count=arr.size, dtype=arr.dtype).reshape(arr.shape)
+    return cast(numpy.ndarray, arr)

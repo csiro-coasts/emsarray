@@ -3,23 +3,23 @@ import pathlib
 from typing import Any
 
 import geojson
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 import shapefile
 import shapely
 import shapely.geometry
-import xarray as xr
+import xarray
 from shapely.testing import assert_geometries_equal
 
 from emsarray.operations import geometry
 
 
-def _polygons(dataset: xr.Dataset) -> pd.DataFrame:
+def _polygons(dataset: xarray.Dataset) -> pandas.DataFrame:
     rows = [
         (linear_index, polygon)
         for linear_index, polygon in enumerate(dataset.ems.polygons)
         if polygon is not None]
-    return pd.DataFrame(rows, columns=['linear_index', 'polygon'])
+    return pandas.DataFrame(rows, columns=['linear_index', 'polygon'])
 
 
 def _json_roundtrip(value: Any) -> Any:
@@ -27,7 +27,7 @@ def _json_roundtrip(value: Any) -> Any:
 
 
 def test_write_geojson(datasets: pathlib.Path, tmp_path: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'cfgrid2d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
     out_path = tmp_path / 'out.geojson'
 
     geometry.write_geojson(dataset, out_path)
@@ -36,7 +36,7 @@ def test_write_geojson(datasets: pathlib.Path, tmp_path: pathlib.Path):
     with open(out_path, 'rb') as f:
         saved_geometry = geojson.load(f)
     assert saved_geometry['type'] == 'FeatureCollection'
-    assert len(saved_geometry['features']) == np.count_nonzero(dataset.ems.polygons)
+    assert len(saved_geometry['features']) == numpy.count_nonzero(dataset.ems.polygons)
 
     polygons = _polygons(dataset)
     assert len(polygons) == len(saved_geometry['features'])
@@ -55,7 +55,7 @@ def test_write_geojson(datasets: pathlib.Path, tmp_path: pathlib.Path):
 
 
 def test_write_shapefile(datasets: pathlib.Path, tmp_path: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'cfgrid2d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
     out_path = tmp_path / 'out.shp'
 
     geometry.write_shapefile(dataset, out_path)
@@ -77,7 +77,7 @@ def test_write_shapefile(datasets: pathlib.Path, tmp_path: pathlib.Path):
 
 
 def test_write_wkt(datasets: pathlib.Path, tmp_path: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'cfgrid2d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
     out_path = tmp_path / 'out.wkt'
 
     geometry.write_wkt(dataset, out_path)
@@ -91,7 +91,7 @@ def test_write_wkt(datasets: pathlib.Path, tmp_path: pathlib.Path):
 
 
 def test_write_wkb(datasets: pathlib.Path, tmp_path: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'cfgrid2d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
     out_path = tmp_path / 'out.wkb'
 
     geometry.write_wkb(dataset, out_path)

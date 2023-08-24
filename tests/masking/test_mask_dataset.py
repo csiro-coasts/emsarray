@@ -3,11 +3,11 @@ from __future__ import annotations
 import pathlib
 
 import netCDF4
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 import pytest
 import shapely.geometry
-import xarray as xr
+import xarray
 from numpy.testing import assert_equal
 
 import emsarray
@@ -100,34 +100,34 @@ def test_mask_dataset(tmp_path: pathlib.Path):
     layers = ShocLayerGenerator(k=k_size)
 
     # int data without a fill value. This should be sliced but not masked.
-    flag1 = xr.DataArray(
-        data=np.arange(k_size * j_size * i_size, dtype=np.short).reshape(k_size, j_size, i_size),
+    flag1 = xarray.DataArray(
+        data=numpy.arange(k_size * j_size * i_size, dtype=numpy.short).reshape(k_size, j_size, i_size),
         dims=['k_centre', 'j_centre', 'i_centre'],
     )
     # int data with a fill value. This should be sliced and masked.
-    flag2 = xr.DataArray(
-        data=np.arange(k_size * j_size * i_size, dtype=np.short).reshape(k_size, j_size, i_size) + 25,
+    flag2 = xarray.DataArray(
+        data=numpy.arange(k_size * j_size * i_size, dtype=numpy.short).reshape(k_size, j_size, i_size) + 25,
         dims=['k_centre', 'j_centre', 'i_centre'],
     )
     # This belongs in attrs. If you open a dataset with an int variable that
     # has a _FillValue, it will be converted to a float variable. This
     # behaviour is disabled if you set `mask_and_scale=False` when opening the
     # dataset, but this leaves `_FillValue` in attrs not encoding
-    flag2.encoding['_FillValue'] = np.short(-999)
+    flag2.encoding['_FillValue'] = numpy.short(-999)
 
     # Some variables are only defined on one axis. These should be sliced to
     # the mask bounds, but not masked
-    only_j = xr.DataArray(
-        data=np.arange(j_size).astype(np.short),
+    only_j = xarray.DataArray(
+        data=numpy.arange(j_size).astype(numpy.short),
         dims=["j_centre"],
     )
-    only_i = xr.DataArray(
-        data=np.arange(i_size).astype(np.short),
+    only_i = xarray.DataArray(
+        data=numpy.arange(i_size).astype(numpy.short),
         dims=["i_centre"],
     )
 
-    t = xr.DataArray(
-        data=list(pd.date_range("2021-11-11", periods=records)),
+    t = xarray.DataArray(
+        data=list(pandas.date_range("2021-11-11", periods=records)),
         dims=["record"],
         attrs={
             "long_name": "Time",
@@ -137,9 +137,9 @@ def test_mask_dataset(tmp_path: pathlib.Path):
     )
     t.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
 
-    botz_missing_value = np.float32(-99.)
-    botz = xr.DataArray(
-        data=np.random.random((j_size, i_size)).astype(np.float32) * 10 + 50,
+    botz_missing_value = numpy.float32(-99.)
+    botz = xarray.DataArray(
+        data=numpy.random.random((j_size, i_size)).astype(numpy.float32) * 10 + 50,
         dims=["j_centre", "i_centre"],
         attrs={
             "units": "metre",
@@ -151,8 +151,8 @@ def test_mask_dataset(tmp_path: pathlib.Path):
     )
     botz.encoding['missing_value'] = botz_missing_value
 
-    eta = xr.DataArray(
-        data=np.random.normal(0, 0.2, (records, j_size, i_size)),
+    eta = xarray.DataArray(
+        data=numpy.random.normal(0, 0.2, (records, j_size, i_size)),
         dims=["record", "j_centre", "i_centre"],
         attrs={
             "units": "metre",
@@ -160,8 +160,8 @@ def test_mask_dataset(tmp_path: pathlib.Path):
             "standard_name": "sea_surface_height_above_geoid",
         }
     )
-    temp = xr.DataArray(
-        data=np.random.normal(12, 0.5, (records, k_size, j_size, i_size)),
+    temp = xarray.DataArray(
+        data=numpy.random.normal(12, 0.5, (records, k_size, j_size, i_size)),
         dims=["record", "k_centre", "j_centre", "i_centre"],
         attrs={
             "units": "degrees C",
@@ -169,7 +169,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
         },
     )
 
-    dataset = xr.Dataset(
+    dataset = xarray.Dataset(
         data_vars={
             **layers.standard_vars,
             **grid.standard_vars,
@@ -183,7 +183,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
             "only_i": only_i,
         },
         # This coord is not used in any data array but should be preserverd
-        coords={"some_coord": (["some_coord"], np.arange(30, dtype=int), {'reticulating': 'splines'})},
+        coords={"some_coord": (["some_coord"], numpy.arange(30, dtype=int), {'reticulating': 'splines'})},
         attrs={
             "title": "Example SHOC dataset",
             "ems_version": "v1.2.3 fake",
@@ -238,7 +238,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
         assert temp.getncattr('units') == 'degrees C'
         assert temp.getncattr('long_name') == 'Temperature'
         # The corner should be masked with nan
-        assert np.isnan(temp[0, 0, 2, 2])
+        assert numpy.isnan(temp[0, 0, 2, 2])
 
         # This variable had a missing_value instead of _FillValue, which should
         # have been used
@@ -249,7 +249,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
         }
         assert botz.getncattr('missing_value') == botz_missing_value
         # The corner should be masked with nan
-        assert botz[2, 2] is np.ma.masked
+        assert botz[2, 2] is numpy.ma.masked
 
         # The flag1 variable should have been trimmed, but not masked
         nc_flag1 = nc_dataset.variables['flag1']
@@ -260,29 +260,29 @@ def test_mask_dataset(tmp_path: pathlib.Path):
         # The flag2 variable should have been trimmed and also masked
         nc_flag2 = nc_dataset.variables['flag2']
         assert nc_flag2.shape == (k_size, 4, 3)
-        flag2_mask = np.stack([np.array([
+        flag2_mask = numpy.stack([numpy.array([
             [0, 0, 0], [0, 0, 0], [0, 0, 1], [0, 1, 1]
         ])] * k_size).astype(bool)
-        expected: np.ndarray = np.ma.masked_array(
+        expected: numpy.ndarray = numpy.ma.masked_array(
             flag2.values[:, 1:5, 1:4].copy(),
             mask=flag2_mask,
         )
         assert_equal(nc_flag2[:], expected)
-        assert nc_flag2.getncattr('_FillValue') == np.short(-999)
+        assert nc_flag2.getncattr('_FillValue') == numpy.short(-999)
 
         # The only_j and only_i variables should have been trimmed, but not
         # masked
         nc_only_j = nc_dataset.variables['only_j']
         assert nc_only_j.shape == (4,)
-        assert_equal(nc_only_j[:], np.arange(1, 5).astype(int))
+        assert_equal(nc_only_j[:], numpy.arange(1, 5).astype(int))
         nc_only_i = nc_dataset.variables['only_i']
         assert nc_only_i.shape == (3,)
-        assert_equal(nc_only_i[:], np.arange(1, 4).astype(int))
+        assert_equal(nc_only_i[:], numpy.arange(1, 4).astype(int))
 
         # This coordinate should have passed through unchanged
         nc_some_coord = nc_dataset.variables['some_coord']
         assert nc_some_coord.shape == (30,)
-        assert_equal(nc_some_coord[:], np.arange(30, dtype=int))
+        assert_equal(nc_some_coord[:], numpy.arange(30, dtype=int))
         assert nc_some_coord.getncattr('reticulating') == 'splines'
 
 
@@ -313,8 +313,8 @@ def test_clip_unmasked_dataset(tmp_path: pathlib.Path):
 
     tassie = dataset.ems.clip(tasmania_clip, tmp_path)
     tassie.ems.to_netcdf(tmp_path / "tassie.nc")
-    assert np.isnan(tassie['temp'].values[0, 0, 0])
+    assert numpy.isnan(tassie['temp'].values[0, 0, 0])
     tassie.close()
 
     tassie = emsarray.open_dataset(tmp_path / "tassie.nc")
-    assert np.isnan(tassie['temp'].values[0, 0, 0])
+    assert numpy.isnan(tassie['temp'].values[0, 0, 0])

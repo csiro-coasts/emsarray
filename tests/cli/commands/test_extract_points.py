@@ -1,9 +1,9 @@
 import pathlib
 
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 import pytest
-import xarray as xr
+import xarray
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import Point
 
@@ -20,19 +20,19 @@ def test_extract_points(
 
     num_points = 10
     names = [f'{chr(97 + i)}{i + 1}' for i in range(num_points)]
-    rs = np.random.sample(num_points) * 3
-    θs = np.random.sample(num_points) * 2 * np.pi
-    xs = np.cos(θs) * rs
-    ys = np.sin(θs) * rs
-    points_df = pd.DataFrame({'name': names, 'lon': xs, 'lat': ys})
+    rs = numpy.random.sample(num_points) * 3
+    θs = numpy.random.sample(num_points) * 2 * numpy.pi
+    xs = numpy.cos(θs) * rs
+    ys = numpy.sin(θs) * rs
+    points_df = pandas.DataFrame({'name': names, 'lon': xs, 'lat': ys})
     points_df.to_csv(csv_path, index=False)
 
     main(['extract-points', str(in_path), str(csv_path), str(out_path)])
 
     assert out_path.exists()
 
-    in_dataset = xr.open_dataset(in_path)
-    point_dataset = xr.open_dataset(out_path)
+    in_dataset = xarray.open_dataset(in_path)
+    point_dataset = xarray.open_dataset(out_path)
 
     assert 'point' in point_dataset.dims
     assert point_dataset.dims['point'] == num_points
@@ -63,7 +63,7 @@ def test_extract_points_out_of_bounds(
     csv_path = tmp_path / 'points.csv'
     out_path = tmp_path / 'out.nc'
 
-    points_df = pd.DataFrame({'lon': np.arange(10), 'lat': np.zeros(10)})
+    points_df = pandas.DataFrame({'lon': numpy.arange(10), 'lat': numpy.zeros(10)})
     points_df.to_csv(csv_path, index=False)
     print(points_df.iloc[[4, 5, 6, 7, 8, 9]])
 

@@ -24,11 +24,11 @@ from typing import (
 
 import cftime
 import netCDF4
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 import pytz
 import shapely
-import xarray as xr
+import xarray
 from packaging.version import Version
 from xarray.coding import times
 from xarray.core.common import contains_cftime_datetimes
@@ -117,7 +117,7 @@ def timed_func(fn: Callable[..., _T]) -> Callable[..., _T]:
 
 
 def to_netcdf_with_fixes(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     path: Pathish,
     time_variable: Optional[Hashable] = None,
     **kwargs: Any,
@@ -250,14 +250,14 @@ def fix_time_units_for_ems(
         dataset.sync()
 
 
-def _get_variables(dataset_or_array: Union[xr.Dataset, xr.DataArray]) -> List[xr.Variable]:
-    if isinstance(dataset_or_array, xr.Dataset):
+def _get_variables(dataset_or_array: Union[xarray.Dataset, xarray.DataArray]) -> List[xarray.Variable]:
+    if isinstance(dataset_or_array, xarray.Dataset):
         return list(dataset_or_array.variables.values())
     else:
         return [dataset_or_array.variable]
 
 
-def disable_default_fill_value(dataset_or_array: Union[xr.Dataset, xr.DataArray]) -> None:
+def disable_default_fill_value(dataset_or_array: Union[xarray.Dataset, xarray.DataArray]) -> None:
     """
     Update all variables on this dataset or data array and disable the
     automatic ``_FillValue`` :mod:`xarray` sets. An automatic fill value can spoil
@@ -280,7 +280,7 @@ def disable_default_fill_value(dataset_or_array: Union[xr.Dataset, xr.DataArray]
             variable.encoding["_FillValue"] = None
 
 
-def fix_bad_time_units(dataset_or_array: Union[xr.Dataset, xr.DataArray]) -> None:
+def fix_bad_time_units(dataset_or_array: Union[xarray.Dataset, xarray.DataArray]) -> None:
     """Some datasets have a time units string that causes xarray to raise an
     error when saving the dataset. The unit string is parsed when reading the
     dataset just fine, only saving is the issue. This function will check for
@@ -292,13 +292,13 @@ def fix_bad_time_units(dataset_or_array: Union[xr.Dataset, xr.DataArray]) -> Non
     Once the minimum supported version of xarray is 0.21.0 or higher
     this entire function can be removed.
     """
-    if Version(xr.__version__) >= Version('0.21.0'):
+    if Version(xarray.__version__) >= Version('0.21.0'):
         return
 
     for variable in _get_variables(dataset_or_array):
         # This is the same check xarray uses in xarray.coding.times.CFDatetimeCoder
         is_datetime = (
-            np.issubdtype(variable.data.dtype, np.datetime64)
+            numpy.issubdtype(variable.data.dtype, numpy.datetime64)
             or contains_cftime_datetimes(variable)
         )
         if is_datetime and 'units' in variable.encoding:
@@ -315,7 +315,7 @@ def fix_bad_time_units(dataset_or_array: Union[xr.Dataset, xr.DataArray]) -> Non
                 continue  # Don't bother fixing this one - too broken
 
             try:
-                pd.Timestamp(timestamp)
+                pandas.Timestamp(timestamp)
                 continue  # These units are formatted fine and don't need fixing
             except ValueError:
                 pass
@@ -325,7 +325,7 @@ def fix_bad_time_units(dataset_or_array: Union[xr.Dataset, xr.DataArray]) -> Non
             variable.encoding['units'] = format_time_units_for_ems(units, calendar)
 
 
-def dataset_like(sample_dataset: xr.Dataset, new_dataset: xr.Dataset) -> xr.Dataset:
+def dataset_like(sample_dataset: xarray.Dataset, new_dataset: xarray.Dataset) -> xarray.Dataset:
     """
     Take an example dataset, and another dataset with identical variable names
     and coordinates, and rearrange the new dataset to have identical ordering
@@ -346,7 +346,7 @@ def dataset_like(sample_dataset: xr.Dataset, new_dataset: xr.Dataset) -> xr.Data
         A new dataset with attributes and orderings taken from
         ``sample_dataset`` and data taken from ``new_dataset``.
     """
-    like_dataset = xr.Dataset(
+    like_dataset = xarray.Dataset(
         # The keys are listed in-order in sample_dataset.
         # Remaking `new_dataset` using this order will fix most things
         data_vars={key: new_dataset[key] for key in sample_dataset.data_vars.keys()},
@@ -378,11 +378,11 @@ def _update_no_clobber(source: Mapping[Hashable, Any], dest: MutableMapping[Hash
 
 
 def extract_vars(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     variables: Iterable[Hashable],
     keep_bounds: bool = True,
     errors: Literal['raise', 'ignore'] = 'raise',
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """Extract a set of variables from a dataset, dropping all others.
 
     This is approximately the opposite of :meth:`xarray.Dataset.drop_vars`.
@@ -403,7 +403,7 @@ def extract_vars(
 
     Returns
     -------
-    :class:`xr.Dataset`
+    :class:`xarray.Dataset`
         A new dataset with only the named variables included.
 
     See Also
@@ -451,7 +451,7 @@ def pairwise(iterable: Iterable[_T]) -> Iterable[Tuple[_T, _T]]:
 
 
 def dimensions_from_coords(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     coordinate_names: List[Hashable],
 ) -> List[Hashable]:
     """
@@ -482,7 +482,7 @@ def dimensions_from_coords(
     return dimensions
 
 
-def check_data_array_dimensions_match(dataset: xr.Dataset, data_array: xr.DataArray) -> None:
+def check_data_array_dimensions_match(dataset: xarray.Dataset, data_array: xarray.DataArray) -> None:
     """
     Check that the dimensions of a :class:`xarray.DataArray`
     match the dimensions of a :class:`xarray.Dataset`.
@@ -519,9 +519,9 @@ def check_data_array_dimensions_match(dataset: xr.Dataset, data_array: xr.DataAr
 
 
 def move_dimensions_to_end(
-    data_array: xr.DataArray,
+    data_array: xarray.DataArray,
     dimensions: List[Hashable],
-) -> xr.DataArray:
+) -> xarray.DataArray:
     """
     Transpose the dimensions of a :class:`xarray.DataArray`
     such that the given dimensions appear as the last dimensions,
@@ -562,10 +562,10 @@ def move_dimensions_to_end(
 
 
 def linearise_dimensions(
-    data_array: xr.DataArray,
+    data_array: xarray.DataArray,
     dimensions: List[Hashable],
     linear_dimension: Optional[Hashable] = None,
-) -> xr.DataArray:
+) -> xarray.DataArray:
     """
     Flatten the given dimensions of a :class:`~xarray.DataArray`.
     Other dimensions are kept as-is.
@@ -596,8 +596,8 @@ def linearise_dimensions(
 
     .. code-block:: python
 
-        >>> data_array = xr.DataArray(
-        ...     data=np.random.random((3, 5, 7)),
+        >>> data_array = xarray.DataArray(
+        ...     data=numpy.random.random((3, 5, 7)),
         ...     dims=['x', 'y', 'z'],
         ... )
         >>> flattened = linearise_dimensions(data_array, ['y', 'x'])
@@ -605,7 +605,7 @@ def linearise_dimensions(
         ('z', 'index')
         >>> flattened.shape
         (7, 15)
-        >>> expected = np.transpose(data_array.isel(z=0).values).ravel()
+        >>> expected = numpy.transpose(data_array.isel(z=0).values).ravel()
         >>> all(flattened.isel(z=0).values == expected)
         True
     """
@@ -625,10 +625,10 @@ def linearise_dimensions(
     coords = {
         name: coord for name, coord in data_array.coords.items()
         if set(coord.dims).issubset(existing_dims)}
-    return xr.DataArray(data=new_data, dims=new_dims, coords=coords)
+    return xarray.DataArray(data=new_data, dims=new_dims, coords=coords)
 
 
-def datetime_from_np_time(np_time: np.datetime64) -> datetime.datetime:
+def datetime_from_np_time(np_time: numpy.datetime64) -> datetime.datetime:
     """
     Convert a numpy :class:`~numpy.datetime64`
     to a python :class:`~datetime.datetime`.
@@ -689,34 +689,34 @@ def requires_extra(
 
 
 def make_polygons_with_holes(
-    points: np.ndarray,
+    points: numpy.ndarray,
     *,
-    out: Optional[np.ndarray] = None,
-) -> np.ndarray:
+    out: Optional[numpy.ndarray] = None,
+) -> numpy.ndarray:
     """
     Make a :class:`numpy.ndarray` of :class:`shapely.Polygon` from an array of (n, m, 2) points.
     ``n`` is the number of polygons, ``m`` is the number of vertices per polygon.
-    If any point in a polygon is :data:`np.nan`,
+    If any point in a polygon is :data:`numpy.nan`,
     that Polygon is skipped and will be :class:`None` in the returned array.
 
     Parameters
     ----------
 
-    points : np.ndarray
+    points : numpy.ndarray
         A (n, m, 2) array. Each row represents the m points of a polygon.
-    out : np.ndarray, optional
+    out : numpy.ndarray, optional
         Optional. An array to fill with polygons.
 
     Returns
     -------
 
-    np.ndarray
+    numpy.ndarray
         The polygons in a array of size n.
     """
     if out is None:
-        out = np.full(points.shape[0], None, dtype=np.object_)
+        out = numpy.full(points.shape[0], None, dtype=numpy.object_)
 
-    complete_row_indices = np.flatnonzero(np.isfinite(points).all(axis=(1, 2)))
+    complete_row_indices = numpy.flatnonzero(numpy.isfinite(points).all(axis=(1, 2)))
     shapely.polygons(
         points[complete_row_indices],
         indices=complete_row_indices,

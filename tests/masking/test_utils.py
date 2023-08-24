@@ -3,9 +3,9 @@ from __future__ import annotations
 import pathlib
 
 import netCDF4
-import numpy as np
+import numpy
 import pytest
-import xarray as xr
+import xarray
 from numpy.testing import assert_equal
 
 from emsarray import masking
@@ -16,7 +16,7 @@ from tests.utils import filter_warning, mask_from_strings
 def assert_raw_values(
     dataset_path: pathlib.Path,
     variable_name: str,
-    values: np.ndarray,
+    values: numpy.ndarray,
 ) -> None:
     __tracebackhide__ = True
     with netCDF4.Dataset(dataset_path, 'r') as ds:
@@ -36,23 +36,23 @@ def test_find_fill_value_masked_float(datasets):
 
     assert_raw_values(
         dataset_path, 'var',
-        np.array([[1.0, 2.0], [-999., 4.0]], dtype=np.float64))
+        numpy.array([[1.0, 2.0], [-999., 4.0]], dtype=numpy.float64))
 
-    # When opened with mask_and_scale=True (the default) xarray uses np.nan
+    # When opened with mask_and_scale=True (the default) xarray uses numpy.nan
     # to indicate masked values.
-    with xr.open_dataarray(dataset_path, mask_and_scale=True) as data_array:
+    with xarray.open_dataarray(dataset_path, mask_and_scale=True) as data_array:
         assert_dtype_equal(
             data_array.values,
-            np.array([[1.0, 2.0], [np.nan, 4.0]], dtype=np.float64))
-        assert masking.find_fill_value(data_array) is np.nan
+            numpy.array([[1.0, 2.0], [numpy.nan, 4.0]], dtype=numpy.float64))
+        assert masking.find_fill_value(data_array) is numpy.nan
 
     # When opened with mask_and_scale=False, xarray does nothing with masks.
     # The raw _FillValue should be returned.
-    with xr.open_dataarray(dataset_path, mask_and_scale=False) as data_array:
+    with xarray.open_dataarray(dataset_path, mask_and_scale=False) as data_array:
         assert_dtype_equal(
             data_array.values,
-            np.array([[1.0, 2.0], [-999., 4.]], dtype=np.float64))
-        assert_dtype_equal(masking.find_fill_value(data_array), np.float64(-999.))
+            numpy.array([[1.0, 2.0], [-999., 4.]], dtype=numpy.float64))
+        assert_dtype_equal(masking.find_fill_value(data_array), numpy.float64(-999.))
 
 
 def test_find_fill_value_masked_and_scaled_float(datasets):
@@ -60,23 +60,23 @@ def test_find_fill_value_masked_and_scaled_float(datasets):
 
     assert_raw_values(
         dataset_path, 'var',
-        np.array([[-4.5, -4.0], [-999., -3.0]], dtype=np.float32))
+        numpy.array([[-4.5, -4.0], [-999., -3.0]], dtype=numpy.float32))
 
-    # When opened with mask_and_scale=True (the default) xarray uses np.nan
+    # When opened with mask_and_scale=True (the default) xarray uses numpy.nan
     # to indicate masked values.
-    with xr.open_dataarray(dataset_path, mask_and_scale=True) as data_array:
+    with xarray.open_dataarray(dataset_path, mask_and_scale=True) as data_array:
         assert_dtype_equal(
             data_array.values,
-            np.array([[1.0, 2.0], [np.nan, 4.0]], dtype=np.float32))
-        assert masking.find_fill_value(data_array) is np.nan
+            numpy.array([[1.0, 2.0], [numpy.nan, 4.0]], dtype=numpy.float32))
+        assert masking.find_fill_value(data_array) is numpy.nan
 
     # When opened with mask_and_scale=False, xarray does nothing with masks.
     # The raw _FillValue should be returned.
-    with xr.open_dataarray(dataset_path, mask_and_scale=False) as data_array:
+    with xarray.open_dataarray(dataset_path, mask_and_scale=False) as data_array:
         assert_dtype_equal(
             data_array.values,
-            np.array([[-4.5, -4.0], [-999., -3.0]], dtype=np.float32))
-        assert_dtype_equal(masking.find_fill_value(data_array), np.float32(-999.))
+            numpy.array([[-4.5, -4.0], [-999., -3.0]], dtype=numpy.float32))
+        assert_dtype_equal(masking.find_fill_value(data_array), numpy.float32(-999.))
 
 
 def test_find_fill_value_masked_and_scaled_int(datasets):
@@ -84,23 +84,23 @@ def test_find_fill_value_masked_and_scaled_int(datasets):
 
     assert_raw_values(
         dataset_path, 'var',
-        np.array([[22, 24], [-1, 28]], dtype=np.int8))
+        numpy.array([[22, 24], [-1, 28]], dtype=numpy.int8))
 
-    # When opened with mask_and_scale=True (the default) xarray uses np.nan
+    # When opened with mask_and_scale=True (the default) xarray uses numpy.nan
     # to indicate masked values.
-    with xr.open_dataarray(dataset_path, mask_and_scale=True) as data_array:
+    with xarray.open_dataarray(dataset_path, mask_and_scale=True) as data_array:
         assert_dtype_equal(
             data_array.values,
-            np.array([[1.0, 2.0], [np.nan, 4.0]], dtype=np.float32))
-        assert masking.find_fill_value(data_array) is np.nan
+            numpy.array([[1.0, 2.0], [numpy.nan, 4.0]], dtype=numpy.float32))
+        assert masking.find_fill_value(data_array) is numpy.nan
 
     # When opened with mask_and_scale=False, xarray does nothing with masks.
     # The raw _FillValue should be returned.
-    with xr.open_dataarray(dataset_path, mask_and_scale=False) as data_array:
+    with xarray.open_dataarray(dataset_path, mask_and_scale=False) as data_array:
         assert_dtype_equal(
             data_array.values,
-            np.array([[22, 24], [-1, 28]], dtype=np.int8))
-        assert_dtype_equal(masking.find_fill_value(data_array), np.int8(-1))
+            numpy.array([[22, 24], [-1, 28]], dtype=numpy.int8))
+        assert_dtype_equal(masking.find_fill_value(data_array), numpy.int8(-1))
 
 
 def test_find_fill_value_timedelta_with_missing_value(
@@ -109,16 +109,16 @@ def test_find_fill_value_timedelta_with_missing_value(
 ) -> None:
     dataset_path = datasets / 'masking/find_fill_value/timedelta_with_missing_value.nc'
 
-    missing_value = np.float32(1.e35)
+    missing_value = numpy.float32(1.e35)
     assert_raw_values(
         dataset_path, 'var',
-        np.array([[0, 1], [2, missing_value]], dtype=np.float32))
+        numpy.array([[0, 1], [2, missing_value]], dtype=numpy.float32))
 
-    with xr.open_dataset(dataset_path) as dataset:
+    with xarray.open_dataset(dataset_path) as dataset:
         data_array = dataset['var']
-        assert dataset['var'].dtype == np.dtype('timedelta64[ns]')
+        assert dataset['var'].dtype == numpy.dtype('timedelta64[ns]')
         fill_value = masking.find_fill_value(data_array)
-        assert np.isnat(fill_value)
+        assert numpy.isnat(fill_value)
 
         # See https://github.com/pydata/xarray/issues/7942
         with filter_warning(
@@ -131,14 +131,14 @@ def test_find_fill_value_timedelta_with_missing_value(
 
 
 def test_calculate_mask_bounds():
-    mask = xr.Dataset(
+    mask = xarray.Dataset(
         data_vars={
-            '1d': xr.DataArray(
+            '1d': xarray.DataArray(
                 # This has bounds {"1x": [2:5]}
-                data=np.array([False, False, True, False, True, False]),
+                data=numpy.array([False, False, True, False, True, False]),
                 dims=['1x'],
             ),
-            '2d': xr.DataArray(
+            '2d': xarray.DataArray(
                 # This has bounds {"2y": [1:4], "2x": [1:5]}
                 data=mask_from_strings([
                     "000000",
@@ -150,9 +150,9 @@ def test_calculate_mask_bounds():
                 ]),
                 dims=['2y', '2x'],
             ),
-            '3d': xr.DataArray(
+            '3d': xarray.DataArray(
                 # This has bounds {"3z": [0:1], "3y": [0:2], "3x": [1:2]}
-                data=np.stack([
+                data=numpy.stack([
                     mask_from_strings(["010", "010", "000"]),
                     mask_from_strings(["000", "000", "000"]),
                 ]),
@@ -162,21 +162,21 @@ def test_calculate_mask_bounds():
     )
 
     assert masking.calculate_grid_mask_bounds(mask) == {
-        '1x': np.s_[2:5],
-        '2y': np.s_[1:4],
-        '2x': np.s_[2:5],
-        '3z': np.s_[0:1],
-        '3y': np.s_[0:2],
-        '3x': np.s_[1:2],
+        '1x': numpy.s_[2:5],
+        '2y': numpy.s_[1:4],
+        '2x': numpy.s_[2:5],
+        '3z': numpy.s_[0:1],
+        '3y': numpy.s_[0:2],
+        '3x': numpy.s_[1:2],
     }
 
 
 def test_calculate_mask_bounds_empty():
-    mask = xr.Dataset(
+    mask = xarray.Dataset(
         data_vars={
-            '2d': xr.DataArray(
+            '2d': xarray.DataArray(
                 # This mask has no True items, and should raise an error
-                data=np.zeros((5, 5), dtype=bool),
+                data=numpy.zeros((5, 5), dtype=bool),
                 dims=['2x', '2y'],
             )
         },
@@ -222,19 +222,19 @@ def test_calculate_mask_bounds_empty():
         (
             # Lets be fancy and try a one-dimensional case
             (True,),
-            np.array([True, False, False, False, True, False]),
-            np.array([True, True, False, False, True, True, False]),
+            numpy.array([True, False, False, False, True, False]),
+            numpy.array([True, True, False, False, True, True, False]),
         ),
         (
             # Even fancier - three-dimensional case
             (True, True, True),
-            np.stack([
+            numpy.stack([
                 mask_from_strings(["1000", "0000", "0000", "0000"]),
                 mask_from_strings(["0000", "0100", "0000", "0000"]),
                 mask_from_strings(["0000", "0000", "0010", "0000"]),
                 mask_from_strings(["0000", "0000", "0000", "0001"]),
             ]),
-            np.stack([
+            numpy.stack([
                 mask_from_strings(["11000", "11000", "00000", "00000", "00000"]),
                 mask_from_strings(["11000", "11100", "01100", "00000", "00000"]),
                 mask_from_strings(["00000", "01100", "01110", "00110", "00000"]),
@@ -253,8 +253,8 @@ def test_smear_mask(padding, original, expected):
     ('original', 'expected'),
     [
         # 1D arrays
-        (np.array([True]), np.array([True])),
-        (np.array([True, False, False]), np.array([True, True, False])),
+        (numpy.array([True]), numpy.array([True])),
+        (numpy.array([True, False, False]), numpy.array([True, True, False])),
         # 2D arrays
         (mask_from_strings(["0"]), mask_from_strings(["0"])),
         (mask_from_strings(["1"]), mask_from_strings(["1"])),
@@ -266,13 +266,13 @@ def test_smear_mask(padding, original, expected):
         ),
         # 3D arrays
         (
-            np.stack([
+            numpy.stack([
                 mask_from_strings(["1000", "0000", "0000"]),
                 mask_from_strings(["0000", "0100", "0000"]),
                 mask_from_strings(["0000", "0000", "0000"]),
                 mask_from_strings(["1000", "0000", "0000"]),
             ]),
-            np.stack([
+            numpy.stack([
                 mask_from_strings(["1110", "1110", "1110"]),
                 mask_from_strings(["1110", "1110", "1110"]),
                 mask_from_strings(["1110", "1110", "1110"]),

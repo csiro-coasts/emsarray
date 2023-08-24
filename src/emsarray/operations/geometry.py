@@ -13,7 +13,7 @@ from typing import (
 import geojson
 import shapefile
 import shapely
-import xarray as xr
+import xarray
 
 from emsarray.types import Pathish
 
@@ -45,7 +45,7 @@ class _dumpable_iterator(list):
 
 
 def to_geojson(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
 ) -> geojson.FeatureCollection:
     """Make a ``geojson.FeatureCollection`` out of the cells in this dataset,
     one feature per cell.
@@ -60,7 +60,7 @@ def to_geojson(
 
     Parameters
     ----------
-    dataset : xr.Dataset
+    dataset : xarray.Dataset
         The dataset to export as GeoJSON geometry.
 
     Returns
@@ -83,7 +83,7 @@ def to_geojson(
 
 
 def write_geojson(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     path: Pathish,
 ) -> None:
     """
@@ -95,7 +95,7 @@ def write_geojson(
 
     Parameters
     ----------
-    dataset : xr.Dataset
+    dataset : xarray.Dataset
         The dataset to export as GeoJSON geometry.
     path : str or pathlib.Path
         The path where the geometry should be written to.
@@ -128,7 +128,7 @@ def _maybe_open(path_or_file: Union[Pathish, IO], mode: str) -> Generator[IO, No
 
 
 def write_shapefile(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     target: Optional[Pathish] = None,
     *,
     shp: Optional[Union[Pathish, IO]] = None,
@@ -180,7 +180,7 @@ def write_shapefile(
                 prj_file.write(dataset.ems.data_crs.to_wkt())
 
 
-def _to_multipolygon(dataset: xr.Dataset) -> shapely.MultiPolygon:
+def _to_multipolygon(dataset: xarray.Dataset) -> shapely.MultiPolygon:
     return shapely.MultiPolygon([
         p for p in dataset.ems.polygons
         if p is not None
@@ -188,7 +188,7 @@ def _to_multipolygon(dataset: xr.Dataset) -> shapely.MultiPolygon:
 
 
 def write_wkt(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     path: Pathish,
 ) -> None:
     """
@@ -197,7 +197,7 @@ def write_wkt(
 
     Parameters
     ----------
-    dataset : xr.Dataset
+    dataset : xarray.Dataset
         The dataset to export as Well Known Text.
     path : str or pathlib.Path
         The path where the geometry should be written to.
@@ -207,7 +207,7 @@ def write_wkt(
 
 
 def write_wkb(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     path: Pathish,
 ) -> None:
     """
@@ -216,7 +216,7 @@ def write_wkb(
 
     Parameters
     ----------
-    dataset : xr.Dataset
+    dataset : xarray.Dataset
         The dataset to export as Well Known Binary.
     path : str or pathlib.Path
         The path where the geometry should be written to.

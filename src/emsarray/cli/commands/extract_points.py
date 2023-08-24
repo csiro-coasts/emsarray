@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-import pandas as pd
+import pandas
 
 import emsarray
 from emsarray.cli import BaseCommand, CommandException
@@ -64,7 +64,7 @@ class Command(BaseCommand):
     def handle(self, options: argparse.Namespace) -> None:
         logger.info("Extracting points from %r", str(options.input_path))
         dataset = emsarray.open_dataset(options.input_path)
-        dataframe = pd.read_csv(options.points)
+        dataframe = pandas.read_csv(options.points)
 
         try:
             point_data = point_extraction.extract_dataframe(

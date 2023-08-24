@@ -6,18 +6,18 @@ import warnings
 from collections import defaultdict
 from typing import Dict, FrozenSet, Hashable, List, Optional, cast
 
-import numpy as np
-import xarray as xr
+import numpy
+import xarray
 
 from emsarray import utils
 
 
 def ocean_floor(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     depth_variables: List[Hashable],
     *,
     non_spatial_variables: Optional[List[Hashable]] = None,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """Make a new :class:`xarray.Dataset` reduced along the given depth
     coordinates to only contain values along the ocean floor.
 
@@ -174,9 +174,9 @@ def ocean_floor(
 
 
 def _find_ocean_floor_indices(
-    data_array: xr.DataArray,
+    data_array: xarray.DataArray,
     depth_dimension: Hashable,
-) -> xr.DataArray:
+) -> xarray.DataArray:
     # This needs some explaining.
     # (any number * 0 + 1) is 1, while (nan * 0 + 1) is nan.
     # As layers under the ocean floor are nans,
@@ -190,16 +190,16 @@ def _find_ocean_floor_indices(
     # Item 0 in the column will be nan, resulting in nan in the output as desired.
     depth_indices = (data_array * 0 + 1).cumsum(str(depth_dimension))
     max_depth_indices = depth_indices.argmax(str(depth_dimension))
-    return cast(xr.DataArray, max_depth_indices)
+    return cast(xarray.DataArray, max_depth_indices)
 
 
 def normalize_depth_variables(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     depth_variables: List[Hashable],
     *,
     positive_down: bool = True,
     deep_to_shallow: bool = True,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """
     Some datasets represent depth as a positive variable, some as negative.
     Some datasets sort depth layers from deepest to most shallow, others
@@ -282,6 +282,6 @@ def normalize_depth_variables(
 
         # Flip the order of the coordinate
         if data_deep_to_shallow != deep_to_shallow:
-            new_dataset = new_dataset.isel({dimension: np.s_[::-1]})
+            new_dataset = new_dataset.isel({dimension: numpy.s_[::-1]})
 
     return new_dataset

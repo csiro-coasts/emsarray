@@ -16,10 +16,10 @@ This is useful if you want to add your own metadata to the subset dataset.
 import dataclasses
 from typing import Any, Hashable, List, Literal, Tuple
 
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 import shapely
-import xarray as xr
+import xarray
 import xarray.core.dtypes as xrdtypes
 
 from emsarray.conventions import Convention
@@ -32,7 +32,7 @@ class NonIntersectingPoints(ValueError):
     """
 
     #: The indices of the points that do not intersect
-    indices: np.ndarray
+    indices: numpy.ndarray
 
     #: The non-intersecting points
     points: List[shapely.Point]
@@ -42,10 +42,10 @@ class NonIntersectingPoints(ValueError):
 
 
 def _dataframe_to_dataset(
-    dataframe: pd.DataFrame,
+    dataframe: pandas.DataFrame,
     *,
     dimension_name: Hashable,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """Convert a pandas DataFrame to an xarray Dataset."""
     dataframe = dataframe.copy()
     dataframe.index.name = dimension_name
@@ -54,12 +54,12 @@ def _dataframe_to_dataset(
 
 
 def extract_points(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     points: List[shapely.Point],
     *,
     point_dimension: Hashable = 'point',
     missing_points: Literal['error', 'drop'] = 'error',
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """
     Drop all data except for cells that intersect the given points.
     Return a new dataset with a new dimension named ``point_dimension``,
@@ -99,17 +99,17 @@ def extract_points(
     convention: Convention = dataset.ems
 
     # Find the indexer for each given point
-    indexes = np.array([convention.get_index_for_point(point) for point in points])
+    indexes = numpy.array([convention.get_index_for_point(point) for point in points])
 
     if missing_points == 'error':
-        out_of_bounds = np.flatnonzero(np.equal(indexes, None))  # type: ignore
+        out_of_bounds = numpy.flatnonzero(numpy.equal(indexes, None))  # type: ignore
         if len(out_of_bounds):
             raise NonIntersectingPoints(
                 indices=out_of_bounds,
                 points=[points[i] for i in out_of_bounds])
 
     # Make a DataFrame out of all point indexers
-    selector_df = pd.DataFrame([
+    selector_df = pandas.DataFrame([
         convention.selector_for_index(index.index)
         for index in indexes
         if index is not None])
@@ -126,14 +126,14 @@ def extract_points(
 
 
 def extract_dataframe(
-    dataset: xr.Dataset,
-    dataframe: pd.DataFrame,
+    dataset: xarray.Dataset,
+    dataframe: pandas.DataFrame,
     coordinate_columns: Tuple[str, str],
     *,
     point_dimension: Hashable = 'point',
     missing_points: Literal['error', 'drop', 'fill'] = 'error',
     fill_value: Any = xrdtypes.NA,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """
     Extract the points listed in a pandas :class:`~pandas.DataFrame`,
     and merge the remaining columns in to the :class:`~xarray.Dataset`.
@@ -178,11 +178,11 @@ def extract_dataframe(
     .. code-block:: python
 
         import emsarray
-        import pandas as pd
+        import pandas
         from emsarray.operations import point_extraction
 
         ds = emsarray.tutorial.open_dataset('gbr4')
-        df = pd.DataFrame({
+        df = pandas.DataFrame({
             'lon': [152.807, 152.670, 153.543],
             'lat': [-24.9595, -24.589, -25.488],
             'name': ['a', 'b', 'c'],
@@ -214,7 +214,7 @@ def extract_dataframe(
     lon_coord, lat_coord = coordinate_columns
 
     # Extract the points from the dataset
-    points = shapely.points(np.c_[dataframe[lon_coord], dataframe[lat_coord]])
+    points = shapely.points(numpy.c_[dataframe[lon_coord], dataframe[lat_coord]])
 
     point_dataset = extract_points(
         dataset, points, point_dimension=point_dimension,
