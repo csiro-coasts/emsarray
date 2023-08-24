@@ -44,7 +44,7 @@ def test_find_fill_value_masked_float(datasets):
         assert_dtype_equal(
             data_array.values,
             numpy.array([[1.0, 2.0], [numpy.nan, 4.0]], dtype=numpy.float64))
-        assert masking.find_fill_value(data_array) is numpy.nan
+        assert numpy.isnan(masking.find_fill_value(data_array))
 
     # When opened with mask_and_scale=False, xarray does nothing with masks.
     # The raw _FillValue should be returned.
@@ -68,7 +68,7 @@ def test_find_fill_value_masked_and_scaled_float(datasets):
         assert_dtype_equal(
             data_array.values,
             numpy.array([[1.0, 2.0], [numpy.nan, 4.0]], dtype=numpy.float32))
-        assert masking.find_fill_value(data_array) is numpy.nan
+        assert numpy.isnan(masking.find_fill_value(data_array))
 
     # When opened with mask_and_scale=False, xarray does nothing with masks.
     # The raw _FillValue should be returned.
@@ -92,7 +92,7 @@ def test_find_fill_value_masked_and_scaled_int(datasets):
         assert_dtype_equal(
             data_array.values,
             numpy.array([[1.0, 2.0], [numpy.nan, 4.0]], dtype=numpy.float32))
-        assert masking.find_fill_value(data_array) is numpy.nan
+        assert numpy.isnan(masking.find_fill_value(data_array))
 
     # When opened with mask_and_scale=False, xarray does nothing with masks.
     # The raw _FillValue should be returned.

@@ -19,3 +19,6 @@ Next release (in development)
   (:pr:`91`).
 * Remove shorthand imports such as ``import xarray as xr``
   (:pr:`95`).
+* Drop Python 3.8 support.
+  Bump minimum dependency versions to those released in the past 18 months
+  (:pr:`96`).
