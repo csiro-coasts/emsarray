@@ -5,7 +5,7 @@ import pathlib
 import netCDF4
 import numpy
 import numpy.testing
-import pandas as pd
+import pandas
 import pytest
 import xarray
 import xarray.testing
@@ -218,7 +218,7 @@ def test_extract_vars():
                 34 + numpy.random.random_sample((time_size, depth_size, lat_size, lon_size))),
         },
         coords={
-            'time': (["time"], pd.date_range("2021-12-21", periods=time_size)),
+            'time': (["time"], pandas.date_range("2021-12-21", periods=time_size)),
             'depth': (["depth"], numpy.arange(depth_size), {"positive": "down"}),
             'lon': (["lon"], (lon_grid[1:] + lon_grid[:-1]) / 2, {"bounds": "lon_bounds"}),
             'lat': (["lat"], (lat_grid[1:] + lat_grid[:-1]) / 2, {"bounds": "lat_bounds"}),
@@ -260,7 +260,7 @@ def test_check_data_array_dimensions_match_complete():
             ),
         },
         coords={
-            'time': (["time"], pd.date_range("2021-12-21", periods=time_size)),
+            'time': (["time"], pandas.date_range("2021-12-21", periods=time_size)),
             'lon': (["lon"], numpy.arange(lon_size) + 0.5),
             'lat': (["lat"], numpy.arange(lat_size) + 0.5),
         }
@@ -293,7 +293,7 @@ def test_check_data_array_dimensions_match_subset():
             ),
         },
         coords={
-            'time': (["time"], pd.date_range("2021-12-21", periods=time_size)),
+            'time': (["time"], pandas.date_range("2021-12-21", periods=time_size)),
             'depth': (["depth"], numpy.arange(depth_size), {'positive': 'down'}),
             'lon': (["lon"], numpy.arange(lon_size) + 0.5),
             'lat': (["lat"], numpy.arange(lat_size) + 0.5),
@@ -323,7 +323,7 @@ def test_check_data_array_dimensions_match_size_mismatch():
             ),
         },
         coords={
-            'time': (["time"], pd.date_range("2021-12-21", periods=time_size)),
+            'time': (["time"], pandas.date_range("2021-12-21", periods=time_size)),
             'depth': (["depth"], numpy.arange(depth_size), {'positive': 'down'}),
             'lon': (["lon"], numpy.arange(lon_size) + 0.5),
             'lat': (["lat"], numpy.arange(lat_size) + 0.5),
@@ -361,7 +361,7 @@ def test_check_data_array_dimensions_match_unknown_dimension():
             ),
         },
         coords={
-            'time': (["time"], pd.date_range("2021-12-21", periods=time_size)),
+            'time': (["time"], pandas.date_range("2021-12-21", periods=time_size)),
             'lon': (["lon"], numpy.arange(lon_size) + 0.5),
             'lat': (["lat"], numpy.arange(lat_size) + 0.5),
         }
@@ -437,7 +437,7 @@ def test_linearize_dimensions_extra_dimensions():
         data=numpy.random.random((2, 7, 5, 3)),
         dims=['t', 'x', 'y', 'z'],
         coords={
-            't': pd.date_range("2022-03-02", periods=2),
+            't': pandas.date_range("2022-03-02", periods=2),
             'x': numpy.arange(7),
             'y': numpy.arange(5),
             'z': [0.25, 0.5, 1.5],

@@ -13,7 +13,7 @@ import pathlib
 from typing import Type
 
 import numpy
-import pandas as pd
+import pandas
 import pytest
 import xarray
 from matplotlib.figure import Figure
@@ -86,7 +86,7 @@ def make_dataset(
     layers = ShocLayerGenerator(k=k_size)
 
     time = xarray.DataArray(
-        data=pd.date_range("2021-11-11", periods=time_size),
+        data=pandas.date_range("2021-11-11", periods=time_size),
         dims=["time"],
         attrs={
             "long_name": "Time",

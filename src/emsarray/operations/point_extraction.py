@@ -17,7 +17,7 @@ import dataclasses
 from typing import Any, Hashable, List, Literal, Tuple
 
 import numpy
-import pandas as pd
+import pandas
 import shapely
 import xarray
 import xarray.core.dtypes as xrdtypes
@@ -42,7 +42,7 @@ class NonIntersectingPoints(ValueError):
 
 
 def _dataframe_to_dataset(
-    dataframe: pd.DataFrame,
+    dataframe: pandas.DataFrame,
     *,
     dimension_name: Hashable,
 ) -> xarray.Dataset:
@@ -109,7 +109,7 @@ def extract_points(
                 points=[points[i] for i in out_of_bounds])
 
     # Make a DataFrame out of all point indexers
-    selector_df = pd.DataFrame([
+    selector_df = pandas.DataFrame([
         convention.selector_for_index(index.index)
         for index in indexes
         if index is not None])
@@ -127,7 +127,7 @@ def extract_points(
 
 def extract_dataframe(
     dataset: xarray.Dataset,
-    dataframe: pd.DataFrame,
+    dataframe: pandas.DataFrame,
     coordinate_columns: Tuple[str, str],
     *,
     point_dimension: Hashable = 'point',
@@ -178,11 +178,11 @@ def extract_dataframe(
     .. code-block:: python
 
         import emsarray
-        import pandas as pd
+        import pandas
         from emsarray.operations import point_extraction
 
         ds = emsarray.tutorial.open_dataset('gbr4')
-        df = pd.DataFrame({
+        df = pandas.DataFrame({
             'lon': [152.807, 152.670, 153.543],
             'lat': [-24.9595, -24.589, -25.488],
             'name': ['a', 'b', 'c'],

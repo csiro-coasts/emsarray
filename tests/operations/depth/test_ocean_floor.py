@@ -1,5 +1,5 @@
 import numpy
-import pandas as pd
+import pandas
 import pytest
 import xarray
 from numpy.testing import assert_equal
@@ -27,7 +27,7 @@ def test_ocean_floor():
     dataset = xarray.Dataset(
         data_vars={"temp": temp},
         coords={
-            'time': (['t'], pd.date_range('2022-02-08', periods=5)),
+            'time': (['t'], pandas.date_range('2022-02-08', periods=5)),
             'lon': (['x'], -numpy.arange(5)),
             'lat': (['y'], numpy.arange(5)),
             'depth': (['z'], 4.25 - numpy.arange(5), {'positive': 'down'}),

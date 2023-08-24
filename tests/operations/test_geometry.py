@@ -4,7 +4,7 @@ from typing import Any
 
 import geojson
 import numpy
-import pandas as pd
+import pandas
 import shapefile
 import shapely
 import shapely.geometry
@@ -14,12 +14,12 @@ from shapely.testing import assert_geometries_equal
 from emsarray.operations import geometry
 
 
-def _polygons(dataset: xarray.Dataset) -> pd.DataFrame:
+def _polygons(dataset: xarray.Dataset) -> pandas.DataFrame:
     rows = [
         (linear_index, polygon)
         for linear_index, polygon in enumerate(dataset.ems.polygons)
         if polygon is not None]
-    return pd.DataFrame(rows, columns=['linear_index', 'polygon'])
+    return pandas.DataFrame(rows, columns=['linear_index', 'polygon'])
 
 
 def _json_roundtrip(value: Any) -> Any:

@@ -1,7 +1,7 @@
 import pathlib
 
 import numpy
-import pandas as pd
+import pandas
 import pytest
 import xarray
 from numpy.testing import assert_equal
@@ -19,7 +19,7 @@ def test_extract_dataframe(
     θs = numpy.random.sample(num_points) * 2 * numpy.pi
     xs = numpy.cos(θs) * rs
     ys = numpy.sin(θs) * rs
-    points_df = pd.DataFrame({'name': names, 'lon': xs, 'lat': ys})
+    points_df = pandas.DataFrame({'name': names, 'lon': xs, 'lat': ys})
 
     in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     point_dataset = point_extraction.extract_dataframe(
@@ -61,7 +61,7 @@ def test_extract_dataframe(
 def test_extract_dataframe_point_dimension(
     datasets: pathlib.Path,
 ) -> None:
-    points_df = pd.DataFrame({
+    points_df = pandas.DataFrame({
         'name': ['a', 'b', 'c', 'd'],
         'lon': [0, 1, 2, 3],
         'lat': [0, 0, 0, 0],
@@ -78,7 +78,7 @@ def test_extract_dataframe_point_dimension(
 def test_extract_points_missing_point_error(
     datasets: pathlib.Path,
 ) -> None:
-    points_df = pd.DataFrame({
+    points_df = pandas.DataFrame({
         'name': ['a', 'b', 'c', 'd'],
         'lon': [0, 10, 1, 20],
         'lat': [0, 0, 0, 0],
@@ -93,7 +93,7 @@ def test_extract_points_missing_point_error(
 def test_extract_points_missing_point_drop(
     datasets: pathlib.Path,
 ) -> None:
-    points_df = pd.DataFrame({
+    points_df = pandas.DataFrame({
         'name': ['a', 'b', 'c', 'd'],
         'lon': [0, 10, 1, 20],
         'lat': [0, 0, 0, 0],
@@ -114,7 +114,7 @@ def test_extract_points_missing_point_drop(
 def test_extract_points_missing_point_fill(
     datasets: pathlib.Path,
 ) -> None:
-    points_df = pd.DataFrame({
+    points_df = pandas.DataFrame({
         'name': ['a', 'b', 'c', 'd'],
         'lon': [0, 10, 1, 20],
         'lat': [0, 0, 0, 0],

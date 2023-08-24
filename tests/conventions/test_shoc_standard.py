@@ -6,7 +6,7 @@ import pathlib
 from typing import Type
 
 import numpy
-import pandas as pd
+import pandas
 import pytest
 import xarray
 from matplotlib.figure import Figure
@@ -82,11 +82,11 @@ def make_dataset(
     layers = ShocLayerGenerator(k=k_size)
 
     t = xarray.DataArray(
-        # Note: Using pd.date_range() directly here will lead to strange
+        # Note: Using pandas.date_range() directly here will lead to strange
         # behaviours, where the `record` dimension becomes a data variable with
         # a datetime64 dtype. Using a list of datetimes instead seems to avoid
         # this, resulting in record simply being a dimension.
-        data=list(pd.date_range("2021-11-11", periods=time_size)),
+        data=list(pandas.date_range("2021-11-11", periods=time_size)),
         dims=["record"],
         attrs={
             "long_name": "Time",

@@ -25,7 +25,7 @@ from typing import (
 import cftime
 import netCDF4
 import numpy
-import pandas as pd
+import pandas
 import pytz
 import shapely
 import xarray
@@ -315,7 +315,7 @@ def fix_bad_time_units(dataset_or_array: Union[xarray.Dataset, xarray.DataArray]
                 continue  # Don't bother fixing this one - too broken
 
             try:
-                pd.Timestamp(timestamp)
+                pandas.Timestamp(timestamp)
                 continue  # These units are formatted fine and don't need fixing
             except ValueError:
                 pass

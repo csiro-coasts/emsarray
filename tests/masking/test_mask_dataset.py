@@ -4,7 +4,7 @@ import pathlib
 
 import netCDF4
 import numpy
-import pandas as pd
+import pandas
 import pytest
 import shapely.geometry
 import xarray
@@ -127,7 +127,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
     )
 
     t = xarray.DataArray(
-        data=list(pd.date_range("2021-11-11", periods=records)),
+        data=list(pandas.date_range("2021-11-11", periods=records)),
         dims=["record"],
         attrs={
             "long_name": "Time",
