@@ -8,6 +8,11 @@ inputs:
     description: Name of the emsarray Python package artifact
     required: false
     default: "Python package"
+  install-latest:
+    description: Install latest dependency versions instead of locked versions
+    required: false
+    # All inputs are forced to strings
+    default: 'false'
 
 runs:
   using: composite
@@ -21,7 +26,6 @@ runs:
           continuous-integration/requirements.txt
           continuous-integration/environment.yaml
           setup.cfg
-        python-version: ${{ inputs.python-version }}
 
     - name: Fetch built emsarray package
       uses: actions/download-artifact@v3
@@ -30,7 +34,7 @@ runs:
         path: "dist/"
 
     - name: Cache conda packages
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ~/conda_pkgs_dir
         key:
@@ -48,10 +52,18 @@ runs:
       run: |
         conda install -c conda-forge wheel
 
-
-    - name: Install Python packages
+    - name: Install locked Python packages
+      if: ${{ inputs.install-latest == 'false' }}
       shell: bash -l {0}
       run: |
         pip install \
           -r continuous-integration/requirements.txt \
           dist/emsarray-*.whl
+
+    - name: Install latest Python packages
+      if: ${{ inputs.install-latest != 'false'}}
+      shell: bash -l {0}
+      run: |
+        wheels=( dist/emsarray-*.whl )
+        echo "${wheels[@]}"
+        pip install "${wheels[0]}[testing]"
