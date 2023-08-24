@@ -769,9 +769,14 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         --------
         :meth:`.plot_on_figure`
         """
-        from matplotlib import pyplot as plt
-        self.plot_on_figure(plt.figure(), scalar=scalar, vector=vector, title=title)
-        plt.show()
+        from matplotlib import pyplot
+        self.plot_on_figure(
+            pyplot.figure(),
+            scalar=scalar,
+            vector=vector,
+            title=title,
+        )
+        pyplot.show()
 
     @_requires_plot
     def animate_on_figure(
