@@ -8,6 +8,7 @@ from typing import Dict, Hashable, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas
 import pytest
 import xarray as xr
 from shapely.geometry import LineString, Point, Polygon, box
@@ -144,6 +145,96 @@ def test_get_depth_name_missing() -> None:
     SimpleConvention(dataset).bind()
     with pytest.raises(NoSuchCoordinateError):
         dataset.ems.get_depth_name()
+
+
+@pytest.mark.parametrize('include_time', [True, False])
+@pytest.mark.parametrize('include_depth', [True, False])
+def test_select_variables(
+    include_time: bool,
+    include_depth: bool,
+):
+    # Generate a dataset with some random data.
+    # Time and depth dimensions are inluded or omitted based on the test arguments.
+    generator = np.random.default_rng()
+    expected_coords = {'y', 'x'}
+
+    x_size, y_size = 5, 6
+    dataset = xr.Dataset({
+        'x': (['x'], np.arange(x_size), {'units': 'degrees_east'}),
+        'y': (['y'], np.arange(y_size), {'units': 'degrees_north'}),
+        'colour': (['y', 'x'], np.arange(x_size * y_size).reshape((y_size, x_size)), {}),
+        'flavour': (['y', 'x'], np.arange(x_size * y_size).reshape((y_size, x_size)), {}),
+    })
+
+    if include_time:
+        expected_coords.add('time')
+        dataset = dataset.assign_coords({
+            'time': xr.DataArray(
+                dims=['time'],
+                data=pandas.date_range('2023-08-01', '2023-08-24'),
+            ),
+        })
+        dataset['time'].encoding['units'] = 'days since 1990-01-01 00:00:00 +10:00'
+        time_size = dataset['time'].size
+        dataset = dataset.assign({
+            'eta': xr.DataArray(
+                dims=['time', 'y', 'x'],
+                data=generator.uniform(-1.0, 1.0, (time_size, y_size, x_size)),
+                attrs={'standard_name': 'sea_surface_height'},
+            ),
+        })
+
+    if include_depth:
+        expected_coords.add('depth')
+        depth_size = 4
+        dataset = dataset.assign_coords({
+            'depth': xr.DataArray(
+                dims=['depth'],
+                data=np.linspace(-10, 0, depth_size),
+                attrs={'standard_name': 'depth', 'positive': 'up'},
+            )
+        })
+        dataset = dataset.assign({
+            'octarine': xr.DataArray(
+                dims=['depth', 'y', 'x'],
+                data=(
+                    generator.uniform(0.0, 1.0, (depth_size, y_size, x_size))
+                    * np.linspace(100, 0, depth_size)[:, np.newaxis, np.newaxis]
+                ),
+                attrs={'standard_name': 'octarine_concentration'},
+            ),
+        })
+
+    if include_depth and include_time:
+        dataset = dataset.assign({
+            'temperature': xr.DataArray(
+                dims=['time', 'depth', 'y', 'x'],
+                data=(
+                    generator.uniform(0, 3, (time_size, depth_size, y_size, x_size))
+                    + np.linspace(2, 20, depth_size)[np.newaxis, :, np.newaxis, np.newaxis]
+                )
+            )
+        })
+
+    # Test various variable subset selections
+    # It should be possible to select all sorts of subsets.
+    # This should preserve coordinate information,
+    # even if no variables using those coordinates are included in the subset.
+    variable_choices = [{'colour'}]
+    if include_time:
+        variable_choices.append({'colour', 'eta'})
+    if include_depth:
+        variable_choices.append({'colour', 'octarine'})
+    if include_depth and include_time:
+        variable_choices.append({'colour', 'eta', 'octarine', 'temperature'})
+
+    convention: Convention = SimpleConvention(dataset)
+    for variables in variable_choices:
+        subset = convention.select_variables(variables)
+        expected_variables = variables | expected_coords
+        assert set(subset.variables.keys()) == expected_variables
+        for name in subset.variables.keys():
+            xr.testing.assert_equal(dataset[name], subset[name])
 
 
 def test_mask():
