@@ -19,7 +19,7 @@ from typing import Any, Hashable, List, Literal, Tuple
 import numpy as np
 import pandas as pd
 import shapely
-import xarray as xr
+import xarray
 import xarray.core.dtypes as xrdtypes
 
 from emsarray.conventions import Convention
@@ -45,7 +45,7 @@ def _dataframe_to_dataset(
     dataframe: pd.DataFrame,
     *,
     dimension_name: Hashable,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """Convert a pandas DataFrame to an xarray Dataset."""
     dataframe = dataframe.copy()
     dataframe.index.name = dimension_name
@@ -54,12 +54,12 @@ def _dataframe_to_dataset(
 
 
 def extract_points(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     points: List[shapely.Point],
     *,
     point_dimension: Hashable = 'point',
     missing_points: Literal['error', 'drop'] = 'error',
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """
     Drop all data except for cells that intersect the given points.
     Return a new dataset with a new dimension named ``point_dimension``,
@@ -126,14 +126,14 @@ def extract_points(
 
 
 def extract_dataframe(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     dataframe: pd.DataFrame,
     coordinate_columns: Tuple[str, str],
     *,
     point_dimension: Hashable = 'point',
     missing_points: Literal['error', 'drop', 'fill'] = 'error',
     fill_value: Any = xrdtypes.NA,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """
     Extract the points listed in a pandas :class:`~pandas.DataFrame`,
     and merge the remaining columns in to the :class:`~xarray.Dataset`.

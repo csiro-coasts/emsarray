@@ -8,7 +8,7 @@ from typing import Type
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
+import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_equal
 from shapely.geometry.polygon import Polygon, orient
@@ -30,7 +30,7 @@ def make_dataset(
     time_size: int = 4,
     grid_type: Type[ShocGridGenerator] = DiagonalShocGrid,
     corner_size: int = 0,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """
     Make a dummy SHOC simple dataset of a particular size.
     It will have a sheared grid of points located near (0, 0),
@@ -81,7 +81,7 @@ def make_dataset(
     grid = grid_type(j=j_size, i=i_size, face_mask=coordinate_centre_mask)
     layers = ShocLayerGenerator(k=k_size)
 
-    t = xr.DataArray(
+    t = xarray.DataArray(
         # Note: Using pd.date_range() directly here will lead to strange
         # behaviours, where the `record` dimension becomes a data variable with
         # a datetime64 dtype. Using a list of datetimes instead seems to avoid
@@ -99,7 +99,7 @@ def make_dataset(
     # you have to adjust it with nctool after saving it.
     t.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
 
-    botz = xr.DataArray(
+    botz = xarray.DataArray(
         data=np.random.random((j_size, i_size)) * 10 + 50,
         dims=wet_mask["face_mask"].dims,
         attrs={
@@ -113,7 +113,7 @@ def make_dataset(
     ).where(wet_mask.data_vars["face_mask"])
     botz.values[1, 1] = -99.
 
-    eta = xr.DataArray(
+    eta = xarray.DataArray(
         data=np.random.normal(0, 0.2, (time_size, j_size, i_size)),
         dims=["record", *wet_mask["face_mask"].dims],
         attrs={
@@ -122,7 +122,7 @@ def make_dataset(
             "standard_name": "sea_surface_height_above_geoid",
         }
     ).where(wet_mask.data_vars["face_mask"])
-    temp = xr.DataArray(
+    temp = xarray.DataArray(
         data=np.random.normal(12, 0.5, (time_size, k_size, j_size, i_size)),
         dims=["record", "k_centre", *wet_mask["face_mask"].dims],
         attrs={
@@ -131,7 +131,7 @@ def make_dataset(
         },
     ).where(wet_mask.data_vars["face_mask"])
 
-    u1 = xr.DataArray(
+    u1 = xarray.DataArray(
         data=np.random.normal(0, 2, (time_size, k_size, j_size, i_size + 1)),
         dims=["record", "k_centre", *wet_mask.data_vars["left_mask"].dims],
         attrs={
@@ -139,7 +139,7 @@ def make_dataset(
             "long_name": "I component of current at left face",
         }
     )
-    u2 = xr.DataArray(
+    u2 = xarray.DataArray(
         data=np.random.normal(0, 2, (time_size, k_size, j_size + 1, i_size)),
         dims=["record", "k_centre", *wet_mask.data_vars["back_mask"].dims],
         attrs={
@@ -147,13 +147,13 @@ def make_dataset(
             "long_name": "I component of current at back face",
         }
     )
-    flag = xr.DataArray(
+    flag = xarray.DataArray(
         data=np.random.randint(0, 256, (time_size, k_size, j_size + 1, i_size + 1)),
         dims=["record", "k_centre", *wet_mask.data_vars["node_mask"].dims],
         attrs={"long_name": "SHOC masking flags"},
     )
 
-    dataset = xr.Dataset(
+    dataset = xarray.Dataset(
         data_vars={
             **layers.standard_vars,
             **grid.standard_vars,
@@ -420,7 +420,7 @@ def test_select_index_grid():
 
 
 def test_drop_geometry(datasets: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'shoc_standard.nc')
+    dataset = xarray.open_dataset(datasets / 'shoc_standard.nc')
 
     dropped = dataset.ems.drop_geometry()
     assert dropped.dims.keys() == {'face_i', 'face_j'}

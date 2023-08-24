@@ -12,7 +12,7 @@ from typing import (
 )
 
 import numpy as np
-import xarray as xr
+import xarray
 from shapely import unary_union
 from shapely.geometry import MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-DataArrayOrName = Union[Hashable, xr.DataArray]
+DataArrayOrName = Union[Hashable, xarray.DataArray]
 
 #: Some type that can enumerate the different :ref:`grid types <grids>`
 #: present in a dataset.
@@ -150,9 +150,9 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     Refer to :ref:`indexing` for more information.
     """
     #: The :class:`xarray.Dataset` instance for this :class:`Convention`
-    dataset: xr.Dataset
+    dataset: xarray.Dataset
 
-    def __init__(self, dataset: xr.Dataset):
+    def __init__(self, dataset: xarray.Dataset):
         """
         Make a new convention instance for this dataset.
         """
@@ -160,7 +160,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         self.dataset = dataset
 
     @classmethod
-    def check_validity(cls, dataset: xr.Dataset) -> None:
+    def check_validity(cls, dataset: xarray.Dataset) -> None:
         """Checks that the dataset is OK to use.
         Called during ``__init__``, and raises an exception if the dataset has problems.
         """
@@ -168,7 +168,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     @classmethod
     @abc.abstractmethod
-    def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         """
         Check if a dataset uses this convention.
 
@@ -209,10 +209,10 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Example
         -------
-        >>> import xarray as xr
+        >>> import xarray
         ... from emsarray.conventions.shoc import ShocStandard
         ... from emsarray.conventions.ugrid import UGrid
-        ... dataset = xr.open_dataset("./tests/datasets/shoc_standard.nc")
+        ... dataset = xarray.open_dataset("./tests/datasets/shoc_standard.nc")
         >>> ShocStandard.check_dataset(dataset)
         True
         >>> UGrid.check_dataset(dataset)
@@ -266,7 +266,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 "cannot assign a new convention.")
         state.bind_convention(self)
 
-    def _get_data_array(self, data_array: DataArrayOrName) -> xr.DataArray:
+    def _get_data_array(self, data_array: DataArrayOrName) -> xarray.DataArray:
         """
         Utility to help get a data array for this dataset.
         If a string is passed in, the matching data array is fetched from the dataset.
@@ -276,14 +276,14 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         This is useful for methods that support being passed either
         the name of a data array or a data array instance.
         """
-        if isinstance(data_array, xr.DataArray):
+        if isinstance(data_array, xarray.DataArray):
             utils.check_data_array_dimensions_match(self.dataset, data_array)
             return data_array
         else:
             return self.dataset[data_array]
 
     @cached_property
-    def time_coordinate(self) -> xr.DataArray:
+    def time_coordinate(self) -> xarray.DataArray:
         """The time coordinate for this dataset.
 
         Returns
@@ -303,7 +303,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return self.dataset[self.get_time_name()]
 
     @cached_property
-    def depth_coordinate(self) -> xr.DataArray:
+    def depth_coordinate(self) -> xarray.DataArray:
         """The depth coordinate for this dataset.
 
         Returns
@@ -592,7 +592,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     @abc.abstractmethod
     def get_grid_kind_and_size(
-        self, data_array: xr.DataArray,
+        self, data_array: xarray.DataArray,
     ) -> Tuple[GridKind, int]:
         """
         Determines the relevant index kind and the extent of the linear index space
@@ -642,7 +642,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         pass
 
     @abc.abstractmethod
-    def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
+    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
         """
         Flatten the surface dimensions of a :class:`~xarray.DataArray`,
         returning a flatter :class:`numpy.ndarray` indexed in the same order as the linear index.
@@ -1211,7 +1211,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def select_index(
         self,
         index: Index,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         """
         Return a new dataset that contains values only from a single index.
         This is much like doing a :func:`xarray.Dataset.isel()` on an index,
@@ -1255,7 +1255,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         # Select just this point
         return dataset.isel(selector)
 
-    def select_point(self, point: Point) -> xr.Dataset:
+    def select_point(self, point: Point) -> xarray.Dataset:
         """
         Return a new dataset that contains values for a single point.
         This is a shortcut for :meth:`get_index_for_point` and :meth:`select_index`.
@@ -1289,7 +1289,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         pass
 
-    def drop_geometry(self) -> xr.Dataset:
+    def drop_geometry(self) -> xarray.Dataset:
         """
         Return a new :class:`xarray.Dataset`
         with all geometry variables dropped.
@@ -1303,7 +1303,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         return self.dataset.drop_vars(self.get_all_geometry_names())
 
-    def select_variables(self, variables: Iterable[Hashable]) -> xr.Dataset:
+    def select_variables(self, variables: Iterable[Hashable]) -> xarray.Dataset:
         """Select only a subset of the variables in this dataset, dropping all others.
 
         This will keep all coordinate variables and all geometry variables.
@@ -1342,7 +1342,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         clip_geometry: BaseGeometry,
         *,
         buffer: int = 0,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         """
         Make a new Dataset that can be used to clip this dataset to only the
         cells that intersect some geometry.
@@ -1378,7 +1378,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         pass
 
     @abc.abstractmethod
-    def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
+    def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         """
         Apply a clip mask to this dataset, and return a new dataset.
         Call :func:`make_clip_mask` to create a clip mask from a clip geometry.
@@ -1416,7 +1416,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         work_dir: Pathish,
         *,
         buffer: int = 0,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         """
         Generates a clip mask and applies it in one step.
 
@@ -1461,7 +1461,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     # Aliases for emsarray.operations
 
-    def ocean_floor(self) -> xr.Dataset:
+    def ocean_floor(self) -> xarray.Dataset:
         """An alias for :func:`emsarray.operations.depth.ocean_floor`"""
         return depth.ocean_floor(
             self.dataset, self.get_all_depth_names(),
@@ -1469,7 +1469,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     def normalize_depth_variables(
         self, positive_down: bool = True, deep_to_shallow: bool = True,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         """An alias for :func:`emsarray.operations.depth.normalize_depth_variables`"""
         return depth.normalize_depth_variables(
             self.dataset, self.get_all_depth_names(),

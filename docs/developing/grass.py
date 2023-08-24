@@ -4,7 +4,7 @@ from functools import cached_property
 from typing import Optional, Tuple, Dict
 
 import numpy as np
-import xarray as xr
+import xarray
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 
@@ -32,7 +32,7 @@ class Grass(Convention[GrassGridKind, GrassIndex]):
     default_grid_kind = GrassGridKind.blade
 
     @classmethod
-    def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         # A Grass dataset is recognised by the 'Conventions' global attribute
         if dataset.attrs['Conventions'] == 'Grass 1.0':
             return Specificity.HIGH
@@ -61,7 +61,7 @@ class Grass(Convention[GrassGridKind, GrassIndex]):
         return (grid_kind, warp, weft)
 
     def get_grid_kind_and_size(
-        self, data_array: xr.DataArray,
+        self, data_array: xarray.DataArray,
     ) -> Tuple[GrassGridKind, int]:
         """
         For the given DataArray from this Dataset,
@@ -75,7 +75,7 @@ class Grass(Convention[GrassGridKind, GrassIndex]):
         raise ValueError(
             "DataArray does not appear to be either a blade or meadow grid")
 
-    def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
+    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
         """
         Make the given DataArray linear in its grid dimensions.
         """
@@ -110,7 +110,7 @@ class Grass(Convention[GrassGridKind, GrassIndex]):
         self,
         clip_geometry: BaseGeometry,
         buffer: int = 0,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         # Find all the blades that intersect the clip geometry
         intersecting_blades = [
             item
@@ -143,14 +143,14 @@ class Grass(Convention[GrassGridKind, GrassIndex]):
             keep_meadows = blur_mask(keep_meadows, size=buffer)
 
         # Make a dataset out of these masks
-        return xr.Dataset(
+        return xarray.Dataset(
             data_vars={
-                'blades': xr.DataArray(data=keep_blades, dims=['weft', 'warp']),
-                'meadows': xr.DataArray(data=keep_meadows, dims=['warp', 'weft']),
+                'blades': xarray.DataArray(data=keep_blades, dims=['weft', 'warp']),
+                'meadows': xarray.DataArray(data=keep_meadows, dims=['warp', 'weft']),
             },
         )
 
-    def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
+    def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         # You're on your own, here.
         # This depends entirely on how the mask and datasets interact.
         pass

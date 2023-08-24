@@ -3,7 +3,7 @@ import pathlib
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
+import xarray
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import Point
 
@@ -31,8 +31,8 @@ def test_extract_points(
 
     assert out_path.exists()
 
-    in_dataset = xr.open_dataset(in_path)
-    point_dataset = xr.open_dataset(out_path)
+    in_dataset = xarray.open_dataset(in_path)
+    point_dataset = xarray.open_dataset(out_path)
 
     assert 'point' in point_dataset.dims
     assert point_dataset.dims['point'] == num_points

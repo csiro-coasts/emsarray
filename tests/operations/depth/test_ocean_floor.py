@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
+import xarray
 from numpy.testing import assert_equal
 
 import emsarray
@@ -20,11 +20,11 @@ def test_ocean_floor():
     for i in range(5):
         values[:, i, :i + 1, :i + 1] = i
 
-    temp = xr.DataArray(
+    temp = xarray.DataArray(
         data=values,
         dims=['t', 'z', 'y', 'x'],
     )
-    dataset = xr.Dataset(
+    dataset = xarray.Dataset(
         data_vars={"temp": temp},
         coords={
             'time': (['t'], pd.date_range('2022-02-08', periods=5)),

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import shapely.geometry
-import xarray as xr
+import xarray
 from numpy.testing import assert_equal
 
 import emsarray
@@ -100,12 +100,12 @@ def test_mask_dataset(tmp_path: pathlib.Path):
     layers = ShocLayerGenerator(k=k_size)
 
     # int data without a fill value. This should be sliced but not masked.
-    flag1 = xr.DataArray(
+    flag1 = xarray.DataArray(
         data=np.arange(k_size * j_size * i_size, dtype=np.short).reshape(k_size, j_size, i_size),
         dims=['k_centre', 'j_centre', 'i_centre'],
     )
     # int data with a fill value. This should be sliced and masked.
-    flag2 = xr.DataArray(
+    flag2 = xarray.DataArray(
         data=np.arange(k_size * j_size * i_size, dtype=np.short).reshape(k_size, j_size, i_size) + 25,
         dims=['k_centre', 'j_centre', 'i_centre'],
     )
@@ -117,16 +117,16 @@ def test_mask_dataset(tmp_path: pathlib.Path):
 
     # Some variables are only defined on one axis. These should be sliced to
     # the mask bounds, but not masked
-    only_j = xr.DataArray(
+    only_j = xarray.DataArray(
         data=np.arange(j_size).astype(np.short),
         dims=["j_centre"],
     )
-    only_i = xr.DataArray(
+    only_i = xarray.DataArray(
         data=np.arange(i_size).astype(np.short),
         dims=["i_centre"],
     )
 
-    t = xr.DataArray(
+    t = xarray.DataArray(
         data=list(pd.date_range("2021-11-11", periods=records)),
         dims=["record"],
         attrs={
@@ -138,7 +138,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
     t.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
 
     botz_missing_value = np.float32(-99.)
-    botz = xr.DataArray(
+    botz = xarray.DataArray(
         data=np.random.random((j_size, i_size)).astype(np.float32) * 10 + 50,
         dims=["j_centre", "i_centre"],
         attrs={
@@ -151,7 +151,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
     )
     botz.encoding['missing_value'] = botz_missing_value
 
-    eta = xr.DataArray(
+    eta = xarray.DataArray(
         data=np.random.normal(0, 0.2, (records, j_size, i_size)),
         dims=["record", "j_centre", "i_centre"],
         attrs={
@@ -160,7 +160,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
             "standard_name": "sea_surface_height_above_geoid",
         }
     )
-    temp = xr.DataArray(
+    temp = xarray.DataArray(
         data=np.random.normal(12, 0.5, (records, k_size, j_size, i_size)),
         dims=["record", "k_centre", "j_centre", "i_centre"],
         attrs={
@@ -169,7 +169,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
         },
     )
 
-    dataset = xr.Dataset(
+    dataset = xarray.Dataset(
         data_vars={
             **layers.standard_vars,
             **grid.standard_vars,

@@ -8,13 +8,13 @@ import pandas as pd
 import shapefile
 import shapely
 import shapely.geometry
-import xarray as xr
+import xarray
 from shapely.testing import assert_geometries_equal
 
 from emsarray.operations import geometry
 
 
-def _polygons(dataset: xr.Dataset) -> pd.DataFrame:
+def _polygons(dataset: xarray.Dataset) -> pd.DataFrame:
     rows = [
         (linear_index, polygon)
         for linear_index, polygon in enumerate(dataset.ems.polygons)
@@ -27,7 +27,7 @@ def _json_roundtrip(value: Any) -> Any:
 
 
 def test_write_geojson(datasets: pathlib.Path, tmp_path: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'cfgrid2d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
     out_path = tmp_path / 'out.geojson'
 
     geometry.write_geojson(dataset, out_path)
@@ -55,7 +55,7 @@ def test_write_geojson(datasets: pathlib.Path, tmp_path: pathlib.Path):
 
 
 def test_write_shapefile(datasets: pathlib.Path, tmp_path: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'cfgrid2d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
     out_path = tmp_path / 'out.shp'
 
     geometry.write_shapefile(dataset, out_path)
@@ -77,7 +77,7 @@ def test_write_shapefile(datasets: pathlib.Path, tmp_path: pathlib.Path):
 
 
 def test_write_wkt(datasets: pathlib.Path, tmp_path: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'cfgrid2d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
     out_path = tmp_path / 'out.wkt'
 
     geometry.write_wkt(dataset, out_path)
@@ -91,7 +91,7 @@ def test_write_wkt(datasets: pathlib.Path, tmp_path: pathlib.Path):
 
 
 def test_write_wkb(datasets: pathlib.Path, tmp_path: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'cfgrid2d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
     out_path = tmp_path / 'out.wkb'
 
     geometry.write_wkb(dataset, out_path)

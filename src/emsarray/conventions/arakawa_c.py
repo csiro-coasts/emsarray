@@ -14,7 +14,7 @@ from functools import cached_property
 from typing import Dict, Hashable, List, Optional, Tuple, cast
 
 import numpy as np
-import xarray as xr
+import xarray
 from shapely.geometry.base import BaseGeometry
 from xarray.core.dataset import DatasetCoordinates
 
@@ -40,19 +40,19 @@ class ArakawaCGridTopology:
         The name of the longitude coordinate variable.
     """
     def __init__(
-        self, dataset: xr.Dataset, *, latitude: Hashable, longitude: Hashable
+        self, dataset: xarray.Dataset, *, latitude: Hashable, longitude: Hashable
     ) -> None:
         self.dataset = dataset
         self.latitude_name = latitude
         self.longitude_name = longitude
 
     @cached_property
-    def latitude(self) -> xr.DataArray:
+    def latitude(self) -> xarray.DataArray:
         """The latitude :class:`~xarray.DataArray` coordinate variable."""
         return self.dataset[self.latitude_name]
 
     @cached_property
-    def longitude(self) -> xr.DataArray:
+    def longitude(self) -> xarray.DataArray:
         """The logitude :class:`~xarray.DataArray` coordinate variable."""
         return self.dataset[self.longitude_name]
 
@@ -164,7 +164,7 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
 
     def __init__(
         self,
-        dataset: xr.Dataset,
+        dataset: xarray.Dataset,
         *,
         coordinate_names: Optional[Dict[Hashable, Tuple[Hashable, Hashable]]] = None,
     ):
@@ -197,7 +197,7 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
         }
 
     @classmethod
-    def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         if not hasattr(cls, 'coordinate_names'):
             return None
 
@@ -268,7 +268,7 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
         topology = self._topology_for_grid_kind[grid_kind]
         return int(np.ravel_multi_index((j, i), topology.shape))
 
-    def get_grid_kind_and_size(self, data_array: xr.DataArray) -> Tuple[ArakawaCGridKind, int]:
+    def get_grid_kind_and_size(self, data_array: xarray.DataArray) -> Tuple[ArakawaCGridKind, int]:
         dims = set(data_array.dims)
         for grid_kind in ArakawaCGridKind:
             grid_kind_dims = self._dimensions_for_grid_kind[grid_kind]
@@ -319,7 +319,7 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
             self.back.latitude.name,
         ]
 
-    def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
+    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
         kind, size = self.get_grid_kind_and_size(data_array)
         topology = self._topology_for_grid_kind[kind]
         dimensions = [topology.j_dimension, topology.i_dimension]
@@ -329,7 +329,7 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
         self,
         clip_geometry: BaseGeometry,
         buffer: int = 0,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         """
         Generate an xarray.Dataset with a mask for the cell centres, left and
         back faces, and nodes. The mask values will be True where the
@@ -352,7 +352,7 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
         # Complete the rest of the mask
         return c_mask_from_centres(face_mask, self._dimensions_for_grid_kind, self.dataset.coords)
 
-    def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
+    def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
 
 
@@ -360,7 +360,7 @@ def c_mask_from_centres(
     face_mask: np.ndarray,
     dimensions: ArakawaCDimensions,
     coords: Optional[DatasetCoordinates] = None,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """
     Create a mask for a SHOC standard file given a mask array for the cell
     centres to include. The full mask will include the centres, edges, and nodes.
@@ -377,12 +377,12 @@ def c_mask_from_centres(
     # A node is included if any of the four surrounding cells are included.
     node_mask = masking.smear_mask(face_mask, [True, True])
 
-    return xr.Dataset(
+    return xarray.Dataset(
         data_vars={
-            "face_mask": xr.DataArray(face_mask, dims=dimensions[ArakawaCGridKind.face]),
-            "back_mask": xr.DataArray(back_mask, dims=dimensions[ArakawaCGridKind.back]),
-            "left_mask": xr.DataArray(left_mask, dims=dimensions[ArakawaCGridKind.left]),
-            "node_mask": xr.DataArray(node_mask, dims=dimensions[ArakawaCGridKind.node]),
+            "face_mask": xarray.DataArray(face_mask, dims=dimensions[ArakawaCGridKind.face]),
+            "back_mask": xarray.DataArray(back_mask, dims=dimensions[ArakawaCGridKind.back]),
+            "left_mask": xarray.DataArray(left_mask, dims=dimensions[ArakawaCGridKind.left]),
+            "node_mask": xarray.DataArray(node_mask, dims=dimensions[ArakawaCGridKind.node]),
         },
         coords=coords,
     )

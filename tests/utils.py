@@ -9,7 +9,7 @@ from typing import Any, Dict, Hashable, List, Optional, Tuple
 
 import numpy as np
 import shapely
-import xarray as xr
+import xarray
 
 from emsarray.conventions.arakawa_c import (
     ArakawaCGridKind, c_mask_from_centres
@@ -76,9 +76,9 @@ class ShocLayerGenerator(abc.ABC):
         self.k_size = k
 
     @property
-    def standard_vars(self) -> Dict[Hashable, xr.DataArray]:
+    def standard_vars(self) -> Dict[Hashable, xarray.DataArray]:
         return {
-            "z_grid": xr.DataArray(
+            "z_grid": xarray.DataArray(
                 data=self.z_grid,
                 dims=["k_grid"],
                 attrs={
@@ -87,7 +87,7 @@ class ShocLayerGenerator(abc.ABC):
                     "coordinate_type": "Z",
                 },
             ),
-            "z_centre": xr.DataArray(
+            "z_centre": xarray.DataArray(
                 data=self.z_centre,
                 dims=["k_centre"],
                 attrs={
@@ -99,9 +99,9 @@ class ShocLayerGenerator(abc.ABC):
         }
 
     @property
-    def simple_coords(self) -> Dict[Hashable, xr.DataArray]:
+    def simple_coords(self) -> Dict[Hashable, xarray.DataArray]:
         return {
-            "zc": xr.DataArray(
+            "zc": xarray.DataArray(
                 data=self.z_centre,
                 dims=["k"],
                 attrs={
@@ -153,27 +153,27 @@ class ShocGridGenerator(abc.ABC):
         pass
 
     @cached_property
-    def standard_mask(self) -> xr.Dataset:
+    def standard_mask(self) -> xarray.Dataset:
         face_mask = self.face_mask
         if face_mask is None:
             face_mask = np.full((self.j_size, self.i_size), True)
         return c_mask_from_centres(face_mask, self.dimensions)
 
     @cached_property
-    def simple_mask(self) -> xr.Dataset:
+    def simple_mask(self) -> xarray.Dataset:
         face_mask = self.face_mask
         if face_mask is None:
             face_mask = np.full((self.j_size, self.i_size), True)
-        return xr.Dataset(data_vars={
-            "centre_mask": xr.DataArray(data=face_mask, dims=["j", "i"])
+        return xarray.Dataset(data_vars={
+            "centre_mask": xarray.DataArray(data=face_mask, dims=["j", "i"])
         })
 
     @property
-    def standard_vars(self) -> Dict[Hashable, xr.DataArray]:
+    def standard_vars(self) -> Dict[Hashable, xarray.DataArray]:
         print("Standard mask:")
         print(self.standard_mask)
         return {
-            "x_grid": xr.DataArray(
+            "x_grid": xarray.DataArray(
                 data=self.x_grid,
                 dims=self.dimensions[ArakawaCGridKind.node],
                 attrs={
@@ -183,7 +183,7 @@ class ShocGridGenerator(abc.ABC):
                     "projection": "geographic",
                 },
             ).where(self.standard_mask.data_vars['node_mask']),
-            "y_grid": xr.DataArray(
+            "y_grid": xarray.DataArray(
                 data=self.y_grid,
                 dims=self.dimensions[ArakawaCGridKind.node],
                 attrs={
@@ -193,7 +193,7 @@ class ShocGridGenerator(abc.ABC):
                     "projection": "geographic",
                 }
             ).where(self.standard_mask.data_vars['node_mask']),
-            "x_centre": xr.DataArray(
+            "x_centre": xarray.DataArray(
                 data=self.x_centre,
                 dims=self.dimensions[ArakawaCGridKind.face],
                 attrs={
@@ -203,7 +203,7 @@ class ShocGridGenerator(abc.ABC):
                     "projection": "geographic",
                 },
             ).where(self.standard_mask.data_vars['face_mask']),
-            "y_centre": xr.DataArray(
+            "y_centre": xarray.DataArray(
                 data=self.y_centre,
                 dims=self.dimensions[ArakawaCGridKind.face],
                 attrs={
@@ -213,7 +213,7 @@ class ShocGridGenerator(abc.ABC):
                     "projection": "geographic",
                 },
             ).where(self.standard_mask.data_vars['face_mask']),
-            "x_left": xr.DataArray(
+            "x_left": xarray.DataArray(
                 data=self.x_left,
                 dims=self.dimensions[ArakawaCGridKind.left],
                 attrs={
@@ -223,7 +223,7 @@ class ShocGridGenerator(abc.ABC):
                     "projection": "geographic",
                 }
             ).where(self.standard_mask.data_vars['left_mask']),
-            "y_left": xr.DataArray(
+            "y_left": xarray.DataArray(
                 data=self.y_left,
                 dims=self.dimensions[ArakawaCGridKind.left],
                 attrs={
@@ -233,7 +233,7 @@ class ShocGridGenerator(abc.ABC):
                     "projection": "geographic",
                 }
             ).where(self.standard_mask.data_vars['left_mask']),
-            "x_back": xr.DataArray(
+            "x_back": xarray.DataArray(
                 data=self.x_back,
                 dims=self.dimensions[ArakawaCGridKind.back],
                 attrs={
@@ -243,7 +243,7 @@ class ShocGridGenerator(abc.ABC):
                     "projection": "geographic",
                 }
             ).where(self.standard_mask.data_vars['back_mask']),
-            "y_back": xr.DataArray(
+            "y_back": xarray.DataArray(
                 data=self.y_back,
                 dims=self.dimensions[ArakawaCGridKind.back],
                 attrs={
@@ -256,11 +256,11 @@ class ShocGridGenerator(abc.ABC):
         }
 
     @property
-    def simple_vars(self) -> Dict[str, xr.DataArray]:
+    def simple_vars(self) -> Dict[str, xarray.DataArray]:
         simple_vars = {}
         if self.include_bounds:
             simple_vars.update({
-                'longitude_bounds': xr.DataArray(
+                'longitude_bounds': xarray.DataArray(
                     np.stack([
                         self.x_grid[:-1, :-1],
                         self.x_grid[:-1, +1:],
@@ -269,7 +269,7 @@ class ShocGridGenerator(abc.ABC):
                     ], axis=2),
                     dims=["j", "i", "bounds"],
                 ).where(self.simple_mask.data_vars['centre_mask']),
-                'latitude_bounds': xr.DataArray(
+                'latitude_bounds': xarray.DataArray(
                     np.stack([
                         self.y_grid[:-1, :-1],
                         self.y_grid[:-1, +1:],
@@ -282,9 +282,9 @@ class ShocGridGenerator(abc.ABC):
         return simple_vars
 
     @property
-    def simple_coords(self) -> Dict[Hashable, xr.DataArray]:
+    def simple_coords(self) -> Dict[Hashable, xarray.DataArray]:
         return {
-            "longitude": xr.DataArray(
+            "longitude": xarray.DataArray(
                 data=self.x_centre,
                 dims=["j", "i"],
                 attrs={
@@ -299,7 +299,7 @@ class ShocGridGenerator(abc.ABC):
                     ),
                 },
             ).where(self.simple_mask.data_vars['centre_mask']),
-            "latitude": xr.DataArray(
+            "latitude": xarray.DataArray(
                 data=self.y_centre,
                 dims=["j", "i"],
                 attrs={

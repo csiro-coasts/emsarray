@@ -6,7 +6,7 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, Final, Optional, cast
 
-import xarray as xr
+import xarray
 
 if TYPE_CHECKING:
     from emsarray.conventions._base import Convention
@@ -19,13 +19,13 @@ class State:
     Currently only used to allow binding Convention instances to datasets
     to avoid convention autodetection.
     """
-    dataset: xr.Dataset
+    dataset: xarray.Dataset
     convention: Optional[Convention] = None
 
     accessor_name: Final[str] = "_emsarray_state"
 
     @classmethod
-    def get(cls, dataset: xr.Dataset) -> "State":
+    def get(cls, dataset: xarray.Dataset) -> "State":
         """
         Get the state for a dataset,
         making an empty state if none exists.

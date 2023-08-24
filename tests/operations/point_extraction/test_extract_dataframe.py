@@ -3,7 +3,7 @@ import pathlib
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
+import xarray
 from numpy.testing import assert_equal
 from shapely.geometry import Point
 
@@ -21,7 +21,7 @@ def test_extract_dataframe(
     ys = np.sin(θs) * rs
     points_df = pd.DataFrame({'name': names, 'lon': xs, 'lat': ys})
 
-    in_dataset = xr.open_dataset(datasets / 'ugrid_mesh2d.nc')
+    in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     point_dataset = point_extraction.extract_dataframe(
         in_dataset, points_df, coordinate_columns=('lon', 'lat'))
 
@@ -66,7 +66,7 @@ def test_extract_dataframe_point_dimension(
         'lon': [0, 1, 2, 3],
         'lat': [0, 0, 0, 0],
     })
-    in_dataset = xr.open_dataset(datasets / 'ugrid_mesh2d.nc')
+    in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     point_dataset = point_extraction.extract_dataframe(
         in_dataset, points_df, ('lon', 'lat'), point_dimension='foo')
     assert point_dataset.dims['foo'] == 4
@@ -83,7 +83,7 @@ def test_extract_points_missing_point_error(
         'lon': [0, 10, 1, 20],
         'lat': [0, 0, 0, 0],
     })
-    in_dataset = xr.open_dataset(datasets / 'ugrid_mesh2d.nc')
+    in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     with pytest.raises(point_extraction.NonIntersectingPoints) as exc_info:
         point_extraction.extract_dataframe(in_dataset, points_df, ('lon', 'lat'))
     exc: point_extraction.NonIntersectingPoints = exc_info.value
@@ -98,7 +98,7 @@ def test_extract_points_missing_point_drop(
         'lon': [0, 10, 1, 20],
         'lat': [0, 0, 0, 0],
     })
-    in_dataset = xr.open_dataset(datasets / 'ugrid_mesh2d.nc')
+    in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     point_dataset = point_extraction.extract_dataframe(
         in_dataset, points_df, ('lon', 'lat'), missing_points='drop')
     assert point_dataset.dims['point'] == 2
@@ -119,7 +119,7 @@ def test_extract_points_missing_point_fill(
         'lon': [0, 10, 1, 20],
         'lat': [0, 0, 0, 0],
     })
-    in_dataset = xr.open_dataset(datasets / 'ugrid_mesh2d.nc')
+    in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     point_dataset = point_extraction.extract_dataframe(
         in_dataset, points_df, ('lon', 'lat'), missing_points='fill')
     assert point_dataset.dims['point'] == 4

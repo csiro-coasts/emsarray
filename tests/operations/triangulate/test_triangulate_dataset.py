@@ -5,7 +5,7 @@ from typing import List, Tuple
 import numpy as np
 import pytest
 import shapely
-import xarray as xr
+import xarray
 from shapely.geometry import Polygon
 
 import emsarray
@@ -85,7 +85,7 @@ def test_triangulate_dataset_ugrid(datasets):
 
 
 def check_triangulation(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
     vertices: List[Tuple[float, float]],
     triangles: List[Tuple[int, int, int]],
     cell_indices: List[int],

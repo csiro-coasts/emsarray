@@ -8,7 +8,7 @@ from functools import cached_property
 from itertools import chain
 from typing import Iterable, List, Optional, Tuple, Type
 
-import xarray as xr
+import xarray
 
 from ._base import Convention
 
@@ -77,7 +77,7 @@ class ConventionRegistry:
             del self.conventions
         self.registered_conventions.append(convention)
 
-    def match_conventions(self, dataset: xr.Dataset) -> List[Tuple[Type[Convention], int]]:
+    def match_conventions(self, dataset: xarray.Dataset) -> List[Tuple[Type[Convention], int]]:
         """
         Get all :class:`~.Convention` implementations that support this dataset.
 
@@ -100,7 +100,7 @@ class ConventionRegistry:
                 matches.append((convention, match))
         return sorted(matches, key=lambda m: m[1], reverse=True)
 
-    def guess_convention(self, dataset: xr.Dataset) -> Optional[Type[Convention]]:
+    def guess_convention(self, dataset: xarray.Dataset) -> Optional[Type[Convention]]:
         """
         Guess the correct :class:`.Convention` implementation for a dataset.
         """
@@ -115,7 +115,7 @@ class ConventionRegistry:
 registry = ConventionRegistry()
 
 
-def get_dataset_convention(dataset: xr.Dataset) -> Optional[Type[Convention]]:
+def get_dataset_convention(dataset: xarray.Dataset) -> Optional[Type[Convention]]:
     """Find the most appropriate Convention subclass for this dataset.
 
     Parameters

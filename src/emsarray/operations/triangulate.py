@@ -3,7 +3,7 @@ Operations for making a triangular mesh out of the polygons of a dataset.
 """
 from typing import List, Tuple, cast
 
-import xarray as xr
+import xarray
 from shapely.geometry import LineString, MultiPoint, Polygon
 
 Vertex = Tuple[float, float]
@@ -11,7 +11,7 @@ Triangle = Tuple[int, int, int]
 
 
 def triangulate_dataset(
-    dataset: xr.Dataset,
+    dataset: xarray.Dataset,
 ) -> Tuple[List[Vertex], List[Triangle], List[int]]:
     """
     Triangulate the polygon cells of a dataset

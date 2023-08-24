@@ -15,7 +15,7 @@ from typing import Type
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
+import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose
 from shapely.geometry import Polygon
@@ -40,7 +40,7 @@ def make_dataset(
     grid_type: Type[ShocGridGenerator] = DiagonalShocGrid,
     corner_size: int = 0,
     include_bounds: bool = False,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """
     Make a dummy SHOC simple dataset of a particular size.
     It will have a sheared grid of points located near (0, 0),
@@ -77,7 +77,7 @@ def make_dataset(
     wet_centre_mask[-1:, :] = False
     wet_centre_mask[:, :+1] = False
     wet_centre_mask[:, -1:] = False
-    wet_mask = xr.DataArray(data=wet_centre_mask, dims=["j", "i"])
+    wet_mask = xarray.DataArray(data=wet_centre_mask, dims=["j", "i"])
 
     grid = grid_type(
         j=j_size, i=i_size,
@@ -85,7 +85,7 @@ def make_dataset(
         include_bounds=include_bounds)
     layers = ShocLayerGenerator(k=k_size)
 
-    time = xr.DataArray(
+    time = xarray.DataArray(
         data=pd.date_range("2021-11-11", periods=time_size),
         dims=["time"],
         attrs={
@@ -95,7 +95,7 @@ def make_dataset(
         },
     )
 
-    botz = xr.DataArray(
+    botz = xarray.DataArray(
         data=np.random.random((j_size, i_size)) * 10 + 50,
         dims=["j", "i"],
         attrs={
@@ -109,7 +109,7 @@ def make_dataset(
     ).where(wet_mask)
     botz.values[1, 1] = -99.
 
-    eta = xr.DataArray(
+    eta = xarray.DataArray(
         data=np.random.normal(0, 0.2, (time_size, j_size, i_size)),
         dims=["time", "j", "i"],
         attrs={
@@ -118,7 +118,7 @@ def make_dataset(
             "standard_name": "sea_surface_height_above_geoid",
         }
     ).where(wet_mask)
-    temp = xr.DataArray(
+    temp = xarray.DataArray(
         data=np.random.normal(12, 0.5, (time_size, k_size, j_size, i_size)),
         dims=["time", "k", "j", "i"],
         attrs={
@@ -127,7 +127,7 @@ def make_dataset(
         },
     ).where(wet_mask)
 
-    return xr.Dataset(
+    return xarray.Dataset(
         data_vars={"botz": botz, "eta": eta, "temp": temp, **grid.simple_vars},
         coords={**layers.simple_coords, **grid.simple_coords, "time": time},
         attrs={
@@ -181,9 +181,9 @@ def test_varnames():
     ],
 )
 def test_latitude_detection(name: str, attrs: dict):
-    dataset = xr.Dataset({
-        name: xr.DataArray([[0, 1], [2, 3]], dims=['j', 'i'], attrs=attrs),
-        'dummy': xr.DataArray([3, 4, 5], dims=['other']),
+    dataset = xarray.Dataset({
+        name: xarray.DataArray([[0, 1], [2, 3]], dims=['j', 'i'], attrs=attrs),
+        'dummy': xarray.DataArray([3, 4, 5], dims=['other']),
     })
     topology = CFGrid2DTopology(dataset)
     assert topology.latitude_name == name
@@ -203,18 +203,18 @@ def test_latitude_detection(name: str, attrs: dict):
     ],
 )
 def test_longitude_detection(name: str, attrs: dict):
-    dataset = xr.Dataset({
-        name: xr.DataArray([[0, 1], [2, 3]], dims=['j', 'i'], attrs=attrs),
-        'dummy': xr.DataArray([3, 4, 5], dims=['other']),
+    dataset = xarray.Dataset({
+        name: xarray.DataArray([[0, 1], [2, 3]], dims=['j', 'i'], attrs=attrs),
+        'dummy': xarray.DataArray([3, 4, 5], dims=['other']),
     })
     topology = CFGrid2DTopology(dataset)
     assert topology.longitude_name == name
 
 
 def test_manual_coordinate_names():
-    dataset = xr.Dataset({
-        'n': xr.DataArray([[0, 1], [2, 3]], dims=['j', 'i']),
-        'e': xr.DataArray([[4, 5], [6, 7]], dims=['j', 'i']),
+    dataset = xarray.Dataset({
+        'n': xarray.DataArray([[0, 1], [2, 3]], dims=['j', 'i']),
+        'e': xarray.DataArray([[4, 5], [6, 7]], dims=['j', 'i']),
     })
     topology = CFGrid2DTopology(dataset)
     with pytest.raises(ValueError):
@@ -223,8 +223,8 @@ def test_manual_coordinate_names():
     topology = CFGrid2DTopology(dataset, latitude='n', longitude='e')
     assert topology.latitude_name == 'n'
     assert topology.longitude_name == 'e'
-    xr.testing.assert_equal(topology.latitude, dataset['n'])
-    xr.testing.assert_equal(topology.longitude, dataset['e'])
+    xarray.testing.assert_equal(topology.latitude, dataset['n'])
+    xarray.testing.assert_equal(topology.longitude, dataset['e'])
 
 
 def test_polygons_no_bounds():
@@ -368,7 +368,7 @@ def test_grid_kind_and_size():
 
 
 def test_drop_geometry(datasets: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'cfgrid2d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
 
     dropped = dataset.ems.drop_geometry()
     assert dropped.dims.keys() == {'i', 'j'}

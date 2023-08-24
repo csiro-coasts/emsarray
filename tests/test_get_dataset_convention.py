@@ -1,5 +1,5 @@
 import pytest
-import xarray as xr
+import xarray
 
 import emsarray
 from emsarray.conventions import get_dataset_convention
@@ -15,7 +15,7 @@ from emsarray.conventions.ugrid import UGrid
     ('ugrid_mesh2d.nc', UGrid),
 ])
 def test_files(datasets, dataset, expected_class):
-    dataset = xr.open_dataset(datasets / dataset)
+    dataset = xarray.open_dataset(datasets / dataset)
     assert get_dataset_convention(dataset) is expected_class
 
 

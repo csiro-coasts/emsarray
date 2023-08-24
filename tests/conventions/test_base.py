@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 import pytest
-import xarray as xr
+import xarray
 from shapely.geometry import LineString, Point, Polygon, box
 from shapely.geometry.base import BaseGeometry
 
@@ -41,7 +41,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     default_grid_kind = SimpleGridKind.face
 
     @classmethod
-    def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         return None
 
     @cached_property
@@ -49,7 +49,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         y, x = map(int, self.dataset['botz'].shape)
         return (y, x)
 
-    def get_grid_kind_and_size(self, data_array: xr.DataArray) -> Tuple[SimpleGridKind, int]:
+    def get_grid_kind_and_size(self, data_array: xarray.DataArray) -> Tuple[SimpleGridKind, int]:
         expected = {'y', 'x'}
         if expected.issubset(data_array.dims):
             return (SimpleGridKind.face, int(np.prod(self.shape)))
@@ -72,10 +72,10 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     def selector_for_index(self, index: SimpleGridIndex) -> Dict[Hashable, int]:
         return {'x': index.x, 'y': index.y}
 
-    def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
+    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
         return utils.linearise_dimensions(data_array, ['y', 'x'])
 
-    def drop_geometry(self) -> xr.Dataset:
+    def drop_geometry(self) -> xarray.Dataset:
         return self.dataset
 
     @cached_property
@@ -95,7 +95,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         self,
         clip_geometry: BaseGeometry,
         buffer: int = 0,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         if buffer > 0:
             raise ValueError("Can not buffer SimpleConvention clip masks")
         intersections = [
@@ -105,21 +105,21 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         ]
         cells = np.full(self.shape, False)
         cells[intersections] = True
-        return xr.Dataset({'cells': (['y', 'x'], cells)})
+        return xarray.Dataset({'cells': (['y', 'x'], cells)})
 
-    def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
+    def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
 
 
 def test_get_time_name(datasets: pathlib.Path) -> None:
-    dataset = xr.open_dataset(datasets / 'times.nc')
+    dataset = xarray.open_dataset(datasets / 'times.nc')
     SimpleConvention(dataset).bind()
     assert dataset.ems.get_time_name() == 'time'
-    xr.testing.assert_equal(dataset.ems.time_coordinate, dataset['time'])
+    xarray.testing.assert_equal(dataset.ems.time_coordinate, dataset['time'])
 
 
 def test_get_time_name_missing() -> None:
-    dataset = xr.Dataset()
+    dataset = xarray.Dataset()
     SimpleConvention(dataset).bind()
     with pytest.raises(NoSuchCoordinateError):
         dataset.ems.get_time_name()
@@ -132,16 +132,16 @@ def test_get_time_name_missing() -> None:
     {'axis': 'Z'},
 ], ids=lambda a: '{}:{}'.format(*next(iter(a.items()))))
 def test_get_depth_name(attrs: dict) -> None:
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'name': (['dim'], [0, 1, 2], attrs),
     })
     SimpleConvention(dataset).bind()
     assert dataset.ems.get_depth_name() == 'name'
-    xr.testing.assert_equal(dataset.ems.depth_coordinate, dataset['name'])
+    xarray.testing.assert_equal(dataset.ems.depth_coordinate, dataset['name'])
 
 
 def test_get_depth_name_missing() -> None:
-    dataset = xr.Dataset()
+    dataset = xarray.Dataset()
     SimpleConvention(dataset).bind()
     with pytest.raises(NoSuchCoordinateError):
         dataset.ems.get_depth_name()
@@ -159,7 +159,7 @@ def test_select_variables(
     expected_coords = {'y', 'x'}
 
     x_size, y_size = 5, 6
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'x': (['x'], np.arange(x_size), {'units': 'degrees_east'}),
         'y': (['y'], np.arange(y_size), {'units': 'degrees_north'}),
         'colour': (['y', 'x'], np.arange(x_size * y_size).reshape((y_size, x_size)), {}),
@@ -169,7 +169,7 @@ def test_select_variables(
     if include_time:
         expected_coords.add('time')
         dataset = dataset.assign_coords({
-            'time': xr.DataArray(
+            'time': xarray.DataArray(
                 dims=['time'],
                 data=pandas.date_range('2023-08-01', '2023-08-24'),
             ),
@@ -177,7 +177,7 @@ def test_select_variables(
         dataset['time'].encoding['units'] = 'days since 1990-01-01 00:00:00 +10:00'
         time_size = dataset['time'].size
         dataset = dataset.assign({
-            'eta': xr.DataArray(
+            'eta': xarray.DataArray(
                 dims=['time', 'y', 'x'],
                 data=generator.uniform(-1.0, 1.0, (time_size, y_size, x_size)),
                 attrs={'standard_name': 'sea_surface_height'},
@@ -188,14 +188,14 @@ def test_select_variables(
         expected_coords.add('depth')
         depth_size = 4
         dataset = dataset.assign_coords({
-            'depth': xr.DataArray(
+            'depth': xarray.DataArray(
                 dims=['depth'],
                 data=np.linspace(-10, 0, depth_size),
                 attrs={'standard_name': 'depth', 'positive': 'up'},
             )
         })
         dataset = dataset.assign({
-            'octarine': xr.DataArray(
+            'octarine': xarray.DataArray(
                 dims=['depth', 'y', 'x'],
                 data=(
                     generator.uniform(0.0, 1.0, (depth_size, y_size, x_size))
@@ -207,7 +207,7 @@ def test_select_variables(
 
     if include_depth and include_time:
         dataset = dataset.assign({
-            'temperature': xr.DataArray(
+            'temperature': xarray.DataArray(
                 dims=['time', 'depth', 'y', 'x'],
                 data=(
                     generator.uniform(0, 3, (time_size, depth_size, y_size, x_size))
@@ -234,11 +234,11 @@ def test_select_variables(
         expected_variables = variables | expected_coords
         assert set(subset.variables.keys()) == expected_variables
         for name in subset.variables.keys():
-            xr.testing.assert_equal(dataset[name], subset[name])
+            xarray.testing.assert_equal(dataset[name], subset[name])
 
 
 def test_mask():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'values': (['z', 'y', 'x'], np.random.standard_normal((5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -252,7 +252,7 @@ def test_mask():
 
 
 def test_geometry():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'values': (['z', 'y', 'x'], np.random.standard_normal((5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -269,7 +269,7 @@ def test_geometry():
 
 
 def test_bounds():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'values': (['z', 'y', 'x'], np.random.standard_normal((5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -279,7 +279,7 @@ def test_bounds():
 
 
 def test_spatial_index():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'values': (['z', 'y', 'x'], np.random.standard_normal((5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -308,7 +308,7 @@ def test_spatial_index():
 
 
 def test_get_index_for_point_centre():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -323,7 +323,7 @@ def test_get_index_for_point_centre():
 
 
 def test_get_index_for_point_vertex():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -347,7 +347,7 @@ def test_get_index_for_point_vertex():
 
 
 def test_get_index_for_point_miss():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -359,7 +359,7 @@ def test_get_index_for_point_miss():
 
 
 def test_selector_for_point():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -371,7 +371,7 @@ def test_selector_for_point():
 def test_select_index():
     # These tests can not be 100% comprehensive, as the simple convention only has
     # a single grid kind. The SHOC and UGRID convention tests will test the rest.
-    dataset = xr.Dataset(
+    dataset = xarray.Dataset(
         data_vars={
             'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
             'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
@@ -404,7 +404,7 @@ def test_select_index():
 
 
 def test_select_point():
-    dataset = xr.Dataset(
+    dataset = xarray.Dataset(
         data_vars={
             'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
             'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
@@ -427,7 +427,7 @@ def test_select_point():
 
 @pytest.mark.matplotlib
 def test_plot():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -454,7 +454,7 @@ def test_plot():
 
 def test_face_centres():
     # Test the fallback face_centres, which computes centres from polygon centroids
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -478,7 +478,7 @@ def test_face_centres():
 
 @pytest.mark.matplotlib
 def test_make_poly_collection():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -492,7 +492,7 @@ def test_make_poly_collection():
 
 
 def test_make_poly_collection_data_array():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -507,7 +507,7 @@ def test_make_poly_collection_data_array():
 
 
 def test_make_poly_collection_data_array_and_array():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -521,7 +521,7 @@ def test_make_poly_collection_data_array_and_array():
 
 
 def test_make_poly_collection_data_array_and_clim():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })
@@ -533,7 +533,7 @@ def test_make_poly_collection_data_array_and_clim():
 
 
 def test_make_poly_collection_data_array_dimensions():
-    dataset = xr.Dataset({
+    dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], np.random.standard_normal((5, 5, 10, 20))),
         'botz': (['y', 'x'], np.random.standard_normal((10, 20)) - 10),
     })

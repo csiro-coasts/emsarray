@@ -22,7 +22,7 @@ from typing import (
 
 import numpy as np
 import shapely
-import xarray as xr
+import xarray
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import utils
@@ -70,7 +70,7 @@ def buffer_faces(face_indices: np.ndarray, topology: Mesh2DTopology) -> np.ndarr
     return cast(np.ndarray, np.fromiter(included_faces, dtype=topology.sensible_dtype))
 
 
-def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -> xr.Dataset:
+def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -> xarray.Dataset:
     """
     Make a mask dataset from a list of face indices.
     This mask can later be applied using :meth:`~.Convention.apply_clip_mask`.
@@ -130,12 +130,12 @@ def mask_from_face_indices(face_indices: np.ndarray, topology: Mesh2DTopology) -
     )
 
     # Make the mask dataset
-    return xr.Dataset(data_vars=data_vars, attrs={
+    return xarray.Dataset(data_vars=data_vars, attrs={
         'title': 'UGRID dataset mask',
     })
 
 
-def _get_start_index(connectivity: xr.DataArray) -> int:
+def _get_start_index(connectivity: xarray.DataArray) -> int:
     """
     Get the ``start_index`` attribute from a connectivity data array,
     while checking for common error cases.
@@ -170,13 +170,13 @@ def _get_start_index(connectivity: xr.DataArray) -> int:
 
 
 def update_connectivity(
-    connectivity: xr.DataArray,
+    connectivity: xarray.DataArray,
     old_array: np.ndarray,
     row_indices: np.ndarray,
     column_values: np.ndarray,
     primary_dimension: Hashable,
     fill_value: int,
-) -> xr.DataArray:
+) -> xarray.DataArray:
     """
     Create a new connectivity variable by reindexing existing entries.
     This is used during masking to trim off unused nodes, edges, and faces.
@@ -269,7 +269,7 @@ def _masked_integer_data_array(
     data: np.ma.MaskedArray,
     fill_value: int,
     **kwargs: Any,
-) -> xr.DataArray:
+) -> xarray.DataArray:
     """
     Create an :class:`xarray.DataArray` that represents
     an integer variable with a _FillValue.
@@ -281,7 +281,7 @@ def _masked_integer_data_array(
     an integer type and a _FillValue.
     """
     float_data = np.ma.filled(data.astype(np.double), np.nan)
-    data_array = xr.DataArray(data=float_data, **kwargs)
+    data_array = xarray.DataArray(data=float_data, **kwargs)
     data_array.encoding.update({'dtype': data.dtype, '_FillValue': fill_value})
     return data_array
 
@@ -346,7 +346,7 @@ class Mesh2DTopology:
           - :attr:`edge_face_array`
     """
     #: The UGRID dataset
-    dataset: xr.Dataset
+    dataset: xarray.Dataset
 
     #: The name of the mesh topology variable. Optional. If not provided, the
     #: mesh topology dummy variable will be found by checking the ``cf_role``
@@ -368,7 +368,7 @@ class Mesh2DTopology:
         return f'<{type(self).__name__} {attr_str}>'
 
     @cached_property
-    def mesh_variable(self) -> xr.DataArray:
+    def mesh_variable(self) -> xarray.DataArray:
         """
         Get the dummy variable that stores the mesh topology information.
         This is variable is either named using the ``topology_key`` argument to
@@ -432,17 +432,17 @@ class Mesh2DTopology:
         return _split_coord(self.mesh_attributes['face_coordinates'])
 
     @property
-    def node_x(self) -> xr.DataArray:
+    def node_x(self) -> xarray.DataArray:
         """Data array of node X / longitude coordinates."""
         return self.dataset.data_vars[self._node_coordinates[0]]
 
     @property
-    def node_y(self) -> xr.DataArray:
+    def node_y(self) -> xarray.DataArray:
         """Data array of node Y / latitude coordinates."""
         return self.dataset.data_vars[self._node_coordinates[1]]
 
     @property
-    def edge_x(self) -> Optional[xr.DataArray]:
+    def edge_x(self) -> Optional[xarray.DataArray]:
         """Data array of characteristic edge X / longitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._edge_coordinates[0]]
@@ -450,7 +450,7 @@ class Mesh2DTopology:
             return None
 
     @property
-    def edge_y(self) -> Optional[xr.DataArray]:
+    def edge_y(self) -> Optional[xarray.DataArray]:
         """Data array of characteristic edge y / latitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._edge_coordinates[1]]
@@ -458,7 +458,7 @@ class Mesh2DTopology:
             return None
 
     @property
-    def face_x(self) -> Optional[xr.DataArray]:
+    def face_x(self) -> Optional[xarray.DataArray]:
         """Data array of characteristic face x / longitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._face_coordinates[0]]
@@ -466,7 +466,7 @@ class Mesh2DTopology:
             return None
 
     @property
-    def face_y(self) -> Optional[xr.DataArray]:
+    def face_y(self) -> Optional[xarray.DataArray]:
         """Data array of characteristic face y / latitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._face_coordinates[1]]
@@ -475,7 +475,7 @@ class Mesh2DTopology:
 
     def _to_index_array(
         self,
-        data_array: xr.DataArray,
+        data_array: xarray.DataArray,
         primary_dimension: Hashable,
     ) -> np.ndarray:
         """
@@ -551,7 +551,7 @@ class Mesh2DTopology:
         return True
 
     @cached_property
-    def edge_node_connectivity(self) -> xr.DataArray:
+    def edge_node_connectivity(self) -> xarray.DataArray:
         """
         This data array defines unique indexes for each edge. This allows data
         to be stored 'on' an edge.
@@ -639,7 +639,7 @@ class Mesh2DTopology:
         return True
 
     @cached_property
-    def edge_face_connectivity(self) -> xr.DataArray:
+    def edge_face_connectivity(self) -> xarray.DataArray:
         """
         This data array shows which faces an edge borders on.
         """
@@ -703,7 +703,7 @@ class Mesh2DTopology:
         return True
 
     @cached_property
-    def face_node_connectivity(self) -> xr.DataArray:
+    def face_node_connectivity(self) -> xarray.DataArray:
         """
         A variable that lists the nodes that make up the boundary of each face.
         This is the only required data variable in a UGRID dataset,
@@ -748,7 +748,7 @@ class Mesh2DTopology:
         return True
 
     @cached_property
-    def face_edge_connectivity(self) -> xr.DataArray:
+    def face_edge_connectivity(self) -> xarray.DataArray:
         """
         The face_edge_connectivity variable from the dataset, if present.
         """
@@ -816,7 +816,7 @@ class Mesh2DTopology:
         return True
 
     @cached_property
-    def face_face_connectivity(self) -> xr.DataArray:
+    def face_face_connectivity(self) -> xarray.DataArray:
         """
         The face_face_connectivity variable from the dataset, if present.
         """
@@ -1022,7 +1022,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
     default_grid_kind = UGridKind.face
 
     @classmethod
-    def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         """
         A UGrid dataset needs a global attribute of Conventions = 'UGRID/...',
         and a variable with attribute cf_role = 'mesh_topology'
@@ -1071,7 +1071,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         return frozenset(items)
 
     def get_grid_kind_and_size(
-        self, data_array: xr.DataArray,
+        self, data_array: xarray.DataArray,
     ) -> Tuple[UGridKind, int]:
         if self.topology.face_dimension in data_array.dims:
             return (UGridKind.face, self.topology.face_count)
@@ -1136,7 +1136,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
             return {self.topology.node_dimension: i}
         raise ValueError("Invalid index")  # pragma: no-cover
 
-    def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
+    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
         grid_kind, shape = self.get_grid_kind_and_size(data_array)
         grid_dimension = self.topology.dimension_for_grid_kind[grid_kind]
         return utils.linearise_dimensions(data_array, [grid_dimension])
@@ -1145,7 +1145,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         self,
         clip_geometry: BaseGeometry,
         buffer: int = 0,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         """
         Make a mask dataset from a clip geometry for this dataset.
         This mask can later be applied using :meth:`apply_clip_mask`.
@@ -1182,7 +1182,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         # Make a mask dataset
         return mask_from_face_indices(face_indices, self.topology)
 
-    def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
+    def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         """
         Make a new dataset by applying a clip mask to this dataset.
 
@@ -1205,12 +1205,12 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         # Collect all the topology variables here. These need special handling,
         # compared to data variables. The mesh variable can be reused without
         # any changes.
-        topology_variables: List[xr.DataArray] = [topology.mesh_variable]
+        topology_variables: List[xarray.DataArray] = [topology.mesh_variable]
 
         # This is the fill value used in the mask.
         new_fill_value = clip_mask.data_vars['new_node_index'].encoding['_FillValue']
 
-        def integer_indices(data_array: xr.DataArray) -> np.ndarray:
+        def integer_indices(data_array: xarray.DataArray) -> np.ndarray:
             masked_values = np.ma.masked_invalid(data_array.values)
             # numpy will emit a warning when converting an array with np.nan to int,
             # even if the nans are masked out.
@@ -1257,7 +1257,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
 
         # Save all the topology variables to one combined dataset
         topology_path = work_path / (str(topology.mesh_variable.name) + ".nc")
-        topology_dataset = xr.Dataset(
+        topology_dataset = xarray.Dataset(
             data_vars={variable.name: variable for variable in topology_variables},
             coords=dataset.coords,
         )
@@ -1304,7 +1304,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
                         slice_index = tuple([np.s_[:]] * index + [dimension_masks[dim]])  # type: ignore
                         values = values[slice_index]
 
-                data_array = xr.DataArray(data=values, dims=data_array.dims, name=name)
+                data_array = xarray.DataArray(data=values, dims=data_array.dims, name=name)
                 utils.disable_default_fill_value(data_array)
                 data_array.to_netcdf(data_array_path)
                 mfdataset_paths.append(data_array_path)
@@ -1313,7 +1313,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
                 del values
 
         logger.debug("Merging individual variables...")
-        new_dataset = xr.open_mfdataset(mfdataset_paths, lock=False)
+        new_dataset = xarray.open_mfdataset(mfdataset_paths, lock=False)
         return utils.dataset_like(dataset, new_dataset)
 
     def get_all_geometry_names(self) -> List[Hashable]:
@@ -1343,7 +1343,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
             names.append(topology.face_y.name)
         return names
 
-    def drop_geometry(self) -> xr.Dataset:
+    def drop_geometry(self) -> xarray.Dataset:
         dataset = super().drop_geometry()
         dataset.attrs.pop('Conventions', None)
         return dataset

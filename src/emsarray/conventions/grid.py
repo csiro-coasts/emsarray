@@ -15,7 +15,7 @@ from typing import (
 )
 
 import numpy as np
-import xarray as xr
+import xarray
 from shapely.geometry import Polygon, box
 from shapely.geometry.base import BaseGeometry
 
@@ -53,7 +53,7 @@ class CFGridTopology(abc.ABC):
     """
     def __init__(
         self,
-        dataset: xr.Dataset,
+        dataset: xarray.Dataset,
         longitude: Optional[Hashable] = None,
         latitude: Optional[Hashable] = None,
     ):
@@ -120,18 +120,18 @@ class CFGridTopology(abc.ABC):
             raise ValueError("Could not find longitude coordinate")
 
     @property
-    def latitude(self) -> xr.DataArray:
+    def latitude(self) -> xarray.DataArray:
         """The latitude coordinate variable"""
         return self.dataset[self.latitude_name]
 
     @property
-    def longitude(self) -> xr.DataArray:
+    def longitude(self) -> xarray.DataArray:
         """The longitude coordinate variable"""
         return self.dataset[self.longitude_name]
 
     @property
     @abc.abstractmethod
-    def latitude_bounds(self) -> xr.DataArray:
+    def latitude_bounds(self) -> xarray.DataArray:
         """
         Bounds for the latitude coordinate variable.
         If there are no bounds defined on the dataset,
@@ -141,7 +141,7 @@ class CFGridTopology(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def longitude_bounds(self) -> xr.DataArray:
+    def longitude_bounds(self) -> xarray.DataArray:
         """
         Bounds for the longitude coordinate variable.
         If there are no bounds defined on the dataset,
@@ -201,7 +201,7 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
 
     def __init__(
         self,
-        dataset: xr.Dataset,
+        dataset: xarray.Dataset,
         *,
         latitude: Optional[Hashable] = None,
         longitude: Optional[Hashable] = None,
@@ -266,7 +266,7 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
 
     def get_grid_kind_and_size(
         self,
-        data_array: xr.DataArray,
+        data_array: xarray.DataArray,
     ) -> Tuple[CFGridKind, int]:
         expected = {self.topology.y_dimension, self.topology.x_dimension}
         dims = set(data_array.dims)
@@ -298,12 +298,12 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
 
         return names
 
-    def drop_geometry(self) -> xr.Dataset:
+    def drop_geometry(self) -> xarray.Dataset:
         dataset = super().drop_geometry()
         dataset.attrs.pop('Conventions', None)
         return dataset
 
-    def make_linear(self, data_array: xr.DataArray) -> xr.DataArray:
+    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
         surface_dims = [self.topology.y_dimension, self.topology.x_dimension]
         return utils.linearise_dimensions(data_array, surface_dims)
 
@@ -311,7 +311,7 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
         self,
         clip_geometry: BaseGeometry,
         buffer: int = 0,
-    ) -> xr.Dataset:
+    ) -> xarray.Dataset:
         topology = self.topology
 
         intersecting_indices = [
@@ -325,9 +325,9 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
             mask = masking.blur_mask(mask, size=buffer)
         dimensions = [topology.y_dimension, topology.x_dimension]
 
-        return xr.Dataset(
+        return xarray.Dataset(
             data_vars={
-                'cell_mask': xr.DataArray(data=mask, dims=dimensions),
+                'cell_mask': xarray.DataArray(data=mask, dims=dimensions),
             },
             coords={
                 topology.latitude_name: topology.latitude.copy(),
@@ -336,7 +336,7 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
             attrs={'type': 'CFGrid mask'},
         )
 
-    def apply_clip_mask(self, clip_mask: xr.Dataset, work_dir: Pathish) -> xr.Dataset:
+    def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
 
 
@@ -361,7 +361,7 @@ class CFGrid1DTopology(CFGridTopology):
         """The name of the latitude dimension, taken from the latitude coordinate"""
         return self.longitude.dims[0]
 
-    def _get_or_make_bounds(self, coordinate: xr.DataArray) -> xr.DataArray:
+    def _get_or_make_bounds(self, coordinate: xarray.DataArray) -> xarray.DataArray:
         with suppress(KeyError):
             bounds = self.dataset.data_vars[coordinate.attrs['bounds']]
             if (
@@ -388,18 +388,18 @@ class CFGrid1DTopology(CFGridTopology):
             (values[1:] + values[:-1]) / 2,
             [values[-1] + last_gap / 2]
         ])
-        return xr.DataArray(
+        return xarray.DataArray(
             np.stack([mid_points[:-1], mid_points[1:]], axis=-1),
             dims=[coordinate.dims[0], 'bounds'],
         )
 
     @cached_property
-    def latitude_bounds(self) -> xr.DataArray:
+    def latitude_bounds(self) -> xarray.DataArray:
         """North/south bounds for each latitude point"""
         return self._get_or_make_bounds(self.latitude)
 
     @cached_property
-    def longitude_bounds(self) -> xr.DataArray:
+    def longitude_bounds(self) -> xarray.DataArray:
         """East/west bounds for each longitude point"""
         return self._get_or_make_bounds(self.longitude)
 
@@ -412,7 +412,7 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
     topology_class = CFGrid1DTopology
 
     @classmethod
-    def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         """
         A dataset is a 1D CF grid if it has one dimensional
         latitude and longitude coordinate variables.
@@ -494,7 +494,7 @@ class CFGrid2DTopology(CFGridTopology):
         """
         return self.latitude.dims[1]
 
-    def _get_or_make_bounds(self, coordinate: xr.DataArray) -> xr.DataArray:
+    def _get_or_make_bounds(self, coordinate: xarray.DataArray) -> xarray.DataArray:
         # Use the bounds defined on the coordinate itself, if any.
         with suppress(KeyError):
             bounds = self.dataset[coordinate.attrs['bounds']]
@@ -504,7 +504,7 @@ class CFGrid2DTopology(CFGridTopology):
                 and bounds.dims[1] == self.x_dimension
                 and self.dataset.dims[bounds.dims[2]] == 4
             ):
-                return cast(xr.DataArray, bounds)
+                return cast(xarray.DataArray, bounds)
             else:
                 expected_dims = (self.y_dimension, self.x_dimension, 2)
                 warnings.warn(
@@ -546,17 +546,17 @@ class CFGrid2DTopology(CFGridTopology):
         cells_with_nans = np.isnan(bounds).any(axis=2)
         bounds[cells_with_nans] = np.nan
 
-        return xr.DataArray(
+        return xarray.DataArray(
             bounds,
             dims=[self.y_dimension, self.x_dimension, 'bounds'],
         )
 
     @cached_property
-    def longitude_bounds(self) -> xr.DataArray:
+    def longitude_bounds(self) -> xarray.DataArray:
         return self._get_or_make_bounds(self.longitude)
 
     @property
-    def latitude_bounds(self) -> xr.DataArray:
+    def latitude_bounds(self) -> xarray.DataArray:
         return self._get_or_make_bounds(self.latitude)
 
 
@@ -568,7 +568,7 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
     topology_class = CFGrid2DTopology
 
     @classmethod
-    def check_dataset(cls, dataset: xr.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         """
         A dataset is a 2D CF grid if it has two dimensional
         latitude and longitude coordinate variables.

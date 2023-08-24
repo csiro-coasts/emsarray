@@ -9,7 +9,7 @@ import geojson
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
+import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import Polygon, box
@@ -117,7 +117,7 @@ def make_dataset(
     time_size: int = 4,
     make_edges: bool = True,
     make_face_coordinates: bool = False,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     fill_value = 999999
     face_node_values, edge_node_values, coordinate_values = make_faces(width, height, fill_value=fill_value)
 
@@ -130,7 +130,7 @@ def make_dataset(
 
     cell_size = face_node_values.shape[0]
 
-    node_x = xr.DataArray(
+    node_x = xarray.DataArray(
         data=coordinate_values[:, 0],
         dims=[node_dimension],
         name="Mesh2_node_x",
@@ -142,7 +142,7 @@ def make_dataset(
             'projection': 'geographic',
         },
     )
-    node_y = xr.DataArray(
+    node_y = xarray.DataArray(
         data=coordinate_values[:, 1],
         dims=[node_dimension],
         name="Mesh2_node_y",
@@ -154,7 +154,7 @@ def make_dataset(
             'projection': 'geographic',
         },
     )
-    face_node_connectivity = xr.DataArray(
+    face_node_connectivity = xarray.DataArray(
         data=face_node_values,
         dims=[face_dimension, max_node_dimension],
         name="Mesh2_face_nodes",
@@ -165,7 +165,7 @@ def make_dataset(
         },
     )
 
-    mesh = xr.DataArray(
+    mesh = xarray.DataArray(
         name='Mesh2',
         attrs={
             'cf_role': 'mesh_topology',
@@ -177,7 +177,7 @@ def make_dataset(
         },
     )
 
-    t = xr.DataArray(
+    t = xarray.DataArray(
         # Note: Using pd.date_range() directly here will lead to strange
         # behaviours, where the `record` dimension becomes a data variable with
         # a datetime64 dtype. Using a list of datetimes instead seems to avoid
@@ -191,7 +191,7 @@ def make_dataset(
             "coordinate_type": "time",
         },
     )
-    z = xr.DataArray(
+    z = xarray.DataArray(
         data=-np.arange(0, depth_size),
         dims=[depth_dimension],
         name=depth_dimension,
@@ -207,7 +207,7 @@ def make_dataset(
     # you have to adjust it with nctool after saving it.
     t.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
 
-    botz = xr.DataArray(
+    botz = xarray.DataArray(
         data=np.random.random(cell_size) * 10 + 50,
         dims=[face_dimension],
         name="Mesh2_depth",
@@ -219,7 +219,7 @@ def make_dataset(
             "outside": "9999",
         }
     )
-    eta = xr.DataArray(
+    eta = xarray.DataArray(
         data=np.random.normal(0, 0.2, (time_size, cell_size)),
         dims=[time_dimension, face_dimension],
         name="eta",
@@ -229,7 +229,7 @@ def make_dataset(
             "standard_name": "sea_surface_height_above_geoid",
         },
     )
-    temp = xr.DataArray(
+    temp = xarray.DataArray(
         data=np.random.normal(12, 0.5, (time_size, depth_size, cell_size)),
         dims=[time_dimension, depth_dimension, face_dimension],
         name="temp",
@@ -240,7 +240,7 @@ def make_dataset(
     )
 
     one_day = np.timedelta64(1, 'D').astype('timedelta64[ns]')
-    period = xr.DataArray(
+    period = xarray.DataArray(
         data=np.concatenate([
             np.arange(cell_size - 2, dtype=int) * one_day,
             [np.timedelta64('nat', 'ns')] * 2,
@@ -257,7 +257,7 @@ def make_dataset(
         "dtype": np.dtype('int16'),
     })
 
-    dataset = xr.Dataset(
+    dataset = xarray.Dataset(
         data_vars={var.name: var for var in [
             mesh, face_node_connectivity, node_x, node_y,
             t, z, botz, eta, temp, period,
@@ -273,7 +273,7 @@ def make_dataset(
     )
     dataset.encoding['unlimited_dims'] = {'record'}
     if make_edges:
-        edge_node = xr.DataArray(
+        edge_node = xarray.DataArray(
             data=edge_node_values,
             dims=[edge_dimension, 'Two'],
             name='Mesh2_edge_nodes',
@@ -286,7 +286,7 @@ def make_dataset(
             'edge_node_connectivity': edge_node.name,
         })
 
-        u1 = xr.DataArray(
+        u1 = xarray.DataArray(
             data=np.random.normal(0, 2, (time_size, depth_size, edge_size)),
             dims=[time_dimension, depth_dimension, edge_dimension],
             name='u1',
@@ -298,7 +298,7 @@ def make_dataset(
         dataset.update({value.name: value for value in [edge_node, u1]})
 
     if make_face_coordinates:
-        face_x = xr.DataArray(
+        face_x = xarray.DataArray(
             data=[
                 np.average(coordinate_values[face_nodes.compressed(), 0])
                 for face_nodes in face_node_values
@@ -311,7 +311,7 @@ def make_dataset(
             },
         )
 
-        face_y = xr.DataArray(
+        face_y = xarray.DataArray(
             data=[
                 np.average(coordinate_values[face_nodes.compressed(), 1])
                 for face_nodes in face_node_values
@@ -421,7 +421,7 @@ def test_face_centres_from_centroids():
 
 
 def test_bounds(datasets: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'ugrid_mesh2d.nc')
+    dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     r = 3.6
     assert_allclose(dataset.ems.bounds, (-r, -r, r, r))
 
@@ -539,23 +539,23 @@ def test_drop_geometry_full():
         'face_face_connectivity': 'Mesh2_face_faces',
     })
     dataset = dataset.assign({
-        'Mesh2_edge_faces': xr.DataArray(
+        'Mesh2_edge_faces': xarray.DataArray(
             topology.edge_face_array,
             dims=[topology.edge_dimension, topology.two_dimension],
         ),
-        'Mesh2_face_edges': xr.DataArray(
+        'Mesh2_face_edges': xarray.DataArray(
             topology.face_edge_array,
             dims=[topology.face_dimension, topology.max_node_dimension],
         ),
-        'Mesh2_face_faces': xr.DataArray(
+        'Mesh2_face_faces': xarray.DataArray(
             topology.face_face_array,
             dims=[topology.face_dimension, topology.max_node_dimension],
         ),
-        'Mesh2_edge_x': xr.DataArray(
+        'Mesh2_edge_x': xarray.DataArray(
             np.arange(topology.edge_count),
             dims=[topology.edge_dimension],
         ),
-        'Mesh2_edge_y': xr.DataArray(
+        'Mesh2_edge_y': xarray.DataArray(
             np.arange(topology.edge_count),
             dims=[topology.edge_dimension],
         ),
@@ -885,7 +885,7 @@ def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
     Open and check a UGrid dataset that uses one-based indexing,
     as indicated by the 'start_index' attribute.
     """
-    dataset = xr.open_dataset(datasets / 'ugrid_mesh2d_one_indexed.nc')
+    dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d_one_indexed.nc')
     convention: UGrid = dataset.ems
     topology = convention.topology
 
@@ -911,8 +911,8 @@ def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
 
 
 def test_get_start_index():
-    def da(attrs: dict) -> xr.DataArray:
-        return xr.DataArray(
+    def da(attrs: dict) -> xarray.DataArray:
+        return xarray.DataArray(
             data=[1, 2, 3],
             dims=['index'],
             name='connectivity_array',

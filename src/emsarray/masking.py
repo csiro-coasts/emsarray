@@ -13,7 +13,7 @@ import pathlib
 from typing import Any, Dict, Hashable, List, cast
 
 import numpy as np
-import xarray as xr
+import xarray
 from xarray.core.dtypes import maybe_promote
 
 from emsarray import utils
@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 def mask_grid_dataset(
-    dataset: xr.Dataset,
-    mask: xr.Dataset,
+    dataset: xarray.Dataset,
+    mask: xarray.Dataset,
     work_dir: Pathish,
     **kwargs: Any,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     """Apply a mask to a two-dimensional grid dataset,
     such as :class:`.CFGrid1D` and :class:`.CFGrid2D`,
     or datasets with multiple grids such as :class:`.ArakawaC`
@@ -82,12 +82,12 @@ def mask_grid_dataset(
     # shouldn't be masked. They are combined in to one dataset and saved as-is
     coords_path = work_path / "__coords__.nc"
     mfdataset_names.append(coords_path)
-    utils.to_netcdf_with_fixes(xr.Dataset(coords=dataset.coords), coords_path)
+    utils.to_netcdf_with_fixes(xarray.Dataset(coords=dataset.coords), coords_path)
 
     logger.info("Merging individual variables")
     # Happily `mfdataset` will load data in to memory in a lazy manner,
     # allowing us to combine very large datasets without running out of memory.
-    merged_dataset = xr.open_mfdataset(
+    merged_dataset = xarray.open_mfdataset(
         mfdataset_names,
         # `lock=False` prevents an issue where opening a dataset with
         # `open_mfdataset` then saving it with `.to_netcdf()` would
@@ -101,7 +101,7 @@ def mask_grid_dataset(
     return utils.dataset_like(dataset, merged_dataset)
 
 
-def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataArray:
+def mask_grid_data_array(mask: xarray.Dataset, data_array: xarray.DataArray) -> xarray.DataArray:
     """
     Apply a mask to a single data array.
     A mask dataset contains one or more mask data arrays.
@@ -142,7 +142,7 @@ def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataA
             logger.debug(
                 "Masking data array %r with mask %r",
                 data_array.name, mask_name)
-            new_data_array = cast(xr.DataArray, data_array.where(mask_data_array, other=fill_value))
+            new_data_array = cast(xarray.DataArray, data_array.where(mask_data_array, other=fill_value))
             new_data_array.attrs = data_array.attrs
             new_data_array.encoding = data_array.encoding
             return new_data_array
@@ -155,7 +155,7 @@ def mask_grid_data_array(mask: xr.Dataset, data_array: xr.DataArray) -> xr.DataA
     return data_array
 
 
-def find_fill_value(data_array: xr.DataArray) -> Any:
+def find_fill_value(data_array: xarray.DataArray) -> Any:
     """
     Float-typed variables can easily be masked. If they don't already have
     a fill value, they can be masked using `NaN` without issue.
@@ -205,7 +205,7 @@ def find_fill_value(data_array: xr.DataArray) -> Any:
     raise ValueError("No appropriate fill value found")
 
 
-def calculate_grid_mask_bounds(mask: xr.Dataset) -> Dict[Hashable, slice]:
+def calculate_grid_mask_bounds(mask: xarray.Dataset) -> Dict[Hashable, slice]:
     """
     Calculate the included bounds of a mask dataset for each dimension.
 

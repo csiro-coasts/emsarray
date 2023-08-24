@@ -6,7 +6,7 @@ from typing import (
 )
 
 import numpy as np
-import xarray as xr
+import xarray
 
 from emsarray.utils import requires_extra
 
@@ -132,8 +132,8 @@ def plot_on_figure(
     figure: Figure,
     convention: Convention,
     *,
-    scalar: Optional[xr.DataArray] = None,
-    vector: Optional[Tuple[xr.DataArray, xr.DataArray]] = None,
+    scalar: Optional[xarray.DataArray] = None,
+    vector: Optional[Tuple[xarray.DataArray, xarray.DataArray]] = None,
     title: Optional[str] = None,
     projection: Optional[cartopy.crs.Projection] = None,
 ) -> None:
@@ -202,9 +202,9 @@ def animate_on_figure(
     figure: Figure,
     convention: Convention,
     *,
-    coordinate: xr.DataArray,
-    scalar: Optional[xr.DataArray] = None,
-    vector: Optional[Tuple[xr.DataArray, xr.DataArray]] = None,
+    coordinate: xarray.DataArray,
+    scalar: Optional[xarray.DataArray] = None,
+    vector: Optional[Tuple[xarray.DataArray, xarray.DataArray]] = None,
     title: Optional[Union[str, Callable[[Any], str]]] = None,
     projection: Optional[cartopy.crs.Projection] = None,
     interval: int = 1000,

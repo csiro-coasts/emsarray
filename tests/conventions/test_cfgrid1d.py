@@ -6,7 +6,7 @@ import pathlib
 import numpy as np
 import pandas as pd
 import pytest
-import xarray as xr
+import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import Polygon
@@ -27,13 +27,13 @@ def make_dataset(
     depth: int = 5,
     time_size: int = 4,
     bounds: bool = False,
-) -> xr.Dataset:
+) -> xarray.Dataset:
     longitude_name = 'lon'
     latitude_name = 'lat'
     depth_name = 'depth'
     time_name = 'time'
 
-    lon = xr.DataArray(
+    lon = xarray.DataArray(
         data=np.arange(width) * 0.1,
         dims=[longitude_name],
         name=longitude_name,
@@ -45,7 +45,7 @@ def make_dataset(
             'projection': 'geographic',
         },
     )
-    lat = xr.DataArray(
+    lat = xarray.DataArray(
         data=np.arange(height) * 0.1,
         dims=[latitude_name],
         name=latitude_name,
@@ -57,7 +57,7 @@ def make_dataset(
             'projection': 'geographic',
         },
     )
-    depth_var = xr.DataArray(
+    depth_var = xarray.DataArray(
         data=(-1 * np.arange(0, depth))[::-1],
         dims=[depth_name],
         name=depth_name,
@@ -68,7 +68,7 @@ def make_dataset(
         },
     )
 
-    time = xr.DataArray(
+    time = xarray.DataArray(
         # Note: Using pd.date_range() directly here will lead to strange
         # behaviours, where the `time` dimension becomes a data variable with
         # a datetime64 dtype. Using a list of datetimes instead seems to avoid
@@ -87,7 +87,7 @@ def make_dataset(
     # you have to adjust it with nctool after saving it.
     time.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
 
-    botz = xr.DataArray(
+    botz = xarray.DataArray(
         data=np.random.random((height, width)) * 10 + 50,
         dims=[latitude_name, longitude_name],
         name="botz",
@@ -99,7 +99,7 @@ def make_dataset(
             "outside": "9999",
         }
     )
-    eta = xr.DataArray(
+    eta = xarray.DataArray(
         data=np.random.normal(0, 0.2, (time_size, height, width)),
         dims=[time_name, latitude_name, longitude_name],
         name="eta",
@@ -109,7 +109,7 @@ def make_dataset(
             "standard_name": "sea_surface_height_above_geoid",
         },
     )
-    temp = xr.DataArray(
+    temp = xarray.DataArray(
         data=np.random.normal(12, 0.5, (time_size, depth, height, width)),
         dims=[time_name, depth_name, latitude_name, longitude_name],
         name="temp",
@@ -133,12 +133,12 @@ def make_dataset(
             lat.values - 0.07,
             [lat.values[-1] + 0.03]
         ])
-        lon_bounds = xr.DataArray(
+        lon_bounds = xarray.DataArray(
             np.c_[lon_grid[:-1], lon_grid[1:]],
             dims=[longitude_name, 'bounds'],
             name="lon_bounds",
         )
-        lat_bounds = xr.DataArray(
+        lat_bounds = xarray.DataArray(
             np.c_[lat_grid[:-1], lat_grid[1:]],
             dims=[latitude_name, 'bounds'],
             name="lat_bounds",
@@ -147,7 +147,7 @@ def make_dataset(
         lat.attrs['bounds'] = lat_bounds.name
         data_vars += [lon_bounds, lat_bounds]
 
-    dataset = xr.Dataset(
+    dataset = xarray.Dataset(
         data_vars={var.name: var for var in data_vars},
         attrs={
             'title': "Example CFGrid1D",
@@ -188,9 +188,9 @@ def test_make_dataset():
     ],
 )
 def test_latitude_detection(name: str, attrs: dict):
-    dataset = xr.Dataset({
-        name: xr.DataArray([0, 1, 2], dims=[name], attrs=attrs),
-        'dummy': xr.DataArray([3, 4, 5], dims=['other']),
+    dataset = xarray.Dataset({
+        name: xarray.DataArray([0, 1, 2], dims=[name], attrs=attrs),
+        'dummy': xarray.DataArray([3, 4, 5], dims=['other']),
     })
     topology = CFGrid1DTopology(dataset)
     assert topology.latitude_name == name
@@ -210,18 +210,18 @@ def test_latitude_detection(name: str, attrs: dict):
     ],
 )
 def test_longitude_detection(name: str, attrs: dict):
-    dataset = xr.Dataset({
-        name: xr.DataArray([0, 1, 2], dims=[name], attrs=attrs),
-        'dummy': xr.DataArray([3, 4, 5], dims=['other']),
+    dataset = xarray.Dataset({
+        name: xarray.DataArray([0, 1, 2], dims=[name], attrs=attrs),
+        'dummy': xarray.DataArray([3, 4, 5], dims=['other']),
     })
     topology = CFGrid1DTopology(dataset)
     assert topology.longitude_name == name
 
 
 def test_manual_coordinate_names():
-    dataset = xr.Dataset({
-        'x': xr.DataArray([0, 1, 2], dims=['x']),
-        'y': xr.DataArray([0, 1, 2], dims=['y']),
+    dataset = xarray.Dataset({
+        'x': xarray.DataArray([0, 1, 2], dims=['x']),
+        'y': xarray.DataArray([0, 1, 2], dims=['y']),
     })
     topology = CFGrid1DTopology(dataset)
     with pytest.raises(ValueError):
@@ -230,8 +230,8 @@ def test_manual_coordinate_names():
     topology = CFGrid1DTopology(dataset, latitude='y', longitude='x')
     assert topology.latitude_name == 'y'
     assert topology.longitude_name == 'x'
-    xr.testing.assert_equal(topology.latitude, dataset['y'])
-    xr.testing.assert_equal(topology.longitude, dataset['x'])
+    xarray.testing.assert_equal(topology.latitude, dataset['y'])
+    xarray.testing.assert_equal(topology.longitude, dataset['x'])
 
 
 def test_varnames():
@@ -341,7 +341,7 @@ def test_grid_kind_and_size():
 
 
 def test_drop_geometry(datasets: pathlib.Path):
-    dataset = xr.open_dataset(datasets / 'cfgrid1d.nc')
+    dataset = xarray.open_dataset(datasets / 'cfgrid1d.nc')
 
     dropped = dataset.ems.drop_geometry()
     assert dropped.dims.keys() == {'lon', 'lat'}

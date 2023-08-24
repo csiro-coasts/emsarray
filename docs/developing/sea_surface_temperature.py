@@ -4,7 +4,7 @@ import logging
 import pathlib
 
 import emsarray
-import xarray as xr
+import xarray
 from emsarray.cli import console_entrypoint
 from emsarray.cli.utils import geometry_argument
 from shapely.geometry.base import BaseGeometry
@@ -64,8 +64,8 @@ def main(options: argparse.Namespace) -> None:
 
 
 def calculate_mean_sea_surface_temperature(
-    dataset: xr.Dataset,
-    temperature: xr.DataArray,
+    dataset: xarray.Dataset,
+    temperature: xarray.DataArray,
     geometry: BaseGeometry,
 ) -> float:
     """
