@@ -39,7 +39,7 @@ The ``scripts/tag-release.py`` command will do the hard work for you:
 
    $ ./scripts/release.py tag
 
-Fork the [emsarray-feedstock](https://github.com/conda-forge/emsarray-feedstock) repository
+Fork the `emsarray-feedstock <https://github.com/conda-forge/emsarray-feedstock>`_ repository
 and make a ``release/v1.2.0`` branch.
 Update the version in ``recipe/meta.yaml``.
 Ensure the minimum dependencies in ``recipe/meta.yaml`` are correct by comparing with ``setup.cfg``.
@@ -50,7 +50,7 @@ This will automatically publish version 1.2.0 to conda-forge.
 Update records and publish notices
 ==================================
 
-[Make a new release on Github](https://github.com/csiro-coasts/emsarray/releases/new).
+`Make a new release on Github <https://github.com/csiro-coasts/emsarray/releases/new>`_.
 Select the 1.2.0 tag you just created.
 Copy the release notes from ``docs/releases/1.2.0.rst``.
 
