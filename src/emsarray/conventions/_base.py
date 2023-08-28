@@ -266,6 +266,41 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 "cannot assign a new convention.")
         state.bind_convention(self)
 
+    def copy_topology(self, dataset: xarray.Dataset) -> xarray.Dataset:
+        """
+        Reuse any topology information from this convention on a new dataset.
+
+        Many operations on datasets will return a new copy of a dataset
+        without changing the topology.
+        Computing the topology for a dataset can be expensive.
+        This method will copy the topology from one dataset to a new dataset.
+
+        Examples of topology-preserving operations include
+        selecting a subset of the time or depth dimensions of a dataset,
+        aggregating over a dimension,
+        or selecting a subset of the data variables.
+
+        Parameters
+        ----------
+        dataset : xarray.Dataset
+            A new dataset without any associated :class:`Convention`,
+            for example a new dataset that has just been returned from :meth:`xarray.Dataset.sel()`.
+
+        Returns
+        -------
+        dataset : xarray.Dataset
+            The same dataset that was passed in,
+            now with a new :class:`Convention` instance
+            that shares any calculated topology information.
+
+        See Also
+        --------
+        emsarray.decorators.preserves_topology
+        """
+        convention = type(self)(dataset)
+        convention.bind()
+        return dataset
+
     def _get_data_array(self, data_array: DataArrayOrName) -> xarray.DataArray:
         """
         Utility to help get a data array for this dataset.
@@ -1339,7 +1374,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             keep_vars.add(self.get_time_name())
         except NoSuchCoordinateError:
             pass
-        return self.dataset.drop_vars(all_vars - keep_vars)
+        return self.copy_topology(self.dataset.drop_vars(all_vars - keep_vars))
 
     @abc.abstractmethod
     def make_clip_mask(

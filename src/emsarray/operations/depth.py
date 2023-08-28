@@ -10,8 +10,10 @@ import numpy
 import xarray
 
 from emsarray import utils
+from emsarray.decorators import preserves_topology
 
 
+@preserves_topology
 def ocean_floor(
     dataset: xarray.Dataset,
     depth_variables: List[Hashable],
@@ -193,6 +195,7 @@ def _find_ocean_floor_indices(
     return cast(xarray.DataArray, max_depth_indices)
 
 
+@preserves_topology
 def normalize_depth_variables(
     dataset: xarray.Dataset,
     depth_variables: List[Hashable],
