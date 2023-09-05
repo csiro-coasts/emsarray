@@ -266,15 +266,15 @@ def test_make_geojson_geometry():
     assert isinstance(out, str)
 
 
-def test_ravel():
+def test_ravel() -> None:
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocStandard = dataset.ems
 
     for ravelled, (j, i) in enumerate(itertools.product(range(5), range(7))):
         index = (ArakawaCGridKind.face, j, i)
         assert convention.ravel_index(index) == ravelled
-        assert convention.unravel_index(ravelled) == index
-        assert convention.unravel_index(ravelled, ArakawaCGridKind.face) == index
+        assert convention.wind_index(ravelled) == index
+        assert convention.wind_index(ravelled, ArakawaCGridKind.face) == index
 
 
 def test_ravel_left():
@@ -284,7 +284,7 @@ def test_ravel_left():
     for ravelled, (j, i) in enumerate(itertools.product(range(5), range(8))):
         index = (ArakawaCGridKind.left, j, i)
         assert convention.ravel_index(index) == ravelled
-        assert convention.unravel_index(ravelled, ArakawaCGridKind.left) == index
+        assert convention.wind_index(ravelled, ArakawaCGridKind.left) == index
 
 
 def test_ravel_back():
@@ -294,7 +294,7 @@ def test_ravel_back():
     for ravelled, (j, i) in enumerate(itertools.product(range(6), range(7))):
         index = (ArakawaCGridKind.back, j, i)
         assert convention.ravel_index(index) == ravelled
-        assert convention.unravel_index(ravelled, ArakawaCGridKind.back) == index
+        assert convention.wind_index(ravelled, ArakawaCGridKind.back) == index
 
 
 def test_ravel_grid():
@@ -304,7 +304,7 @@ def test_ravel_grid():
     for ravelled, (j, i) in enumerate(itertools.product(range(6), range(8))):
         index = (ArakawaCGridKind.node, j, i)
         assert convention.ravel_index(index) == ravelled
-        assert convention.unravel_index(ravelled, ArakawaCGridKind.node) == index
+        assert convention.wind_index(ravelled, ArakawaCGridKind.node) == index
 
 
 def test_grid_kinds():
@@ -434,7 +434,7 @@ def test_drop_geometry(datasets: pathlib.Path):
 def test_values():
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
     eta = dataset.data_vars["eta"].isel(record=0)
-    values = dataset.ems.make_linear(eta)
+    values = dataset.ems.ravel(eta)
 
     # There should be one value per cell polygon
     assert len(values) == len(dataset.ems.polygons)

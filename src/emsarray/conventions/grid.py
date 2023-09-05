@@ -266,7 +266,7 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
     def pack_index(self, grid_kind: CFGridKind, indices: Sequence[int]) -> CFGridIndex:
         return cast(CFGridIndex, indices)
 
-    def unravel_index(
+    def wind_index(
         self,
         index: int,
         grid_kind: Optional[CFGridKind] = None,
@@ -304,7 +304,7 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
         dataset.attrs.pop('Conventions', None)
         return dataset
 
-    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
+    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
         surface_dims = [self.topology.y_dimension, self.topology.x_dimension]
         return utils.linearise_dimensions(data_array, surface_dims)
 
@@ -605,7 +605,7 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
     @cached_property
     def face_centres(self) -> numpy.ndarray:
         centres = numpy.column_stack((
-            self.make_linear(self.topology.longitude).values,
-            self.make_linear(self.topology.latitude).values,
+            self.ravel(self.topology.longitude).values,
+            self.ravel(self.topology.latitude).values,
         ))
         return cast(numpy.ndarray, centres)

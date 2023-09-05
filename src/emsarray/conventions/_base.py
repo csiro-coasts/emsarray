@@ -146,7 +146,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     A linear index is always an :class:`int`,
     while the native index type will depend on the specific convention.
     You can convert between a linear and a native index
-    using :meth:`.ravel_index` and :meth:`.unravel_index`.
+    using :meth:`.ravel_index` and :meth:`.wind_index`.
     Refer to :ref:`indexing` for more information.
     """
     #: The :class:`xarray.Dataset` instance for this :class:`Convention`
@@ -522,12 +522,12 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         See Also
         --------
-        :meth:`.Convention.unravel_index` : The inverse operation
+        :meth:`.Convention.wind_index` : The inverse operation
         """
         pass
 
     @abc.abstractmethod
-    def unravel_index(
+    def wind_index(
         self,
         linear_index: int,
         grid_kind: Optional[GridKind] = None,
@@ -540,11 +540,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         Parameters
         ----------
         linear_index : int
-            The linear index to unravel.
+            The linear index to wind.
         grid_kind : :data:`.GridKind`, optional
-            Used to indicate what kind of index is being unravelled,
+            Used to indicate what kind of index is being wound,
             for conventions with multiple grids.
-            Optional, if not provided this will return the unravelled face index.
+            Optional, if not provided the default grid kind will be used.
 
         Returns
         -------
@@ -564,7 +564,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             ('t', 'z', 'y', 'x')
             >>> temp.shape
             (10, 20, 30, 40)
-            >>> dataset.ems.unravel_index(124)
+            >>> dataset.ems.wind_index(124)
             (3, 4)
 
         See Also
@@ -572,6 +572,25 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :meth:`.Convention.ravel_index` : The inverse operation
         """
         pass
+
+    @utils.deprecated(
+        (
+            "Convention.unravel_index() has been renamed to "
+            "Convention.wind_index()."
+        ),
+        DeprecationWarning,
+    )
+    def unravel_index(
+        self,
+        linear_index: int,
+        grid_kind: Optional[GridKind] = None,
+    ) -> Index:
+        """An alias for :meth:`Convention.wind_index()`.
+
+        .. deprecated:: 0.6.0
+            Use :meth:`Convention.wind_index()` instead
+        """
+        return self.wind_index(linear_index, grid_kind=grid_kind)
 
     @property
     @abc.abstractmethod
@@ -697,7 +716,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return grid_kind, size
 
     @abc.abstractmethod
-    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
+    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
         """
         Flatten the surface dimensions of a :class:`~xarray.DataArray`,
         returning a flatter :class:`numpy.ndarray` indexed in the same order as the linear index.
@@ -718,12 +737,26 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Returns
         -------
-        :class:`xarray.DataArray`
-            A new data array, where all the surface dimensions have been flattened in to one linear array.
+        xarray.DataArray
+            A new data array, where all the surface dimensions
+            have been flattened in to one linear array.
             The values for each cell, in the same order as the linear index for this dataset.
             Any other dimensions, such as depth or time, will be retained.
         """
         pass
+
+    @utils.deprecated(
+        "Convention.make_linear() has been renamed to Convention.ravel().",
+        DeprecationWarning,
+    )
+    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
+        """A deprecated alias for :meth:`Convention.ravel()`
+
+        .. deprecated:: 0.6.0
+            This method is replaced by
+            :meth:`Convention.ravel()`
+        """
+        return self.ravel(data_array)
 
     @cached_property  # type: ignore
     @_requires_plot
@@ -947,7 +980,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         data_array : Hashable or :class:`xarray.DataArray`, optional
             A data array, or the name of a data variable in this dataset. Optional.
-            If given, the data array is :meth:`linearised <.make_linear>`
+            If given, the data array is :meth:`ravelled <.ravel>`
             and passed to :meth:`PolyCollection.set_array() <matplotlib.cm.ScalarMappable.set_array>`.
             The data is used to colour the patches.
             Refer to the matplotlib documentation for more information on styling.
@@ -991,7 +1024,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
             data_array = self._get_data_array(data_array)
 
-            data_array = self.make_linear(data_array)
+            data_array = self.ravel(data_array)
             if len(data_array.dims) > 1:
                 raise ValueError(
                     "Data array has too many dimensions - did you forget to "
@@ -1068,7 +1101,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                     f"v dimensions: {tuple(v.dims)}"
                 )
 
-            u, v = self.make_linear(u), self.make_linear(v)
+            u, v = self.ravel(u), self.ravel(v)
 
             if len(u.dims) > 1:
                 raise ValueError(
@@ -1135,11 +1168,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             dataset = emsarray.open_dataset("...")
             mask = dataset.ems.mask
             plottable_polygons = dataset.ems.polygons[mask]
-            plottable_values = dataset.ems.make_linear("eta")[mask]
+            plottable_values = dataset.ems.ravel("eta")[mask]
 
         See Also
         --------
-        :meth:`Convention.make_linear`
+        :meth:`Convention.ravel`
         """
         mask = numpy.fromiter(
             (p is not None for p in self.polygons),
@@ -1199,7 +1232,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :class:`.SpatialIndexItem`
         """
         items = [
-            (poly, SpatialIndexItem(index, self.unravel_index(index), poly))
+            (poly, SpatialIndexItem(index, self.wind_index(index), poly))
             for index, poly in enumerate(self.polygons)
             if poly is not None
         ]

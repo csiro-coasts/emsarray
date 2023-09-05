@@ -346,8 +346,8 @@ def test_ravel():
     for linear_index, (j, i) in enumerate(itertools.product(range(5), range(7))):
         index = (j, i)
         assert convention.ravel_index(index) == linear_index
-        assert convention.unravel_index(linear_index) == index
-        assert convention.unravel_index(linear_index, CFGridKind.face) == index
+        assert convention.wind_index(linear_index) == index
+        assert convention.wind_index(linear_index, CFGridKind.face) == index
 
 
 def test_grid_kinds():
@@ -383,7 +383,7 @@ def test_drop_geometry(datasets: pathlib.Path):
 def test_values():
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
     eta = dataset.data_vars["eta"].isel(time=0)
-    values = dataset.ems.make_linear(eta)
+    values = dataset.ems.ravel(eta)
 
     # There should be one value per cell polygon
     assert len(values) == len(dataset.ems.polygons)

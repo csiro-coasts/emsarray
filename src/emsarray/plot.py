@@ -272,7 +272,7 @@ def animate_on_figure(
     collection = None
     if scalar is not None:
         # Plot a scalar variable on the polygons using a colour map
-        scalar_values = convention.make_linear(scalar).values[:, convention.mask]
+        scalar_values = convention.ravel(scalar).values[:, convention.mask]
         collection = convention.make_poly_collection(
             cmap='jet', edgecolor='face',
             clim=(numpy.nanmin(scalar_values), numpy.nanmax(scalar_values)))
@@ -285,7 +285,7 @@ def animate_on_figure(
     if vector is not None:
         # Plot a vector variable using a quiver
         vector_u_values, vector_v_values = (
-            convention.make_linear(vec).values
+            convention.ravel(vec).values
             for vec in vector)
         # Quivers must start with some data.
         # Vector arrows are scaled using this initial data.

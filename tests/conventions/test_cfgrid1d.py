@@ -321,7 +321,7 @@ def test_ravel():
     for index in range(3 * 5):
         y, x = divmod(index, 3)
         assert convention.ravel_index((y, x)) == index
-        assert convention.unravel_index(index) == (y, x)
+        assert convention.wind_index(index) == (y, x)
 
 
 def test_grid_kinds():
@@ -356,7 +356,7 @@ def test_drop_geometry(datasets: pathlib.Path):
 def test_values():
     dataset = make_dataset(width=3, height=5)
     eta = dataset.data_vars["eta"].isel(time=0)
-    values = dataset.ems.make_linear(eta)
+    values = dataset.ems.ravel(eta)
 
     # There should be one value per cell polygon
     assert len(values) == len(dataset.ems.polygons)

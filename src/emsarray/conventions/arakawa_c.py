@@ -258,7 +258,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
     def pack_index(self, grid_kind: ArakawaCGridKind, indices: Sequence[int]) -> ArakawaCIndex:
         return cast(ArakawaCIndex, (grid_kind, *indices))
 
-    def unravel_index(
+    def wind_index(
         self,
         index: int,
         grid_kind: Optional[ArakawaCGridKind] = None,
@@ -266,7 +266,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         if grid_kind is None:
             grid_kind = ArakawaCGridKind.face
         topology = self._topology_for_grid_kind[grid_kind]
-        j, i = map(int, numpy.unravel_index(index, topology.shape))
+        j, i = map(int, numpy.wind_index(index, topology.shape))
         return (grid_kind, j, i)
 
     def ravel_index(self, indices: ArakawaCIndex) -> int:
@@ -293,8 +293,8 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
     @cached_property
     def face_centres(self) -> numpy.ndarray:
         centres = numpy.column_stack((
-            self.make_linear(self.face.longitude).values,
-            self.make_linear(self.face.latitude).values,
+            self.ravel(self.face.longitude).values,
+            self.ravel(self.face.latitude).values,
         ))
         return cast(numpy.ndarray, centres)
 
@@ -315,7 +315,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
             self.back.latitude.name,
         ]
 
-    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
+    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
         kind = self.get_grid_kind(data_array)
         topology = self._topology_for_grid_kind[kind]
         dimensions = [topology.j_dimension, topology.i_dimension]
