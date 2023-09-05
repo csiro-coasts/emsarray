@@ -8,7 +8,7 @@ import warnings
 from functools import cached_property
 from typing import (
     TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Generic, Hashable, Iterable,
-    List, Optional, Tuple, TypeVar, Union, cast
+    List, Optional, Sequence, Tuple, TypeVar, Union, cast
 )
 
 import numpy
@@ -424,7 +424,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 # If the variable is defined on a grid,
                 # it is more likely to be a bathymetry variable
                 # not the coordinate for the depth layers.
-                self.get_grid_kind_and_size(data_array)
+                self.get_grid_kind(data_array)
                 continue
             except ValueError:
                 # The variable isn't on a grid - this is good!
@@ -590,13 +590,66 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         pass
 
+    @property
     @abc.abstractmethod
+    def grid_size(self) -> Dict[GridKind, int]:
+        """The linear size of each grid kind."""
+        pass
+
+    @abc.abstractmethod
+    def get_grid_kind(self, data_array: xarray.DataArray) -> GridKind:
+        """
+        Determines the relevant grid kind for this data array.
+
+        If the data array is not indexable using the native index types
+        a ValueError is raised.
+
+        Parameters
+        ----------
+        data_array : xarray.DataArray
+            The data array to inspect
+
+        Returns
+        -------
+        :data:`.GridKind`
+
+        Raises
+        ------
+        ValueError
+            If the data array passed in is not indexable using any native index type
+            a ValueError is raised.
+            Depth coordinates or time coordinates are examples of data arrays
+            that will not be indexable and will raise an error.
+
+        Example
+        -------
+        For a :class:`UGRID <.ugrid.UGrid>` dataset
+        with temperature data defined at the cell centres
+        and current defined as flux through the cell edges:
+
+        .. code-block:: python
+
+            >>> dataset.data_vars['temp'].dims
+            ('time', 'depth', 'face')
+            >>> dataset.data_vars['u1'].dims
+            ('time', 'depth', 'edge')
+            >>> dataset.ems.get_grid_kind(dataset.data_vars['temp'])
+            UGridKind.face
+            >>> dataset.ems.get_grid_kind(dataset.data_vars['u1'])
+            UGridKind.edge
+        """
+        pass
+
     def get_grid_kind_and_size(
         self, data_array: xarray.DataArray,
     ) -> Tuple[GridKind, int]:
         """
         Determines the relevant index kind and the extent of the linear index space
         for this data array.
+
+        .. deprecated:: 0.6.0
+            This method is replaced by :meth:`Convention.get_grid_kind()`
+            and :attr:`Convention.grid_size`.
 
         If the data array is not indexable using the native index types
         a ValueError is raised.
@@ -639,7 +692,9 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             >>> dataset.ems.get_grid_kind_and_size(dataset.data_vars['u1'])
             (UGridKind.edge, 9)
         """
-        pass
+        grid_kind = self.get_grid_kind(data_array)
+        size = self.grid_size[grid_kind]
+        return grid_kind, size
 
     @abc.abstractmethod
     def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:

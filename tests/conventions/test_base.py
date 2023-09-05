@@ -49,11 +49,14 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         y, x = map(int, self.dataset['botz'].shape)
         return (y, x)
 
-    def get_grid_kind_and_size(self, data_array: xarray.DataArray) -> Tuple[SimpleGridKind, int]:
-        expected = {'y', 'x'}
-        if expected.issubset(data_array.dims):
-            return (SimpleGridKind.face, int(numpy.prod(self.shape)))
-        raise ValueError("Invalid dimensions")
+    @cached_property
+    def grid_size(self) -> Dict[SimpleGridKind, int]:
+        return {SimpleGridKind.face: int(numpy.prod(self.shape))}
+
+    def get_grid_kind(self, data_array: xarray.DataArray) -> SimpleGridKind:
+        if set(data_array.dims) >= {'x', 'y'}:
+            return SimpleGridKind.face
+        raise ValueError("Unknown grid type")
 
     def get_all_geometry_names(self) -> List[Hashable]:
         return ['x', 'y']
