@@ -16,8 +16,8 @@ from contextlib import suppress
 from dataclasses import dataclass
 from functools import cached_property
 from typing import (
-    Any, Dict, FrozenSet, Hashable, Iterable, List, Mapping, Optional, Set,
-    Tuple, cast
+    Any, Dict, FrozenSet, Hashable, Iterable, List, Mapping, Optional,
+    Sequence, Set, Tuple, cast
 )
 
 import numpy
@@ -31,7 +31,7 @@ from emsarray.exceptions import (
 )
 from emsarray.types import Bounds, Pathish
 
-from ._base import Convention, Specificity
+from ._base import DimensionConvention, Specificity
 
 logger = logging.getLogger(__name__)
 
@@ -1015,7 +1015,7 @@ class UGridKind(str, enum.Enum):
 UGridIndex = Tuple[UGridKind, int]
 
 
-class UGrid(Convention[UGridKind, UGridIndex]):
+class UGrid(DimensionConvention[UGridKind, UGridIndex]):
     """A :class:`.Convention` subclass to handle unstructured grid datasets.
     """
 
@@ -1050,6 +1050,22 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         """
         return Mesh2DTopology(self.dataset)
 
+    @cached_property
+    def grid_dimensions(self) -> Dict[UGridKind, Sequence[Hashable]]:
+        dimensions: Dict[UGridKind, Sequence[Hashable]] = {
+            UGridKind.node: [self.topology.node_dimension],
+            UGridKind.face: [self.topology.face_dimension],
+        }
+        if self.topology.has_edge_dimension:
+            dimensions[UGridKind.edge] = [self.topology.edge_dimension]
+        return dimensions
+
+    def unpack_index(self, index: UGridIndex) -> Tuple[UGridKind, Sequence[int]]:
+        return index[0], index[1:]
+
+    def pack_index(self, grid_kind: UGridKind, indices: Sequence[int]) -> UGridIndex:
+        return (grid_kind, indices[0])
+
     def ravel_index(self, index: UGridIndex) -> int:
         return index[1]
 
@@ -1069,17 +1085,6 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         if self.topology.has_edge_dimension:
             items.append(UGridKind.edge)
         return frozenset(items)
-
-    def get_grid_kind_and_size(
-        self, data_array: xarray.DataArray,
-    ) -> Tuple[UGridKind, int]:
-        if self.topology.face_dimension in data_array.dims:
-            return (UGridKind.face, self.topology.face_count)
-        if self.topology.has_edge_dimension and self.topology.edge_dimension in data_array.dims:
-            return (UGridKind.edge, self.topology.edge_count)
-        if self.topology.node_dimension in data_array.dims:
-            return (UGridKind.node, self.topology.node_count)
-        raise ValueError("Data array did not have any face, edge, or node dimension")
 
     @cached_property
     @utils.timed_func
@@ -1137,7 +1142,7 @@ class UGrid(Convention[UGridKind, UGridIndex]):
         raise ValueError("Invalid index")  # pragma: no-cover
 
     def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
-        grid_kind, shape = self.get_grid_kind_and_size(data_array)
+        grid_kind = self.get_grid_kind(data_array)
         grid_dimension = self.topology.dimension_for_grid_kind[grid_kind]
         return utils.linearise_dimensions(data_array, [grid_dimension])
 
