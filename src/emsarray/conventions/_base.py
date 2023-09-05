@@ -1534,3 +1534,115 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return depth.normalize_depth_variables(
             self.dataset, self.get_all_depth_names(),
             positive_down=positive_down, deep_to_shallow=deep_to_shallow)
+
+
+class DimensionConvention(Convention[GridKind, Index]):
+    """
+    A Convention subclass where different grid kinds
+    are always defined on unique sets of dimension.
+    This covers most conventions.
+
+    This subclass adds the abstract methods and properties:
+
+    - :attr:`.grid_dimensions`
+    - :meth:`.unpack_index`
+    - :meth:`.pack_index`
+
+    Default implementations are provided for:
+
+    - :attr:`.grid_size`
+    - :meth:`.get_grid_kind`
+    """
+
+    @property
+    @abc.abstractmethod
+    def grid_dimensions(self) -> Dict[GridKind, Sequence[Hashable]]:
+        """
+        The dimensions associated with a particular grid kind.
+
+        This is a mapping between :data:`grid kinds <GridKind>`
+        and an ordered list of dimension names.
+        Each dimension in the dataset must be associated with at most one grid kind.
+        Each grid kind must be associated with at least one dimension.
+        The dimensions must be in the order expected in a dataset,
+        if order is significant.
+
+        This property may introspect the dataset
+        to determine which dimensions are used.
+        The property should be cached.
+        """
+        pass
+
+    @property
+    def grid_shape(self) -> Dict[GridKind, Sequence[int]]:
+        """
+        The :attr:`shape <numpy.ndarray.shape>` of each grid kind.
+
+        :meth private:
+        """
+        return {
+            grid_kind: tuple(
+                self.dataset.dims[dim]
+                for dim in self.grid_dimensions[grid_kind]
+            )
+            for grid_kind in self.grid_kinds
+        }
+
+    @property
+    def grid_size(self) -> Dict[GridKind, int]:
+        return {
+            grid_kind: int(numpy.prod(shape))
+            for grid_kind, shape in self.grid_shape.items()
+        }
+
+    def get_grid_kind(self, data_array: xarray.DataArray) -> GridKind:
+        actual_dimensions = set(data_array.dims)
+        for kind, dimensions in self.grid_dimensions.items():
+            if actual_dimensions.issuperset(dimensions):
+                return kind
+        raise ValueError("Unknown grid kind")
+
+    @abc.abstractmethod
+    def unpack_index(self, index: Index) -> Tuple[GridKind, Sequence[int]]:
+        """Convert a native index in to a grid kind and dimension indices.
+
+        Parameters
+        ----------
+        index : Index
+            A native index
+
+        Returns
+        -------
+        grid_kind : GridKind
+            The grid kind
+        indices : sequence of int
+            The dimension indices
+
+        See Also
+        --------
+        pack_index
+        """
+
+        pass
+
+    @abc.abstractmethod
+    def pack_index(self, grid_kind: GridKind, indices: Sequence[int]) -> Index:
+        """Convert a grid kind and dimension indices in to a native index.
+
+        Parameters
+        ----------
+        grid_kind : GridKind
+            The grid kind
+        indices : sequence of int
+            The dimension indices
+
+        Returns
+        -------
+        index : Index
+            The corresponding native index
+
+        See Also
+        --------
+        unpack_index
+        """
+        pass
