@@ -1589,6 +1589,7 @@ class DimensionConvention(Convention[GridKind, Index]):
     - :meth:`.ravel_index`
     - :meth:`.wind_index`
     - :meth:`.ravel`
+    - :meth:`.selector_for_index`
     """
 
     @property
@@ -1706,3 +1707,8 @@ class DimensionConvention(Convention[GridKind, Index]):
         dimensions = self.grid_dimensions[kind]
         return utils.ravel_dimensions(
             data_array, list(dimensions))
+
+    def selector_for_index(self, index: Index) -> Dict[Hashable, int]:
+        grid_kind, indices = self.unpack_index(index)
+        dimensions = self.grid_dimensions[grid_kind]
+        return dict(zip(dimensions, indices))

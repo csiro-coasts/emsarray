@@ -1116,19 +1116,6 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         max_y = numpy.nanmax(topology.node_y)
         return (min_x, min_y, max_x, max_y)
 
-    def selector_for_index(self, index: UGridIndex) -> Dict[Hashable, int]:
-        kind, i = index
-        if kind is UGridKind.face:
-            return {self.topology.face_dimension: i}
-        if kind is UGridKind.edge:
-            if self.topology.has_edge_dimension:
-                return {self.topology.edge_dimension: i}
-            else:
-                raise ValueError("Grid has no edge dimension")
-        if kind is UGridKind.node:
-            return {self.topology.node_dimension: i}
-        raise ValueError("Invalid index")  # pragma: no-cover
-
     def make_clip_mask(
         self,
         clip_geometry: BaseGeometry,

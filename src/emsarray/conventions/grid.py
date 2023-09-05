@@ -266,10 +266,6 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
     def pack_index(self, grid_kind: CFGridKind, indices: Sequence[int]) -> CFGridIndex:
         return cast(CFGridIndex, indices)
 
-    def selector_for_index(self, index: CFGridIndex) -> Dict[Hashable, int]:
-        y, x = index
-        return {self.topology.y_dimension: y, self.topology.x_dimension: x}
-
     def get_all_geometry_names(self) -> List[Hashable]:
         # Grid datasets contain latitude and longitude variables
         # plus optional bounds variables.

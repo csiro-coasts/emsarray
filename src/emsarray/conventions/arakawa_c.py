@@ -282,11 +282,6 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         ))
         return cast(numpy.ndarray, centres)
 
-    def selector_for_index(self, index: ArakawaCIndex) -> Dict[Hashable, int]:
-        kind, j, i = index
-        topology = self._topology_for_grid_kind[kind]
-        return {topology.j_dimension: j, topology.i_dimension: i}
-
     def get_all_geometry_names(self) -> List[Hashable]:
         return [
             self.face.longitude.name,
