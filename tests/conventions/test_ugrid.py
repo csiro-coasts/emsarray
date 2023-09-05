@@ -463,12 +463,12 @@ def test_ravel():
     for linear_index in range(dataset.ems.topology.edge_count):
         index = (UGridKind.edge, linear_index)
         assert convention.ravel_index(index) == linear_index
-        assert convention.wind_index(linear_index, UGridKind.edge) == index
+        assert convention.wind_index(linear_index, grid_kind=UGridKind.edge) == index
 
     for linear_index in range(dataset.ems.topology.node_count):
         index = (UGridKind.node, linear_index)
         assert convention.ravel_index(index) == linear_index
-        assert convention.wind_index(linear_index, UGridKind.node) == index
+        assert convention.wind_index(linear_index, grid_kind=UGridKind.node) == index
 
 
 def test_grid_kinds_with_edges():

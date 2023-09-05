@@ -530,6 +530,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def wind_index(
         self,
         linear_index: int,
+        *,
         grid_kind: Optional[GridKind] = None,
     ) -> Index:
         """Convert a linear index to a conventnion native index.
@@ -1585,6 +1586,8 @@ class DimensionConvention(Convention[GridKind, Index]):
 
     - :attr:`.grid_size`
     - :meth:`.get_grid_kind`
+    - :meth:`.ravel_index`
+    - :meth:`.wind_index`
     """
 
     @property
@@ -1679,3 +1682,20 @@ class DimensionConvention(Convention[GridKind, Index]):
         unpack_index
         """
         pass
+
+    def ravel_index(self, index: Index) -> int:
+        grid_kind, indices = self.unpack_index(index)
+        shape = self.grid_shape[grid_kind]
+        return int(numpy.ravel_multi_index(indices, shape))
+
+    def wind_index(
+        self,
+        linear_index: int,
+        *,
+        grid_kind: Optional[GridKind] = None,
+    ) -> Index:
+        if grid_kind is None:
+            grid_kind = self.default_grid_kind
+        shape = self.grid_shape[grid_kind]
+        indices = tuple(map(int, numpy.unravel_index(linear_index, shape)))
+        return self.pack_index(grid_kind, indices)

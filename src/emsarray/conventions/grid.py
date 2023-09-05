@@ -266,17 +266,6 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
     def pack_index(self, grid_kind: CFGridKind, indices: Sequence[int]) -> CFGridIndex:
         return cast(CFGridIndex, indices)
 
-    def wind_index(
-        self,
-        index: int,
-        grid_kind: Optional[CFGridKind] = None,
-    ) -> CFGridIndex:
-        y, x = map(int, numpy.unravel_index(index, self.topology.shape))
-        return (y, x)
-
-    def ravel_index(self, indices: CFGridIndex) -> int:
-        return int(numpy.ravel_multi_index(indices, self.topology.shape))
-
     def selector_for_index(self, index: CFGridIndex) -> Dict[Hashable, int]:
         y, x = index
         return {self.topology.y_dimension: y, self.topology.x_dimension: x}

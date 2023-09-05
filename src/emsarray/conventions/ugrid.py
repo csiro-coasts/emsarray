@@ -1066,18 +1066,6 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
     def pack_index(self, grid_kind: UGridKind, indices: Sequence[int]) -> UGridIndex:
         return (grid_kind, indices[0])
 
-    def ravel_index(self, index: UGridIndex) -> int:
-        return index[1]
-
-    def wind_index(
-        self,
-        index: int,
-        grid_kind: Optional[UGridKind] = None,
-    ) -> UGridIndex:
-        if grid_kind is None:
-            grid_kind = UGridKind.face
-        return (grid_kind, index)
-
     @cached_property
     def grid_kinds(self) -> FrozenSet[UGridKind]:
         items = [UGridKind.face, UGridKind.node]

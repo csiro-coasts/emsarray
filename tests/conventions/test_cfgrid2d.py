@@ -347,7 +347,7 @@ def test_ravel():
         index = (j, i)
         assert convention.ravel_index(index) == linear_index
         assert convention.wind_index(linear_index) == index
-        assert convention.wind_index(linear_index, CFGridKind.face) == index
+        assert convention.wind_index(linear_index, grid_kind=CFGridKind.face) == index
 
 
 def test_grid_kinds():

@@ -64,6 +64,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     def wind_index(
         self,
         index: int,
+        *,
         grid_kind: Optional[SimpleGridKind] = None,
     ) -> SimpleGridIndex:
         y, x = map(int, numpy.unravel_index(index, self.shape))

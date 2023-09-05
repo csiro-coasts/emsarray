@@ -274,7 +274,7 @@ def test_ravel() -> None:
         index = (ArakawaCGridKind.face, j, i)
         assert convention.ravel_index(index) == ravelled
         assert convention.wind_index(ravelled) == index
-        assert convention.wind_index(ravelled, ArakawaCGridKind.face) == index
+        assert convention.wind_index(ravelled, grid_kind=ArakawaCGridKind.face) == index
 
 
 def test_ravel_left():
@@ -284,7 +284,7 @@ def test_ravel_left():
     for ravelled, (j, i) in enumerate(itertools.product(range(5), range(8))):
         index = (ArakawaCGridKind.left, j, i)
         assert convention.ravel_index(index) == ravelled
-        assert convention.wind_index(ravelled, ArakawaCGridKind.left) == index
+        assert convention.wind_index(ravelled, grid_kind=ArakawaCGridKind.left) == index
 
 
 def test_ravel_back():
@@ -294,7 +294,7 @@ def test_ravel_back():
     for ravelled, (j, i) in enumerate(itertools.product(range(6), range(7))):
         index = (ArakawaCGridKind.back, j, i)
         assert convention.ravel_index(index) == ravelled
-        assert convention.wind_index(ravelled, ArakawaCGridKind.back) == index
+        assert convention.wind_index(ravelled, grid_kind=ArakawaCGridKind.back) == index
 
 
 def test_ravel_grid():
@@ -304,7 +304,7 @@ def test_ravel_grid():
     for ravelled, (j, i) in enumerate(itertools.product(range(6), range(8))):
         index = (ArakawaCGridKind.node, j, i)
         assert convention.ravel_index(index) == ravelled
-        assert convention.wind_index(ravelled, ArakawaCGridKind.node) == index
+        assert convention.wind_index(ravelled, grid_kind=ArakawaCGridKind.node) == index
 
 
 def test_grid_kinds():

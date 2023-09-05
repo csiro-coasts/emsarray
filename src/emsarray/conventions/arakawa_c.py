@@ -258,22 +258,6 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
     def pack_index(self, grid_kind: ArakawaCGridKind, indices: Sequence[int]) -> ArakawaCIndex:
         return cast(ArakawaCIndex, (grid_kind, *indices))
 
-    def wind_index(
-        self,
-        index: int,
-        grid_kind: Optional[ArakawaCGridKind] = None,
-    ) -> ArakawaCIndex:
-        if grid_kind is None:
-            grid_kind = ArakawaCGridKind.face
-        topology = self._topology_for_grid_kind[grid_kind]
-        j, i = map(int, numpy.wind_index(index, topology.shape))
-        return (grid_kind, j, i)
-
-    def ravel_index(self, indices: ArakawaCIndex) -> int:
-        grid_kind, j, i = indices
-        topology = self._topology_for_grid_kind[grid_kind]
-        return int(numpy.ravel_multi_index((j, i), topology.shape))
-
     @cached_property
     @utils.timed_func
     def polygons(self) -> numpy.ndarray:
