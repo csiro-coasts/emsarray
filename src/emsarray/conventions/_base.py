@@ -1588,6 +1588,7 @@ class DimensionConvention(Convention[GridKind, Index]):
     - :meth:`.get_grid_kind`
     - :meth:`.ravel_index`
     - :meth:`.wind_index`
+    - :meth:`.ravel`
     """
 
     @property
@@ -1699,3 +1700,9 @@ class DimensionConvention(Convention[GridKind, Index]):
         shape = self.grid_shape[grid_kind]
         indices = tuple(map(int, numpy.unravel_index(linear_index, shape)))
         return self.pack_index(grid_kind, indices)
+
+    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
+        kind = self.get_grid_kind(data_array)
+        dimensions = self.grid_dimensions[kind]
+        return utils.ravel_dimensions(
+            data_array, list(dimensions))

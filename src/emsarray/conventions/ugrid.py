@@ -1129,11 +1129,6 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
             return {self.topology.node_dimension: i}
         raise ValueError("Invalid index")  # pragma: no-cover
 
-    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
-        grid_kind = self.get_grid_kind(data_array)
-        grid_dimension = self.topology.dimension_for_grid_kind[grid_kind]
-        return utils.linearise_dimensions(data_array, [grid_dimension])
-
     def make_clip_mask(
         self,
         clip_geometry: BaseGeometry,

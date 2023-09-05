@@ -293,10 +293,6 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
         dataset.attrs.pop('Conventions', None)
         return dataset
 
-    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
-        surface_dims = [self.topology.y_dimension, self.topology.x_dimension]
-        return utils.linearise_dimensions(data_array, surface_dims)
-
     def make_clip_mask(
         self,
         clip_geometry: BaseGeometry,

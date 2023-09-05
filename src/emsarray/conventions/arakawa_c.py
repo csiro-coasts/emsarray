@@ -299,12 +299,6 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
             self.back.latitude.name,
         ]
 
-    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
-        kind = self.get_grid_kind(data_array)
-        topology = self._topology_for_grid_kind[kind]
-        dimensions = [topology.j_dimension, topology.i_dimension]
-        return utils.linearise_dimensions(data_array, list(dimensions))
-
     def make_clip_mask(
         self,
         clip_geometry: BaseGeometry,
