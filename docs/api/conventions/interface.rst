@@ -18,7 +18,7 @@ the :class:`~emsarray.conventions.Convention` interface.
 
 .. autoclass:: emsarray.conventions.DimensionConvention
 
-   .. automethod:: grid_dimensions
+   .. autoattribute:: grid_dimensions
    .. automethod:: unpack_index
    .. automethod:: pack_index
 

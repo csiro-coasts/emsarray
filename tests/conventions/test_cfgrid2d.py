@@ -339,7 +339,7 @@ def test_make_geojson_geometry():
     assert isinstance(out, str)
 
 
-def test_ravel():
+def test_ravel_index():
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocSimple = dataset.ems
 
@@ -365,6 +365,37 @@ def test_grid_kind_and_size():
     grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['temp'])
     assert grid_kind is CFGridKind.face
     assert size == 5 * 7
+
+
+def test_ravel():
+    dataset = make_dataset(j_size=5, i_size=7)
+    convention: ShocSimple = dataset.ems
+
+    temp = dataset['temp']
+    flattened_temp = convention.ravel(temp)
+    assert flattened_temp.dims == ('time', 'k', 'index')
+    numpy.testing.assert_equal(
+        flattened_temp.values,
+        temp.values.reshape(temp.shape[:2] + (-1,)))
+
+
+def test_wind():
+    dataset = make_dataset(j_size=5, i_size=7)
+    convention: ShocSimple = dataset.ems
+
+    time_size = dataset.dims['time']
+    values = numpy.arange(time_size * convention.grid_size[CFGridKind.face])
+    flat_array = xarray.DataArray(
+        data=values.reshape((time_size, -1)),
+        dims=['time', 'index'],
+    )
+    wound_array = convention.wind(flat_array)
+
+    assert wound_array.dims == ('time', 'j', 'i')
+    assert wound_array.shape == (time_size, 5, 7)
+    numpy.testing.assert_equal(
+        wound_array.values,
+        values.reshape(time_size, 5, 7))
 
 
 def test_drop_geometry(datasets: pathlib.Path):
