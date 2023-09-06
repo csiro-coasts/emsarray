@@ -1,35 +1,34 @@
 # > imports
 import enum
 from functools import cached_property
-from typing import Optional, Tuple, Dict
+from typing import Dict, Hashable, Optional, Sequence, Tuple
 
 import numpy
 import xarray
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 
-from emsarray.conventions import Convention, Specificity
+from emsarray.conventions import DimensionConvention, Specificity
 from emsarray.masking import blur_mask
 from emsarray.types import Pathish
-from emsarray.utils import linearise_dimensions
 # <
 
 
 class GrassGridKind(enum.Enum):
-    blade = 'blade'
-    meadow = 'meadow'
+    field = 'field'
+    fence = 'fence'
 
 
-GrassIndex = Tuple[GrassGridKind, int, int]
+GrassIndex = Tuple[GrassGridKind, Sequence[int]]
 
 
-class Grass(Convention[GrassGridKind, GrassIndex]):
+class Grass(DimensionConvention[GrassGridKind, GrassIndex]):
 
     #: All the grid kinds this dataset has
     grid_kinds = frozenset(GrassGridKind)
 
     #: Indicates the grid kind of cells
-    default_grid_kind = GrassGridKind.blade
+    default_grid_kind = GrassGridKind.field
 
     @classmethod
     def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
@@ -38,61 +37,18 @@ class Grass(Convention[GrassGridKind, GrassIndex]):
             return Specificity.HIGH
         return None
 
-    def ravel_index(self, index: GrassIndex) -> int:
-        """Make a linear index from a native index"""
-        kind, warp, weft = index
-        # Meadows indexes are transposed from blade indexes
-        if kind is GrassGridKind.meadow:
-            return warp * self.dataset.dims['weft'] + weft
-        else:
-            return weft * self.dataset.dims['warp'] + warp
+    def unpack_index(self, index: GrassIndex) -> Tuple[GrassGridKind, Sequence[int]]:
+        return index[0], list(index[1])
 
-    def unravel_index(
-        self,
-        index: int,
-        grid_kind: Optional[GrassGridKind] = None,
-    ) -> GrassIndex:
-        """Make a native index from a linear index"""
-        grid_kind = grid_kind or self.default_grid_kind
-        if grid_kind is GrassGridKind.meadow:
-            warp, weft = divmod(index, self.dataset.dims['weft'])
-        else:
-            weft, warp = divmod(index, self.dataset.dims['warp'])
-        return (grid_kind, warp, weft)
+    def pack_index(self, grid_kind: GrassGridKind, indices: Sequence[int]) -> GrassIndex:
+        return (grid_kind, list(indices))
 
-    def get_grid_kind_and_size(
-        self, data_array: xarray.DataArray,
-    ) -> Tuple[GrassGridKind, int]:
-        """
-        For the given DataArray from this Dataset,
-        find out what kind of grid it is, and the linear size of that grid.
-        """
-        size = self.dataset.dims['warp'] * self.dataset.dims['weft']
-        if data_array.dims[-2:] == ('warp', 'weft'):
-            return GrassGridKind.meadow, size
-        if data_array.dims[-2:] == ('weft', 'warp'):
-            return GrassGridKind.blade, size
-        raise ValueError(
-            "DataArray does not appear to be either a blade or meadow grid")
-
-    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
-        """
-        Make the given DataArray linear in its grid dimensions.
-        """
-        grid_kind, size = self.get_grid_kind_and_size(data_array)
-        if grid_kind is GrassGridKind.meadow:
-            dimensions = ['warp', 'weft']
-        else:
-            dimensions = ['weft', 'warp']
-        return linearise_dimensions(data_array, dimensions)
-
-    def selector_for_index(self, index: GrassIndex) -> Dict[str, int]:
-        """
-        Make a selector for a particular index.
-        This selector can be passed to Dataset.isel().
-        """
-        kind, warp, weft = index
-        return {'warp': warp, 'weft': weft}
+    @cached_property
+    def grid_dimensions(self) -> Dict[GrassGridKind, Sequence[Hashable]]:
+        return {
+            GrassGridKind.field: ['warp', 'weft'],
+            GrassGridKind.fence: ['post'],
+        }
 
     @cached_property
     def polygons(self) -> numpy.ndarray:
@@ -111,42 +67,46 @@ class Grass(Convention[GrassGridKind, GrassIndex]):
         clip_geometry: BaseGeometry,
         buffer: int = 0,
     ) -> xarray.Dataset:
-        # Find all the blades that intersect the clip geometry
-        intersecting_blades = [
-            item
-            for item, polygon in self.spatial_index.query(clip_geometry)
+        # Find all the fields that intersect the clip geometry
+        intersecting_fields = [
+            field
+            for field, polygon in self.spatial_index.query(clip_geometry)
             if polygon.intersects(clip_geometry)
         ]
         # Get all the linear indexes of the intersecting blades
-        blade_indexes = np.array([i.linear_index for i in intersecting_blades])
-        # Find all the meadows associated with each intesecting blade
-        meadow_indexes = np.unique([
-            self.ravel_index(blade_index)
-            for item in intersecting_blades
-            for blade_index in self.get_meadows_for_blade(item.index)
+        field_indexes = numpy.array([i.linear_index for i in intersecting_fields])
+        # Find all the fences associated with each intesecting field
+        fence_indexes = numpy.unique([
+            self.ravel_index(fence_index)
+            for field in intersecting_fields
+            for fence_index in self.get_fences_around_field(field.index)
         ])
 
-        warp = self.dataset.dims['warp']
-        weft = self.dataset.dims['weft']
+        # Make an array of which fields to keep
+        keep_fields = xarray.DataArray(
+            data=numpy.zeros(self.grid_size[GrassGridKind.field], dtype=bool),
+            dims=['index'],
+        )
+        keep_fields.values[field_indexes] = True
+        keep_fields = self.wind(keep_fields, grid_kind=GrassGridKind.field)
 
-        # Make a 2d array of which blades to keep
-        keep_blades = np.zeros((weft, warp), dtype=bool)
-        keep_blades.ravel()[blade_indexes] = True
-
-        # Same for meadows
-        keep_meadows = np.zeros((warp, weft), dtype=bool)
-        keep_meadows.ravel()[meadow_indexes] = True
+        # Same for fences
+        keep_fences = xarray.DataArray(
+            data=numpy.zeros(self.grid_size[GrassGridKind.fence], dtype=bool),
+            dims=['index'],
+        )
+        keep_fences.values[fence_indexes] = True
+        keep_fences = self.wind(keep_fences, grid_kind=GrassGridKind.fence)
 
         # Blur the masks a bit if the clip region needs buffering
         if buffer > 0:
-            keep_blades = blur_mask(keep_blades, size=buffer)
-            keep_meadows = blur_mask(keep_meadows, size=buffer)
+            keep_fields.values = blur_mask(keep_fields.values, size=buffer)
 
         # Make a dataset out of these masks
         return xarray.Dataset(
             data_vars={
-                'blades': xarray.DataArray(data=keep_blades, dims=['weft', 'warp']),
-                'meadows': xarray.DataArray(data=keep_meadows, dims=['warp', 'weft']),
+                'fields': keep_fields,
+                'fences': keep_fences,
             },
         )
 

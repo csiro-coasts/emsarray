@@ -42,12 +42,15 @@ If it only supports one grid, make an enum with a single member.
    :pyobject: GrassGridKind
 
 A Convention must specify the :ref:`convention native index types <indexing>` it uses.
-GRASS has two-dimensional indexes for both the blade and meadow grids,
-making indexes like ``(kind, warp, weft)``:
+GRASS grids use indexes with two coordinates for fields,
+and one index for fences:
 
 .. literalinclude:: ./grass.py
    :start-at: GrassIndex
-   :lines: 1
+   :lines: 1-4
+
+Specifying the index type is only used for type checking,
+it is not referred to or enforced at runtime.
 
 Convention class
 ----------------
@@ -65,39 +68,24 @@ and returns a value indicating whether this convention implementation can unders
 .. literalinclude:: ./grass.py
    :pyobject: Grass.check_dataset
 
-The :meth:`.Convention.ravel_index` and :meth:`.Convention.unravel_index` methods
-convert between linear and native indexes.
-It is important that the functions are the inverse of one another ---
-that is ``grass.unravel_index(grass.ravel_index(index)) == index``.
+:meth:`.DimensionConvention.unpack_index` and :meth:`.DimensionConvention.pack_index`
+transform between native index types and a grid kind and indices.
+The native representation must be representable as JSON for GeoJSON export support.
+The simplest representation is a tuple of (grid_kind, indices):
 
 .. literalinclude:: ./grass.py
-   :pyobject: Grass.ravel_index
+   :pyobject: Grass.unpack_index
 
 .. literalinclude:: ./grass.py
-   :pyobject: Grass.unravel_index
+   :pyobject: Grass.pack_index
 
-:meth:`.Convention.get_grid_kind_and_size` determines
-what kind of grid a :class:`xarray.DataArray` contains.
-This is usually done by examining the dimensions of the DataArray.
-
-.. literalinclude:: ./grass.py
-   :pyobject: Grass.get_grid_kind_and_size
-
-:meth:`.Convention.make_linear` takes a :class:`~xarray.DataArray`
-and flattens the grid dimensions.
-The returned data array can be indexed using linear indexes.
-Non-grid dimensions such as time and depth should be left as-is.
-:func:`emsarray.utils.linearise_dimensions` is very useful here.
+:meth:`.DimensionConvention.grid_dimensions` specifies which dataset dimensions
+each grid kind is defined on.
+This method can introspect the dataset to determine the correct dimensions if required.
+This method should be cached.
 
 .. literalinclude:: ./grass.py
-   :pyobject: Grass.make_linear
-
-:meth:`.Convention.selector_for_index` takes a native index
-and returns a dict that can be passed to :meth:`xarray.Dataset.isel`.
-This selector can be used to subset the dataset to a single grid index.
-
-.. literalinclude:: ./grass.py
-   :pyobject: Grass.selector_for_index
+   :pyobject: Grass.grid_dimensions
 
 :attr:`.Convention.polygons` is an array of :class:`shapely.Polygon` instances,
 one for each face in the dataset.
