@@ -561,7 +561,7 @@ def move_dimensions_to_end(
         return data_array.transpose(*new_order)
 
 
-def linearise_dimensions(
+def ravel_dimensions(
     data_array: xarray.DataArray,
     dimensions: List[Hashable],
     linear_dimension: Optional[Hashable] = None,
@@ -600,7 +600,7 @@ def linearise_dimensions(
         ...     data=numpy.random.random((3, 5, 7)),
         ...     dims=['x', 'y', 'z'],
         ... )
-        >>> flattened = linearise_dimensions(data_array, ['y', 'x'])
+        >>> flattened = ravel_dimensions(data_array, ['y', 'x'])
         >>> flattened.dims
         ('z', 'index')
         >>> flattened.shape

@@ -11,7 +11,8 @@ import warnings
 from contextlib import suppress
 from functools import cached_property
 from typing import (
-    Dict, Generic, Hashable, List, Optional, Tuple, Type, TypeVar, cast
+    Dict, Generic, Hashable, List, Optional, Sequence, Tuple, Type, TypeVar,
+    cast
 )
 
 import numpy
@@ -23,7 +24,7 @@ from emsarray import masking, utils
 from emsarray.exceptions import ConventionViolationWarning
 from emsarray.types import Bounds, Pathish
 
-from ._base import Convention, Specificity
+from ._base import DimensionConvention, Specificity
 
 
 class CFGridKind(str, enum.Enum):
@@ -189,7 +190,7 @@ class CFGridTopology(abc.ABC):
 Topology = TypeVar('Topology', bound=CFGridTopology)
 
 
-class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
+class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
     """
     A base class for CF grid datasets.
     There are two concrete subclasses: :class:`CFGrid1D` and :class:`CFGrid2D`.
@@ -253,32 +254,17 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
         max_y = numpy.nanmax(topology.latitude_bounds)
         return (min_x, min_y, max_x, max_y)
 
-    def unravel_index(
-        self,
-        index: int,
-        grid_kind: Optional[CFGridKind] = None,
-    ) -> CFGridIndex:
-        y, x = map(int, numpy.unravel_index(index, self.topology.shape))
-        return (y, x)
+    @cached_property
+    def grid_dimensions(self) -> Dict[CFGridKind, Sequence[Hashable]]:
+        return {
+            CFGridKind.face: [self.topology.y_dimension, self.topology.x_dimension],
+        }
 
-    def ravel_index(self, indices: CFGridIndex) -> int:
-        return int(numpy.ravel_multi_index(indices, self.topology.shape))
+    def unpack_index(self, index: CFGridIndex) -> Tuple[CFGridKind, Sequence[int]]:
+        return CFGridKind.face, index
 
-    def get_grid_kind_and_size(
-        self,
-        data_array: xarray.DataArray,
-    ) -> Tuple[CFGridKind, int]:
-        expected = {self.topology.y_dimension, self.topology.x_dimension}
-        dims = set(data_array.dims)
-        if dims.issuperset(expected):
-            return (CFGridKind.face, self.topology.size)
-
-        expected_sorted = sorted(expected, key=str)
-        raise ValueError(f"Data array did not have dimensions {expected_sorted!r}")
-
-    def selector_for_index(self, index: CFGridIndex) -> Dict[Hashable, int]:
-        y, x = index
-        return {self.topology.y_dimension: y, self.topology.x_dimension: x}
+    def pack_index(self, grid_kind: CFGridKind, indices: Sequence[int]) -> CFGridIndex:
+        return cast(CFGridIndex, indices)
 
     def get_all_geometry_names(self) -> List[Hashable]:
         # Grid datasets contain latitude and longitude variables
@@ -302,10 +288,6 @@ class CFGrid(Generic[Topology], Convention[CFGridKind, CFGridIndex]):
         dataset = super().drop_geometry()
         dataset.attrs.pop('Conventions', None)
         return dataset
-
-    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
-        surface_dims = [self.topology.y_dimension, self.topology.x_dimension]
-        return utils.linearise_dimensions(data_array, surface_dims)
 
     def make_clip_mask(
         self,
@@ -604,7 +586,7 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
     @cached_property
     def face_centres(self) -> numpy.ndarray:
         centres = numpy.column_stack((
-            self.make_linear(self.topology.longitude).values,
-            self.make_linear(self.topology.latitude).values,
+            self.ravel(self.topology.longitude).values,
+            self.ravel(self.topology.latitude).values,
         ))
         return cast(numpy.ndarray, centres)

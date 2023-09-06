@@ -75,7 +75,7 @@ def to_geojson(
     return geojson.FeatureCollection(_dumpable_iterator(
         geojson.Feature(geometry=polygon, properties={
             'linear_index': i,
-            'index': dataset.ems.unravel_index(i),
+            'index': dataset.ems.wind_index(i),
         })
         for i, polygon in enumerate(dataset.ems.polygons)
         if polygon is not None
@@ -167,7 +167,7 @@ def write_shapefile(
             writer.record(
                 name=f'polygon{i}',
                 linear_index=i,
-                index=json.dumps(dataset.ems.unravel_index(i)),
+                index=json.dumps(dataset.ems.wind_index(i)),
             )
             writer.shape(polygon.__geo_interface__)
 

@@ -45,7 +45,7 @@ def test_write_geojson(datasets: pathlib.Path, tmp_path: pathlib.Path):
         actual_polygon = shapely.geometry.shape(row.feature['geometry'])
         assert_geometries_equal(row.polygon, actual_polygon, tolerance=1e-6)
         assert row.linear_index == row.feature['properties']['linear_index']
-        assert _json_roundtrip(dataset.ems.unravel_index(row.linear_index)) \
+        assert _json_roundtrip(dataset.ems.wind_index(row.linear_index)) \
             == row.feature['properties']['index']
 
     saved_geometry = shapely.from_geojson(out_path.read_bytes())
@@ -71,7 +71,7 @@ def test_write_shapefile(datasets: pathlib.Path, tmp_path: pathlib.Path):
         for row in polygons.itertuples():
             assert row.shape_record.record[1] == row.linear_index
             assert json.loads(row.shape_record.record[2]) \
-                == _json_roundtrip(dataset.ems.unravel_index(row.linear_index))
+                == _json_roundtrip(dataset.ems.wind_index(row.linear_index))
             actual_polygon = shapely.geometry.shape(row.shape_record.__geo_interface__['geometry']),
             assert_geometries_equal(actual_polygon, row.polygon)
 

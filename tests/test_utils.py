@@ -428,7 +428,7 @@ def test_linearize_dimensions_exact_dimensions():
         data=data_array.values.ravel(),
         dims=['index'],
     )
-    linearized = utils.linearise_dimensions(data_array, ['y', 'x'])
+    linearized = utils.ravel_dimensions(data_array, ['y', 'x'])
     xarray.testing.assert_equal(linearized, expected)
 
 
@@ -451,7 +451,7 @@ def test_linearize_dimensions_extra_dimensions():
             'z': data_array.coords['z'],
         },
     )
-    linearized = utils.linearise_dimensions(data_array, ['y', 'x'])
+    linearized = utils.ravel_dimensions(data_array, ['y', 'x'])
     xarray.testing.assert_equal(linearized, expected)
 
 
@@ -464,7 +464,7 @@ def test_linearize_dimensions_custom_name():
         data=numpy.reshape(numpy.transpose(data_array.values, (0, 3, 2, 1)), (2, 3, -1)),
         dims=['t', 'z', 'i'],
     )
-    linearized = utils.linearise_dimensions(data_array, ['y', 'x'], linear_dimension='i')
+    linearized = utils.ravel_dimensions(data_array, ['y', 'x'], linear_dimension='i')
     xarray.testing.assert_equal(linearized, expected)
 
 
@@ -477,5 +477,5 @@ def test_linearize_dimensions_auto_name_conflict():
         data=numpy.reshape(numpy.transpose(data_array.values, (0, 1, 3, 2)), (2, 7, -1)),
         dims=['index', 'index_0', 'index_1'],
     )
-    linearized = utils.linearise_dimensions(data_array, ['index_2', 'index_1'])
+    linearized = utils.ravel_dimensions(data_array, ['index_2', 'index_1'])
     xarray.testing.assert_equal(linearized, expected)

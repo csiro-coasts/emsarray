@@ -49,18 +49,22 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         y, x = map(int, self.dataset['botz'].shape)
         return (y, x)
 
-    def get_grid_kind_and_size(self, data_array: xarray.DataArray) -> Tuple[SimpleGridKind, int]:
-        expected = {'y', 'x'}
-        if expected.issubset(data_array.dims):
-            return (SimpleGridKind.face, int(numpy.prod(self.shape)))
-        raise ValueError("Invalid dimensions")
+    @cached_property
+    def grid_size(self) -> Dict[SimpleGridKind, int]:
+        return {SimpleGridKind.face: int(numpy.prod(self.shape))}
+
+    def get_grid_kind(self, data_array: xarray.DataArray) -> SimpleGridKind:
+        if set(data_array.dims) >= {'x', 'y'}:
+            return SimpleGridKind.face
+        raise ValueError("Unknown grid type")
 
     def get_all_geometry_names(self) -> List[Hashable]:
         return ['x', 'y']
 
-    def unravel_index(
+    def wind_index(
         self,
         index: int,
+        *,
         grid_kind: Optional[SimpleGridKind] = None,
     ) -> SimpleGridIndex:
         y, x = map(int, numpy.unravel_index(index, self.shape))
@@ -72,8 +76,8 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     def selector_for_index(self, index: SimpleGridIndex) -> Dict[Hashable, int]:
         return {'x': index.x, 'y': index.y}
 
-    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
-        return utils.linearise_dimensions(data_array, ['y', 'x'])
+    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
+        return utils.ravel_dimensions(data_array, ['y', 'x'])
 
     def drop_geometry(self) -> xarray.Dataset:
         return self.dataset
@@ -501,7 +505,7 @@ def test_make_poly_collection_data_array():
     patches = convention.make_poly_collection(data_array='botz')
     assert len(patches.get_paths()) == len(convention.polygons[convention.mask])
 
-    values = convention.make_linear(dataset.data_vars['botz'])[convention.mask]
+    values = convention.ravel(dataset.data_vars['botz'])[convention.mask]
     numpy.testing.assert_equal(patches.get_array(), values)
     assert patches.get_clim() == (numpy.nanmin(values), numpy.nanmax(values))
 

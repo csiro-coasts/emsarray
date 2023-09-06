@@ -8,7 +8,7 @@ import warnings
 from functools import cached_property
 from typing import (
     TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Generic, Hashable, Iterable,
-    List, Optional, Tuple, TypeVar, Union, cast
+    List, Optional, Sequence, Tuple, TypeVar, Union, cast
 )
 
 import numpy
@@ -146,7 +146,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     A linear index is always an :class:`int`,
     while the native index type will depend on the specific convention.
     You can convert between a linear and a native index
-    using :meth:`.ravel_index` and :meth:`.unravel_index`.
+    using :meth:`.ravel_index` and :meth:`.wind_index`.
     Refer to :ref:`indexing` for more information.
     """
     #: The :class:`xarray.Dataset` instance for this :class:`Convention`
@@ -424,7 +424,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 # If the variable is defined on a grid,
                 # it is more likely to be a bathymetry variable
                 # not the coordinate for the depth layers.
-                self.get_grid_kind_and_size(data_array)
+                self.get_grid_kind(data_array)
                 continue
             except ValueError:
                 # The variable isn't on a grid - this is good!
@@ -522,14 +522,15 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         See Also
         --------
-        :meth:`.Convention.unravel_index` : The inverse operation
+        :meth:`.Convention.wind_index` : The inverse operation
         """
         pass
 
     @abc.abstractmethod
-    def unravel_index(
+    def wind_index(
         self,
         linear_index: int,
+        *,
         grid_kind: Optional[GridKind] = None,
     ) -> Index:
         """Convert a linear index to a conventnion native index.
@@ -540,11 +541,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         Parameters
         ----------
         linear_index : int
-            The linear index to unravel.
+            The linear index to wind.
         grid_kind : :data:`.GridKind`, optional
-            Used to indicate what kind of index is being unravelled,
+            Used to indicate what kind of index is being wound,
             for conventions with multiple grids.
-            Optional, if not provided this will return the unravelled face index.
+            Optional, if not provided the default grid kind will be used.
 
         Returns
         -------
@@ -564,7 +565,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             ('t', 'z', 'y', 'x')
             >>> temp.shape
             (10, 20, 30, 40)
-            >>> dataset.ems.unravel_index(124)
+            >>> dataset.ems.wind_index(124)
             (3, 4)
 
         See Also
@@ -572,6 +573,25 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :meth:`.Convention.ravel_index` : The inverse operation
         """
         pass
+
+    @utils.deprecated(
+        (
+            "Convention.unravel_index() has been renamed to "
+            "Convention.wind_index()."
+        ),
+        DeprecationWarning,
+    )
+    def unravel_index(
+        self,
+        linear_index: int,
+        grid_kind: Optional[GridKind] = None,
+    ) -> Index:
+        """An alias for :meth:`Convention.wind_index()`.
+
+        .. deprecated:: 0.6.0
+            Use :meth:`Convention.wind_index()` instead
+        """
+        return self.wind_index(linear_index, grid_kind=grid_kind)
 
     @property
     @abc.abstractmethod
@@ -590,13 +610,66 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         pass
 
+    @property
     @abc.abstractmethod
+    def grid_size(self) -> Dict[GridKind, int]:
+        """The linear size of each grid kind."""
+        pass
+
+    @abc.abstractmethod
+    def get_grid_kind(self, data_array: xarray.DataArray) -> GridKind:
+        """
+        Determines the relevant grid kind for this data array.
+
+        If the data array is not indexable using the native index types
+        a ValueError is raised.
+
+        Parameters
+        ----------
+        data_array : xarray.DataArray
+            The data array to inspect
+
+        Returns
+        -------
+        :data:`.GridKind`
+
+        Raises
+        ------
+        ValueError
+            If the data array passed in is not indexable using any native index type
+            a ValueError is raised.
+            Depth coordinates or time coordinates are examples of data arrays
+            that will not be indexable and will raise an error.
+
+        Example
+        -------
+        For a :class:`UGRID <.ugrid.UGrid>` dataset
+        with temperature data defined at the cell centres
+        and current defined as flux through the cell edges:
+
+        .. code-block:: python
+
+            >>> dataset.data_vars['temp'].dims
+            ('time', 'depth', 'face')
+            >>> dataset.data_vars['u1'].dims
+            ('time', 'depth', 'edge')
+            >>> dataset.ems.get_grid_kind(dataset.data_vars['temp'])
+            UGridKind.face
+            >>> dataset.ems.get_grid_kind(dataset.data_vars['u1'])
+            UGridKind.edge
+        """
+        pass
+
     def get_grid_kind_and_size(
         self, data_array: xarray.DataArray,
     ) -> Tuple[GridKind, int]:
         """
         Determines the relevant index kind and the extent of the linear index space
         for this data array.
+
+        .. deprecated:: 0.6.0
+            This method is replaced by :meth:`Convention.get_grid_kind()`
+            and :attr:`Convention.grid_size`.
 
         If the data array is not indexable using the native index types
         a ValueError is raised.
@@ -639,10 +712,12 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             >>> dataset.ems.get_grid_kind_and_size(dataset.data_vars['u1'])
             (UGridKind.edge, 9)
         """
-        pass
+        grid_kind = self.get_grid_kind(data_array)
+        size = self.grid_size[grid_kind]
+        return grid_kind, size
 
     @abc.abstractmethod
-    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
+    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
         """
         Flatten the surface dimensions of a :class:`~xarray.DataArray`,
         returning a flatter :class:`numpy.ndarray` indexed in the same order as the linear index.
@@ -663,12 +738,26 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Returns
         -------
-        :class:`xarray.DataArray`
-            A new data array, where all the surface dimensions have been flattened in to one linear array.
+        xarray.DataArray
+            A new data array, where all the surface dimensions
+            have been flattened in to one linear array.
             The values for each cell, in the same order as the linear index for this dataset.
             Any other dimensions, such as depth or time, will be retained.
         """
         pass
+
+    @utils.deprecated(
+        "Convention.make_linear() has been renamed to Convention.ravel().",
+        DeprecationWarning,
+    )
+    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
+        """A deprecated alias for :meth:`Convention.ravel()`
+
+        .. deprecated:: 0.6.0
+            This method is replaced by
+            :meth:`Convention.ravel()`
+        """
+        return self.ravel(data_array)
 
     @cached_property  # type: ignore
     @_requires_plot
@@ -892,7 +981,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         data_array : Hashable or :class:`xarray.DataArray`, optional
             A data array, or the name of a data variable in this dataset. Optional.
-            If given, the data array is :meth:`linearised <.make_linear>`
+            If given, the data array is :meth:`ravelled <.ravel>`
             and passed to :meth:`PolyCollection.set_array() <matplotlib.cm.ScalarMappable.set_array>`.
             The data is used to colour the patches.
             Refer to the matplotlib documentation for more information on styling.
@@ -936,7 +1025,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
             data_array = self._get_data_array(data_array)
 
-            data_array = self.make_linear(data_array)
+            data_array = self.ravel(data_array)
             if len(data_array.dims) > 1:
                 raise ValueError(
                     "Data array has too many dimensions - did you forget to "
@@ -1013,7 +1102,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                     f"v dimensions: {tuple(v.dims)}"
                 )
 
-            u, v = self.make_linear(u), self.make_linear(v)
+            u, v = self.ravel(u), self.ravel(v)
 
             if len(u.dims) > 1:
                 raise ValueError(
@@ -1080,11 +1169,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             dataset = emsarray.open_dataset("...")
             mask = dataset.ems.mask
             plottable_polygons = dataset.ems.polygons[mask]
-            plottable_values = dataset.ems.make_linear("eta")[mask]
+            plottable_values = dataset.ems.ravel("eta")[mask]
 
         See Also
         --------
-        :meth:`Convention.make_linear`
+        :meth:`Convention.ravel`
         """
         mask = numpy.fromiter(
             (p is not None for p in self.polygons),
@@ -1144,7 +1233,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :class:`.SpatialIndexItem`
         """
         items = [
-            (poly, SpatialIndexItem(index, self.unravel_index(index), poly))
+            (poly, SpatialIndexItem(index, self.wind_index(index), poly))
             for index, poly in enumerate(self.polygons)
             if poly is not None
         ]
@@ -1479,3 +1568,147 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return depth.normalize_depth_variables(
             self.dataset, self.get_all_depth_names(),
             positive_down=positive_down, deep_to_shallow=deep_to_shallow)
+
+
+class DimensionConvention(Convention[GridKind, Index]):
+    """
+    A Convention subclass where different grid kinds
+    are always defined on unique sets of dimension.
+    This covers most conventions.
+
+    This subclass adds the abstract methods and properties:
+
+    - :attr:`.grid_dimensions`
+    - :meth:`.unpack_index`
+    - :meth:`.pack_index`
+
+    Default implementations are provided for:
+
+    - :attr:`.grid_size`
+    - :meth:`.get_grid_kind`
+    - :meth:`.ravel_index`
+    - :meth:`.wind_index`
+    - :meth:`.ravel`
+    - :meth:`.selector_for_index`
+    """
+
+    @property
+    @abc.abstractmethod
+    def grid_dimensions(self) -> Dict[GridKind, Sequence[Hashable]]:
+        """
+        The dimensions associated with a particular grid kind.
+
+        This is a mapping between :data:`grid kinds <GridKind>`
+        and an ordered list of dimension names.
+        Each dimension in the dataset must be associated with at most one grid kind.
+        Each grid kind must be associated with at least one dimension.
+        The dimensions must be in the order expected in a dataset,
+        if order is significant.
+
+        This property may introspect the dataset
+        to determine which dimensions are used.
+        The property should be cached.
+        """
+        pass
+
+    @property
+    def grid_shape(self) -> Dict[GridKind, Sequence[int]]:
+        """
+        The :attr:`shape <numpy.ndarray.shape>` of each grid kind.
+
+        :meth private:
+        """
+        return {
+            grid_kind: tuple(
+                self.dataset.dims[dim]
+                for dim in self.grid_dimensions[grid_kind]
+            )
+            for grid_kind in self.grid_kinds
+        }
+
+    @property
+    def grid_size(self) -> Dict[GridKind, int]:
+        return {
+            grid_kind: int(numpy.prod(shape))
+            for grid_kind, shape in self.grid_shape.items()
+        }
+
+    def get_grid_kind(self, data_array: xarray.DataArray) -> GridKind:
+        actual_dimensions = set(data_array.dims)
+        for kind, dimensions in self.grid_dimensions.items():
+            if actual_dimensions.issuperset(dimensions):
+                return kind
+        raise ValueError("Unknown grid kind")
+
+    @abc.abstractmethod
+    def unpack_index(self, index: Index) -> Tuple[GridKind, Sequence[int]]:
+        """Convert a native index in to a grid kind and dimension indices.
+
+        Parameters
+        ----------
+        index : Index
+            A native index
+
+        Returns
+        -------
+        grid_kind : GridKind
+            The grid kind
+        indices : sequence of int
+            The dimension indices
+
+        See Also
+        --------
+        pack_index
+        """
+
+        pass
+
+    @abc.abstractmethod
+    def pack_index(self, grid_kind: GridKind, indices: Sequence[int]) -> Index:
+        """Convert a grid kind and dimension indices in to a native index.
+
+        Parameters
+        ----------
+        grid_kind : GridKind
+            The grid kind
+        indices : sequence of int
+            The dimension indices
+
+        Returns
+        -------
+        index : Index
+            The corresponding native index
+
+        See Also
+        --------
+        unpack_index
+        """
+        pass
+
+    def ravel_index(self, index: Index) -> int:
+        grid_kind, indices = self.unpack_index(index)
+        shape = self.grid_shape[grid_kind]
+        return int(numpy.ravel_multi_index(indices, shape))
+
+    def wind_index(
+        self,
+        linear_index: int,
+        *,
+        grid_kind: Optional[GridKind] = None,
+    ) -> Index:
+        if grid_kind is None:
+            grid_kind = self.default_grid_kind
+        shape = self.grid_shape[grid_kind]
+        indices = tuple(map(int, numpy.unravel_index(linear_index, shape)))
+        return self.pack_index(grid_kind, indices)
+
+    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
+        kind = self.get_grid_kind(data_array)
+        dimensions = self.grid_dimensions[kind]
+        return utils.ravel_dimensions(
+            data_array, list(dimensions))
+
+    def selector_for_index(self, index: Index) -> Dict[Hashable, int]:
+        grid_kind, indices = self.unpack_index(index)
+        dimensions = self.grid_dimensions[grid_kind]
+        return dict(zip(dimensions, indices))

@@ -11,7 +11,7 @@ from __future__ import annotations
 import enum
 import logging
 from functools import cached_property
-from typing import Dict, Hashable, List, Optional, Tuple, cast
+from typing import Dict, Hashable, List, Optional, Sequence, Tuple, cast
 
 import numpy
 import xarray
@@ -21,7 +21,7 @@ from xarray.core.dataset import DatasetCoordinates
 from emsarray import masking, utils
 from emsarray.types import Pathish
 
-from ._base import Convention, Specificity
+from ._base import DimensionConvention, Specificity
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ ArakawaCCoordinates = Dict[ArakawaCGridKind, Tuple[Hashable, Hashable]]
 ArakawaCDimensions = Dict[ArakawaCGridKind, Tuple[Hashable, Hashable]]
 
 
-class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
+class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
     """
     An Arakawa C grid is a curvilinear orthogonal grid
     with data defined on grid faces, edges, and nodes.
@@ -189,13 +189,6 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
                 "or set it on a subclass."
             )
 
-    @cached_property
-    def _dimensions_for_grid_kind(self) -> ArakawaCDimensions:
-        return {
-            kind: cast(Tuple[Hashable, Hashable], self.dataset[coordinates[0]].dims)
-            for kind, coordinates in self.coordinate_names.items()
-        }
-
     @classmethod
     def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         if not hasattr(cls, 'coordinate_names'):
@@ -252,31 +245,18 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
         """
         return self._topology_for_grid_kind[ArakawaCGridKind.node]
 
-    def unravel_index(
-        self,
-        index: int,
-        grid_kind: Optional[ArakawaCGridKind] = None,
-    ) -> ArakawaCIndex:
-        if grid_kind is None:
-            grid_kind = ArakawaCGridKind.face
-        topology = self._topology_for_grid_kind[grid_kind]
-        j, i = map(int, numpy.unravel_index(index, topology.shape))
-        return (grid_kind, j, i)
+    @cached_property
+    def grid_dimensions(self) -> Dict[ArakawaCGridKind, Sequence[Hashable]]:
+        return {
+            kind: cast(Tuple[Hashable, Hashable], self.dataset[coordinates[0]].dims)
+            for kind, coordinates in self.coordinate_names.items()
+        }
 
-    def ravel_index(self, indices: ArakawaCIndex) -> int:
-        grid_kind, j, i = indices
-        topology = self._topology_for_grid_kind[grid_kind]
-        return int(numpy.ravel_multi_index((j, i), topology.shape))
+    def unpack_index(self, index: ArakawaCIndex) -> Tuple[ArakawaCGridKind, Sequence[int]]:
+        return index[0], index[1:]
 
-    def get_grid_kind_and_size(self, data_array: xarray.DataArray) -> Tuple[ArakawaCGridKind, int]:
-        dims = set(data_array.dims)
-        for grid_kind in ArakawaCGridKind:
-            grid_kind_dims = self._dimensions_for_grid_kind[grid_kind]
-            if dims.issuperset(grid_kind_dims):
-                topology = self._topology_for_grid_kind[grid_kind]
-                return grid_kind, topology.size
-
-        raise ValueError("Data array did not match any known grids")
+    def pack_index(self, grid_kind: ArakawaCGridKind, indices: Sequence[int]) -> ArakawaCIndex:
+        return cast(ArakawaCIndex, (grid_kind, *indices))
 
     @cached_property
     @utils.timed_func
@@ -297,15 +277,10 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
     @cached_property
     def face_centres(self) -> numpy.ndarray:
         centres = numpy.column_stack((
-            self.make_linear(self.face.longitude).values,
-            self.make_linear(self.face.latitude).values,
+            self.ravel(self.face.longitude).values,
+            self.ravel(self.face.latitude).values,
         ))
         return cast(numpy.ndarray, centres)
-
-    def selector_for_index(self, index: ArakawaCIndex) -> Dict[Hashable, int]:
-        kind, j, i = index
-        topology = self._topology_for_grid_kind[kind]
-        return {topology.j_dimension: j, topology.i_dimension: i}
 
     def get_all_geometry_names(self) -> List[Hashable]:
         return [
@@ -318,12 +293,6 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
             self.back.longitude.name,
             self.back.latitude.name,
         ]
-
-    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
-        kind, size = self.get_grid_kind_and_size(data_array)
-        topology = self._topology_for_grid_kind[kind]
-        dimensions = [topology.j_dimension, topology.i_dimension]
-        return utils.linearise_dimensions(data_array, list(dimensions))
 
     def make_clip_mask(
         self,
@@ -350,7 +319,10 @@ class ArakawaC(Convention[ArakawaCGridKind, ArakawaCIndex]):
             face_mask = masking.blur_mask(face_mask, size=buffer)
 
         # Complete the rest of the mask
-        return c_mask_from_centres(face_mask, self._dimensions_for_grid_kind, self.dataset.coords)
+        grid_dimensions = cast(
+            Dict[ArakawaCGridKind, Tuple[Hashable, Hashable]],
+            self.grid_dimensions)
+        return c_mask_from_centres(face_mask, grid_dimensions, self.dataset.coords)
 
     def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
