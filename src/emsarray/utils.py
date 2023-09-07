@@ -25,13 +25,9 @@ from typing import (
 import cftime
 import netCDF4
 import numpy
-import pandas
 import pytz
 import shapely
 import xarray
-from packaging.version import Version
-from xarray.coding import times
-from xarray.core.common import contains_cftime_datetimes
 from xarray.core.dtypes import maybe_promote
 
 from emsarray.types import Pathish
@@ -129,8 +125,6 @@ def to_netcdf_with_fixes(
 
     * prevents superfluous ``_FillValue`` attributes being added
       using :func:`.utils.disable_default_fill_value`,
-    * Reformats time units that :mod:`xarray` struggles with
-      using :func:`.utils.fix_bad_time_units`,
     * Reformats time units after saving to make it compatible with EMS
       using :func:`.utils.fix_time_units_for_ems`
 
@@ -153,10 +147,6 @@ def to_netcdf_with_fixes(
 
     # Fix default xarray behaviour around automatic _FillValues
     disable_default_fill_value(dataset)
-
-    # Some time units are formatted in a way that will cause xarray to fail
-    # when saving the dataset. This fixes that formatting on the way out.
-    fix_bad_time_units(dataset)
 
     dataset.to_netcdf(path, **kwargs)
     if time_variable is not None:
@@ -278,51 +268,6 @@ def disable_default_fill_value(dataset_or_array: Union[xarray.Dataset, xarray.Da
             and "_FillValue" not in variable.attrs
         ):
             variable.encoding["_FillValue"] = None
-
-
-def fix_bad_time_units(dataset_or_array: Union[xarray.Dataset, xarray.DataArray]) -> None:
-    """Some datasets have a time units string that causes xarray to raise an
-    error when saving the dataset. The unit string is parsed when reading the
-    dataset just fine, only saving is the issue. This function will check for
-    these bad unit strings and change them in place to something xarray can
-    handle.
-
-    This issue was fixed in https://github.com/pydata/xarray/pull/6049
-    and released in version 0.21.0.
-    Once the minimum supported version of xarray is 0.21.0 or higher
-    this entire function can be removed.
-    """
-    if Version(xarray.__version__) >= Version('0.21.0'):
-        return
-
-    for variable in _get_variables(dataset_or_array):
-        # This is the same check xarray uses in xarray.coding.times.CFDatetimeCoder
-        is_datetime = (
-            numpy.issubdtype(variable.data.dtype, numpy.datetime64)
-            or contains_cftime_datetimes(variable)
-        )
-        if is_datetime and 'units' in variable.encoding:
-            if 'units' not in variable.encoding:
-                # xarray.open_mfdataset() does not propagate the `encoding` dict.
-                # This is where the 'units' and 'calendar' attributes are stored.
-                # We can't do anything here without those attributes.
-                continue
-            units = variable.encoding['units']
-            calendar = variable.encoding.get('calendar')
-            try:
-                delta, timestamp = times._unpack_netcdf_time_units(units)
-            except ValueError:
-                continue  # Don't bother fixing this one - too broken
-
-            try:
-                pandas.Timestamp(timestamp)
-                continue  # These units are formatted fine and don't need fixing
-            except ValueError:
-                pass
-
-            # This function uses cftime to parse the datestamp and reformat it
-            # to something nice, which should take care of the issue for us.
-            variable.encoding['units'] = format_time_units_for_ems(units, calendar)
 
 
 def dataset_like(sample_dataset: xarray.Dataset, new_dataset: xarray.Dataset) -> xarray.Dataset:
