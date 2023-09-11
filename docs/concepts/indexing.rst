@@ -46,13 +46,14 @@ Using indexes
 A convention native index can be transformed in to a linear index by calling
 :meth:`Convention.ravel_index(native_index) <.Convention.ravel_index>`.
 A linear index can be transformed in to a native index by calling
-:meth:`Convention.unravel_index(linear_index, kind) <.Convention.unravel_index>`.
+:meth:`Convention.wind_index(linear_index, grid_kind=grid_kind) <.Convention.wind_index>`.
 
 To find the correct native index kind for a data variable,
-call :meth:`.Convention.get_grid_kind_and_size`.
-This will return a tuple of ``(kind, size)``.
-``kind`` is the native index kind (face, edge, node, etc),
-while ``size`` is the length of the linear index space for that grid.
+call :meth:`.Convention.get_grid_kind(data_array) <.Convention.get_grid_kind>`.
+This will return one of the :attr:`Convention.grid_kinds` members.
+:attr:`.Convention.default_grid_kind` indicates which grid kind
+represents the cells in this convention.
+:attr:`.Convention.grid_size` indicates how large the index space is for each grid kind.
 
 :attr:`.Convention.strtree`
 is a :class:`spatial index <shapely.strtree.STRtree>`
@@ -64,8 +65,12 @@ are in linear index order.
 If you have the linear index for a cell,
 you can find its polygon by indexing directly in to this array.
 
-:meth:`Convention.make_linear` will the surface dimensions of a data variable
+:meth:`Convention.ravel` will transform the surface dimensions of a data variable
 in to a linear one dimensional array.
 The order of this flattened array matches the linear index order.
 If you have the linear index for a cell,
 you can find its value by indexing directly in to this array.
+:meth:`Convention.wind` is the inverse operation.
+It takes a linear data array and transforms it in to the same shape as the convention.
+This can be used to create arbitrary new data arrays for a dataset
+in a way completely agnostic of the underlying convention.
