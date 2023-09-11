@@ -13,3 +13,8 @@ Next release (in development)
 * Remove workaround for `pydata/xarray#6049 <https://github.com/pydata/xarray/pull/6049>`_ (:pr:`101`).
 * Add :meth:`.Convention.wind()` method as the inverse to :meth:`.Convention.ravel()`
   (:pr:`102`).
+* Add :attr:`.Convention.strtree()` spatial index,
+  deprecate :attr:`.Convention.spatial_index()`.
+  The old attribute was a compatibility shim around Shapely 1.8.x STRtree implementation.
+  Now that the minimum version of Shapely is 2.0, the STRtree can be used directly.
+  (:pr:`103`).
