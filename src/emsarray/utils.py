@@ -19,7 +19,7 @@ import warnings
 from types import TracebackType
 from typing import (
     Any, Callable, Hashable, Iterable, List, Literal, Mapping, MutableMapping,
-    Optional, Tuple, Type, TypeVar, Union, cast
+    Optional, Sequence, Tuple, Type, TypeVar, Union, cast
 )
 
 import cftime
@@ -573,6 +573,62 @@ def ravel_dimensions(
     return xarray.DataArray(data=new_data, dims=new_dims, coords=coords)
 
 
+def wind_dimension(
+    data_array: xarray.DataArray,
+    dimensions: Sequence[Hashable],
+    sizes: Sequence[int],
+    *,
+    linear_dimension: Hashable = 'index',
+) -> xarray.DataArray:
+    """
+    Replace a dimension in a data array by reshaping it in to one or more other dimensions.
+
+    Parameters
+    ----------
+    data_array : xarray.DataArray
+        The data array to reshape
+    dimensions : sequence of Hashable
+        The names of the new dimensions after reshaping.
+    sizes : sequence of int
+        The sizes of the new dimensions.
+        The product of these sizes
+        should match the size of the dimension being reshaped.
+    linear_dimension : Hashable
+        The name of the dimension to reshape.
+        Defaults to 'index',
+        the default name for linear dimensions returned by :func:`.ravel_dimensions`.
+
+    Returns
+    -------
+    xarray.DataArray
+        The original data array,
+        with the linear dimension reshaped in to the new dimensions.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> data_array = xarray.DataArray(
+        ...     data=numpy.arange(11 * 7 * 5 * 3).reshape(11, -1, 3),
+        ...     dims=('time', 'index', 'colour'),
+        ... )
+        >>> data_array.sizes
+        Frozen({'time': 11, 'index': 35, 'colour': 3})
+        >>> wound_array = wind_dimensions(data_array, ['y', 'x'], [7, 5])
+        >>> wound_array.sizes
+        Frozen({'time': 11, 'y': 7, 'x': 5, 'colour': 3})
+
+    See Also
+    --------
+    ravel_dimensions : The inverse operation
+    """
+    dimension_index = data_array.dims.index(linear_dimension)
+    new_dims = splice_tuple(data_array.dims, dimension_index, dimensions)
+    new_shape = splice_tuple(data_array.shape, dimension_index, sizes)
+    new_data = data_array.values.reshape(new_shape)
+    return xarray.DataArray(data=new_data, dims=new_dims)
+
+
 def datetime_from_np_time(np_time: numpy.datetime64) -> datetime.datetime:
     """
     Convert a numpy :class:`~numpy.datetime64`
@@ -677,3 +733,7 @@ def deprecated(message: str, category: Type[Warning] = DeprecationWarning) -> Ca
             return fn(*args, **kwargs)
         return wrapped
     return decorator
+
+
+def splice_tuple(t: Tuple, index: int, values: Sequence) -> Tuple:
+    return t[:index] + tuple(values) + t[index:][1:]

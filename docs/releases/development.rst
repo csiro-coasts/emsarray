@@ -11,3 +11,5 @@ Next release (in development)
   All existing conventions have been updated to build off this base class.
   (:pr:`100`)
 * Remove workaround for `pydata/xarray#6049 <https://github.com/pydata/xarray/pull/6049>`_ (:pr:`101`).
+* Add :meth:`.Convention.wind()` method as the inverse to :meth:`.Convention.ravel()`
+  (:pr:`102`).

@@ -14,10 +14,16 @@ the :class:`~emsarray.conventions.Convention` interface.
 .. autofunction:: emsarray.get_dataset_convention
 
 .. autoclass:: emsarray.conventions.Convention
-    :members:
+   :members:
+
+.. autoclass:: emsarray.conventions.DimensionConvention
+
+   .. autoattribute:: grid_dimensions
+   .. automethod:: unpack_index
+   .. automethod:: pack_index
 
 .. autoclass:: emsarray.conventions.SpatialIndexItem
-    :members:
+   :members:
 
 .. autodata:: emsarray.conventions._base.GridKind
 .. autodata:: emsarray.conventions._base.Index

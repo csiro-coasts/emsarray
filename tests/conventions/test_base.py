@@ -76,8 +76,34 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     def selector_for_index(self, index: SimpleGridIndex) -> Dict[Hashable, int]:
         return {'x': index.x, 'y': index.y}
 
-    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
-        return utils.ravel_dimensions(data_array, ['y', 'x'])
+    def ravel(
+        self,
+        data_array: xarray.DataArray,
+        *,
+        linear_dimension: Optional[Hashable] = None,
+    ) -> xarray.DataArray:
+        self.get_grid_kind(data_array)
+        return utils.ravel_dimensions(
+            data_array, ['y', 'x'],
+            linear_dimension=linear_dimension)
+
+    def wind(
+        self,
+        data_array: xarray.DataArray,
+        *,
+        grid_kind: Optional[SimpleGridKind] = None,
+        axis: Optional[int] = None,
+        linear_dimension: Optional[Hashable] = None,
+    ) -> xarray.DataArray:
+        if axis is not None:
+            linear_dimension = data_array.dims[axis]
+        elif linear_dimension is None:
+            linear_dimension = data_array.dims[-1]
+
+        return utils.wind_dimension(
+            data_array,
+            dimensions=['y', 'x'], sizes=self.shape,
+            linear_dimension=linear_dimension)
 
     def drop_geometry(self) -> xarray.Dataset:
         return self.dataset

@@ -717,7 +717,12 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return grid_kind, size
 
     @abc.abstractmethod
-    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
+    def ravel(
+        self,
+        data_array: xarray.DataArray,
+        *,
+        linear_dimension: Optional[Hashable] = None,
+    ) -> xarray.DataArray:
         """
         Flatten the surface dimensions of a :class:`~xarray.DataArray`,
         returning a flatter :class:`numpy.ndarray` indexed in the same order as the linear index.
@@ -735,6 +740,9 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         data_array : xarray.DataArray
             One of the data variables from this dataset.
+        linear_dimension : Hashable, optional
+            The name of the new dimension to flatten the surface dimensions to.
+            Defaults to 'index'.
 
         Returns
         -------
@@ -743,6 +751,110 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             have been flattened in to one linear array.
             The values for each cell, in the same order as the linear index for this dataset.
             Any other dimensions, such as depth or time, will be retained.
+
+        See Also
+        --------
+        .utils.ravel_dimensions : A function that ravels some given dimensions in a dataset.
+        Convention.wind : The inverse operation.
+        """
+        pass
+
+    @abc.abstractmethod
+    def wind(
+        self,
+        data_array: xarray.DataArray,
+        *,
+        grid_kind: Optional[GridKind] = None,
+        axis: Optional[int] = None,
+        linear_dimension: Optional[Hashable] = None,
+    ) -> xarray.DataArray:
+        """
+        Wind a flattened :class:`~xarray.DataArray`
+        so that it has the same shape as data variables in this dataset.
+
+        By using :attr:`.grid_size` and :meth:`.wind()` together
+        it is possible to construct new data variables for a dataset
+        of any arbitrary shape.
+
+        Parameters
+        ----------
+        data_array : xarray.DataArray
+            One of the data variables from this dataset.
+        grid_kind : GridKind
+            The kind of grid this data array represents,
+            for those conventions with multiple grid kinds.
+            Optional, defaults to the default grid kind.
+        axis : int, optional
+            The axis number that should be wound.
+            Optional, defaults to the last axis.
+        linear_dimension : Hashable, optional
+            The axis number that should be wound.
+            Optional, defaults to the last dimension.
+
+        Returns
+        -------
+        xarray.DataArray
+            A new data array where the linear data have been wound
+            to match the shape of the convention.
+            Any other dimensions, such as depth or time, will be retained.
+
+        Examples
+        --------
+        The following will construct a data array of the correct shape
+        for any convention supported by emsarray:
+
+        .. code-block:: python
+
+            import emsarray
+            import numpy
+            import xarray
+
+            dataset = emsarray.tutorial.open_dataset('fraser')
+            face_size = dataset.ems.grid_size[dataset.ems.default_grid_kind]
+            flat_array = xarray.DataArray(
+                data=numpy.arange(face_size),
+                dims=['index'],
+            )
+            data_array = dataset.ems.wind(flat_array)
+
+        This will construct a boolean array indicating
+        which cells of a dataset intersect a target geometry:
+
+        .. code-block:: python
+
+            import emsarray
+            import numpy
+            import shapely
+            import xarray
+
+            dataset = emsarray.tutorial.open_dataset('gbr4')
+            target = shapely.Polygon([
+                [152.8088379, -22.7863108],
+                [153.9184570, -22.2280904],
+                [153.4680176, -20.9614396],
+                [151.8255615, -20.4012720],
+                [151.4135742, -21.8309067],
+                [152.0068359, -22.4313402],
+                [152.8088379, -22.7863108],
+            ])
+
+            hits = [
+                item.linear_index
+                for polygon, item in dataset.ems.spatial_index.query(target)
+                if polygon.intersects(target)
+            ]
+            grid_size = dataset.ems.grid_size[dataset.ems.default_grid_kind]
+            intersecting_cells = xarray.DataArray(
+                data=numpy.zeros(grid_size, dtype=bool),
+                dims=['index'],
+            )
+            intersecting_cells.values[hits] = True
+            intersecting_cells = dataset.ems.wind(intersecting_cells)
+
+        See Also
+        --------
+        .utils.wind_dimension : Reshape a particular dimension in a data array.
+        Convention.ravel : The inverse operation.
         """
         pass
 
@@ -1589,6 +1701,7 @@ class DimensionConvention(Convention[GridKind, Index]):
     - :meth:`.ravel_index`
     - :meth:`.wind_index`
     - :meth:`.ravel`
+    - :meth:`.wind`
     - :meth:`.selector_for_index`
     """
 
@@ -1702,11 +1815,40 @@ class DimensionConvention(Convention[GridKind, Index]):
         indices = tuple(map(int, numpy.unravel_index(linear_index, shape)))
         return self.pack_index(grid_kind, indices)
 
-    def ravel(self, data_array: xarray.DataArray) -> xarray.DataArray:
+    def ravel(
+        self,
+        data_array: xarray.DataArray,
+        *,
+        linear_dimension: Optional[Hashable] = None,
+    ) -> xarray.DataArray:
         kind = self.get_grid_kind(data_array)
         dimensions = self.grid_dimensions[kind]
         return utils.ravel_dimensions(
-            data_array, list(dimensions))
+            data_array, list(dimensions),
+            linear_dimension=linear_dimension)
+
+    def wind(
+        self,
+        data_array: xarray.DataArray,
+        *,
+        grid_kind: Optional[GridKind] = None,
+        axis: Optional[int] = None,
+        linear_dimension: Optional[Hashable] = None,
+    ) -> xarray.DataArray:
+        if axis is not None:
+            linear_dimension = data_array.dims[axis]
+        elif linear_dimension is None:
+            linear_dimension = data_array.dims[-1]
+        if grid_kind is None:
+            grid_kind = self.default_grid_kind
+
+        dimensions = self.grid_dimensions[grid_kind]
+        sizes = [self.dataset.dims[dim] for dim in dimensions]
+
+        return utils.wind_dimension(
+            data_array,
+            dimensions=dimensions, sizes=sizes,
+            linear_dimension=linear_dimension)
 
     def selector_for_index(self, index: Index) -> Dict[Hashable, int]:
         grid_kind, indices = self.unpack_index(index)

@@ -479,3 +479,42 @@ def test_linearize_dimensions_auto_name_conflict():
     )
     linearized = utils.ravel_dimensions(data_array, ['index_2', 'index_1'])
     xarray.testing.assert_equal(linearized, expected)
+
+
+def test_wind_dimension():
+    data_array = xarray.DataArray(
+        data=numpy.arange(6 * 5 * 4).reshape(6, -1),
+        dims=['time', 'index'],
+    )
+    expected = xarray.DataArray(
+        data=numpy.arange(6 * 5 * 4).reshape(6, 5, 4),
+        dims=['time', 'y', 'x'],
+    )
+    wound = utils.wind_dimension(data_array, ['y', 'x'], [5, 4])
+    xarray.testing.assert_equal(wound, expected)
+
+
+def test_wind_dimension_middle():
+    data_array = xarray.DataArray(
+        data=numpy.arange(6 * 5 * 4 * 3).reshape(6, -1, 3),
+        dims=['time', 'index', 'colour'],
+    )
+    expected = xarray.DataArray(
+        data=numpy.arange(6 * 5 * 4 * 3).reshape(6, 5, 4, 3),
+        dims=['time', 'y', 'x', 'colour'],
+    )
+    wound = utils.wind_dimension(data_array, ['y', 'x'], [5, 4])
+    xarray.testing.assert_equal(wound, expected)
+
+
+def test_wind_dimension_renamed():
+    data_array = xarray.DataArray(
+        data=numpy.arange(6 * 5 * 4).reshape(6, -1),
+        dims=['time', 'ix'],
+    )
+    expected = xarray.DataArray(
+        data=numpy.arange(6 * 5 * 4).reshape(6, 5, 4),
+        dims=['time', 'y', 'x'],
+    )
+    wound = utils.wind_dimension(data_array, ['y', 'x'], [5, 4], linear_dimension='ix')
+    xarray.testing.assert_equal(wound, expected)
