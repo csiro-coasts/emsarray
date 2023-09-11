@@ -68,18 +68,12 @@ class Grass(DimensionConvention[GrassGridKind, GrassIndex]):
         buffer: int = 0,
     ) -> xarray.Dataset:
         # Find all the fields that intersect the clip geometry
-        intersecting_fields = [
-            field
-            for field, polygon in self.spatial_index.query(clip_geometry)
-            if polygon.intersects(clip_geometry)
-        ]
-        # Get all the linear indexes of the intersecting blades
-        field_indexes = numpy.array([i.linear_index for i in intersecting_fields])
+        field_indexes = self.strtree.query(clip_geometry, predicate='intersects')
         # Find all the fences associated with each intesecting field
         fence_indexes = numpy.unique([
             self.ravel_index(fence_index)
-            for field in intersecting_fields
-            for fence_index in self.get_fences_around_field(field.index)
+            for field_index in field_indexes
+            for fence_index in self.get_fences_around_field(field_index)
         ])
 
         # Make an array of which fields to keep

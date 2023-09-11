@@ -296,10 +296,7 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
     ) -> xarray.Dataset:
         topology = self.topology
 
-        intersecting_indices = [
-            item.linear_index
-            for polygon, item in self.spatial_index.query(clip_geometry)
-            if polygon.intersects(clip_geometry)]
+        intersecting_indices = self.strtree.query(clip_geometry, predicate='intersects')
         mask = numpy.full(topology.shape, fill_value=False)
         mask.ravel()[intersecting_indices] = True
 

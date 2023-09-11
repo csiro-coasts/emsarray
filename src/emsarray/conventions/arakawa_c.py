@@ -307,10 +307,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         logger.info("Finding intersecting cells for centre mask")
 
         # A cell is included if it intersects the clip polygon
-        intersecting_indices = [
-            item.linear_index
-            for polygon, item in self.spatial_index.query(clip_geometry)
-            if polygon.intersects(clip_geometry)]
+        intersecting_indices = self.strtree.query(clip_geometry, predicate='intersects')
         face_mask = numpy.full(self.face.shape, fill_value=False)
         face_mask.ravel()[intersecting_indices] = True
 

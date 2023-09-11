@@ -1142,11 +1142,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         """
         # Find all faces that intersect the clip geometry
         logger.info("Making clip mask")
-        face_indices = numpy.array([
-            item.linear_index
-            for polygon, item in self.spatial_index.query(clip_geometry)
-            if polygon.intersects(clip_geometry)
-        ])
+        face_indices = self.strtree.query(clip_geometry, predicate='intersects')
         logger.debug("Found %d intersecting faces, adding size %d buffer...", len(face_indices), buffer)
 
         # Include all the neighbours of the intersecting faces

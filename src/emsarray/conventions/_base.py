@@ -16,6 +16,7 @@ import xarray
 from shapely import unary_union
 from shapely.geometry import MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
+from shapely.strtree import STRtree
 
 from emsarray import utils
 from emsarray.compat.shapely import SpatialIndex
@@ -838,11 +839,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 [152.8088379, -22.7863108],
             ])
 
-            hits = [
-                item.linear_index
-                for polygon, item in dataset.ems.spatial_index.query(target)
-                if polygon.intersects(target)
-            ]
+            hits = dataset.ems.strtree.query(target, predicate='intersects')
             grid_size = dataset.ems.grid_size[dataset.ems.default_grid_kind]
             intersecting_cells = xarray.DataArray(
                 data=numpy.zeros(grid_size, dtype=bool),
@@ -1315,34 +1312,80 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     @cached_property
     @utils.timed_func
+    def strtree(self) -> STRtree:
+        """
+        A :class:`shapely.strtree.STRtree` spatial index of all cells in this dataset.
+        This allows for fast spatial lookups, querying which cells lie at
+        a point, or which cells intersect a geometry.
+
+        Querying the STRtree will return the linear indices of any matching cells.
+        Use :attr:`polygons` to find the geometries associated with each index.
+        Use :meth:`wind_index()` to transform this back to a native index,
+        or :meth:`ravel` to linearise a variable.
+
+        Examples
+        --------
+
+        Find the indices of all cells that intersect a line:
+
+        .. code-block:: python
+
+            dataset = emsarray.tutorial.open_dataset('austen')
+            geometry = shapely.linestring([
+                [146.9311523, -15.7076628],
+                [149.3261719, -19.0413488],
+                [152.2485352, -21.6778483],
+                [154.2480469, -24.2469646],
+                [155.1049805, -27.5082714],
+                [154.7753906, -31.2973280],
+                [153.3911133, -34.1072564],
+                [152.0947266, -36.0846213],
+                [150.6005859, -38.7712164],
+            ])
+            hits = dataset.ems.strtree.query(geometry, predicate='intersects')
+        """
+        return STRtree(self.polygons)
+
+    @cached_property
+    @utils.timed_func
+    @utils.deprecated(
+        (
+            "Convention.spatial_index is deprecated. "
+            "Use Convention.strtree instead."
+        ),
+        DeprecationWarning,
+    )
     def spatial_index(self) -> SpatialIndex[SpatialIndexItem[Index]]:
         """
         A :class:`shapely.strtree.STRtree` spatial index of all cells in this dataset.
         This allows for fast spatial lookups, querying which cells lie at
         a point, or which cells intersect a geometry.
 
-        Querying the index with :meth:`~shapely.strtree.STRtree.query_items`
-        will return a list of :class:`SpatialIndexItem` instances
-        representing all cells which have envelopes overlapping the queried geometry.
-        The caller must then refine the results further,
-        for example by checking for intersection, covers, or contains.
+        .. deprecated:: 0.6.0
 
-        Example
-        -------
+            Use :attr:`Convention.strtree` instead.
 
-        To find the indices of all cells that overlap a given shape:
+            This existed as a wrapper around a Shapely STRtree,
+            which changed its interface in Shapely 2.0.
+            Shapely 1.8.x is no longer supported by emsarray
+            so this compatibility wrapper is deprecated.
+            Use :attr:`Convention.strtree` directly instead.
 
-        .. code-block:: python
+        Querying this spatial index will return a list of
+        (:class:`polygon <shapely.geometry.Polygon>`, :class:`SpatialIndexItem`) tuples
+        corresponding to each matching cell.
+        SpatialIndexItem instances have the cells linear index, native index, and polygon.
 
-            indices = [
-                item.index
-                for item, polygon in dataset.ems.spatial_index.query(shape)
-                if polygon.intersects(shape)
-            ]
+        The query results from the STRtree contain all geometries with overlapping bounding boxes.
+        Query results need to be refined further
+        by comparing the cell geometry to the query geometry.
+        Refer to the Shapely 1.8.x STRtree docs for examples.
 
         See Also
         --------
-        :class:`.SpatialIndexItem`
+        :class:`.SpatialIndexItem` : The dataclass returned from querying the STRtree.
+
+        `Shapely 1.8.x STRtree docs <https://shapely.readthedocs.io/en/1.8.5.post1/manual.html#str-packed-r-tree>`_
         """
         items = [
             (poly, SpatialIndexItem(index, self.wind_index(index), poly))
@@ -1380,13 +1423,13 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         or falls on a cell edge,
         or if the geometry of the dataset contains overlapping polygons.
         """
-        hits: List[SpatialIndexItem] = sorted(
-            item
-            for polygon, item in self.spatial_index.query(point)
-            if polygon.intersects(point)
-        )
+        hits = numpy.sort(self.strtree.query(point, predicate='intersects'))
         if len(hits) > 0:
-            return hits[0]
+            linear_index = hits[0]
+            return SpatialIndexItem(
+                linear_index=linear_index,
+                index=self.wind_index(linear_index),
+                polygon=self.polygons[linear_index])
         return None
 
     @abc.abstractmethod

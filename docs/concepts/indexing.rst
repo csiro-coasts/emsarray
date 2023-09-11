@@ -54,10 +54,10 @@ This will return a tuple of ``(kind, size)``.
 ``kind`` is the native index kind (face, edge, node, etc),
 while ``size`` is the length of the linear index space for that grid.
 
-Looking up a location in the :attr:`Convention.spatial_index`
-will return a :class:`.SpatialIndexItem` instance.
-These values have a :attr:`~.SpatialIndexItem.linear_index` attribute
-and a :attr:`~.SpatialIndexItem.index` attribute.
+:attr:`.Convention.strtree`
+is a :class:`spatial index <shapely.strtree.STRtree>`
+of all cells in the dataset.
+Querying it will return the linear index for any matching cells.
 
 The cell polygons in :attr:`Convention.polygons <.Convention.polygons>`
 are in linear index order.
