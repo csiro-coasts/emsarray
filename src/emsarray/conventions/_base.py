@@ -772,7 +772,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         Wind a flattened :class:`~xarray.DataArray`
         so that it has the same shape as data variables in this dataset.
 
-        By using :attr:`.grid_sizes` and :meth:`.wind()` together
+        By using :attr:`.grid_size` and :meth:`.wind()` together
         it is possible to construct new data variables for a dataset
         of any arbitrary shape.
 
@@ -805,6 +805,10 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         .. code-block:: python
 
+            import emsarray
+            import numpy
+            import xarray
+
             dataset = emsarray.tutorial.open_dataset('fraser')
             face_size = dataset.ems.grid_size[dataset.ems.default_grid_kind]
             flat_array = xarray.DataArray(
@@ -812,6 +816,40 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 dims=['index'],
             )
             data_array = dataset.ems.wind(flat_array)
+
+        This will construct a boolean array indicating
+        which cells of a dataset intersect a target geometry:
+
+        .. code-block:: python
+
+            import emsarray
+            import numpy
+            import shapely
+            import xarray
+
+            dataset = emsarray.tutorial.open_dataset('gbr4')
+            target = shapely.Polygon([
+                [152.8088379, -22.7863108],
+                [153.9184570, -22.2280904],
+                [153.4680176, -20.9614396],
+                [151.8255615, -20.4012720],
+                [151.4135742, -21.8309067],
+                [152.0068359, -22.4313402],
+                [152.8088379, -22.7863108],
+            ])
+
+            hits = [
+                item.linear_index
+                for polygon, item in dataset.ems.spatial_index.query(target)
+                if polygon.intersects(target)
+            ]
+            grid_size = dataset.ems.grid_size[dataset.ems.default_grid_kind]
+            intersecting_cells = xarray.DataArray(
+                data=numpy.zeros(grid_size, dtype=bool),
+                dims=['index'],
+            )
+            intersecting_cells.values[hits] = True
+            intersecting_cells = dataset.ems.wind(intersecting_cells)
 
         See Also
         --------
