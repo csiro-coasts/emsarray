@@ -15,7 +15,7 @@ from shapely.geometry import LineString, Point, Polygon, box
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import masking, utils
-from emsarray.conventions import Convention, SpatialIndexItem
+from emsarray.conventions import Convention
 from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.types import Pathish
 
@@ -128,11 +128,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     ) -> xarray.Dataset:
         if buffer > 0:
             raise ValueError("Can not buffer SimpleConvention clip masks")
-        intersections = [
-            item.linear_index
-            for polygon, item in self.spatial_index.query(clip_geometry)
-            if item.polygon.intersects(clip_geometry)
-        ]
+        intersections = self.strtree.query(clip_geometry, predicate='intersects')
         cells = numpy.full(self.shape, False)
         cells[intersections] = True
         return xarray.Dataset({'cells': (['y', 'x'], cells)})
@@ -308,7 +304,7 @@ def test_bounds():
     assert convention.bounds == (1, 1, 19, 9)
 
 
-def test_spatial_index():
+def test_strtree():
     dataset = xarray.Dataset({
         'values': (['z', 'y', 'x'], numpy.random.standard_normal((5, 10, 20))),
         'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
@@ -316,25 +312,13 @@ def test_spatial_index():
     convention = SimpleConvention(dataset)
 
     line = LineString([(-1, -1), (1.5, 1.5), (1.5, 2.5), (3.9, 3.9)])
-    expected_intersections = {
+    expected_intersections = set(convention.ravel_index(index) for index in [
         SimpleGridIndex(1, 1), SimpleGridIndex(2, 1), SimpleGridIndex(2, 2),
-        SimpleGridIndex(3, 2), SimpleGridIndex(3, 3)}
+        SimpleGridIndex(3, 2), SimpleGridIndex(3, 3)])
 
     # Query the spatial index
-    items = convention.spatial_index.query(line)['data']
-
-    # The exact number of items returned isn't relevant, it should just be at
-    # least the total expected interesections
-    assert len(items) >= len(expected_intersections)
-
-    # Each item should be a SpatialIndexItem
-    assert isinstance(items[0], SpatialIndexItem)
-
-    # We should be able to refine the match further
-    actual_intersections = {
-        item.index for item in items
-        if item.polygon.intersects(line)}
-    assert actual_intersections == expected_intersections
+    items = convention.strtree.query(line, predicate='intersects')
+    assert set(items) == expected_intersections
 
 
 def test_get_index_for_point_centre():
@@ -362,10 +346,7 @@ def test_get_index_for_point_vertex():
     point = Point(2, 2)
 
     # There should be four cells intersecting this point
-    intersections = [
-        item for polygon, item in convention.spatial_index.query(point)
-        if polygon.intersects(point)
-    ]
+    intersections = convention.strtree.query(point, predicate='intersects')
     assert len(intersections) == 4
 
     # `get_index_for_point` should still return a single item in this case
@@ -373,7 +354,7 @@ def test_get_index_for_point_vertex():
     assert index.index == SimpleGridIndex(1, 1)
 
     # The point should be the first of the hits in index order
-    assert index.linear_index == min(hit.linear_index for hit in intersections)
+    assert index.linear_index == min(intersections)
 
 
 def test_get_index_for_point_miss():
