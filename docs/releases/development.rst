@@ -18,3 +18,6 @@ Next release (in development)
   The old attribute was a compatibility shim around Shapely 1.8.x STRtree implementation.
   Now that the minimum version of Shapely is 2.0, the STRtree can be used directly.
   (:pr:`103`).
+* Add :meth:`emsarray.plot.add_landmarks()`
+  and `landmarks` parameter to :meth:`Convention.plot` and related functions.
+  (:pr:`105`).

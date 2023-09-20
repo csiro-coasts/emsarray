@@ -8,6 +8,7 @@ from typing import (
 import numpy
 import xarray
 
+from emsarray.types import Landmark
 from emsarray.utils import requires_extra
 
 if TYPE_CHECKING:
@@ -17,7 +18,7 @@ try:
     import cartopy.crs
     from cartopy.feature import GSHHSFeature
     from cartopy.mpl import gridliner
-    from matplotlib import animation
+    from matplotlib import animation, patheffects
     from matplotlib.artist import Artist
     from matplotlib.axes import Axes
     from matplotlib.collections import PolyCollection
@@ -61,10 +62,99 @@ def add_coast(axes: Axes, **kwargs: Any) -> None:
 
 
 def add_gridlines(axes: Axes) -> gridliner.Gridliner:
+    """
+    Add some gridlines to the axes.
+
+    Parameters
+    ----------
+    axes : :class:`matplotlib.axes.Axes`
+        The axes to add the gridlines to.
+
+    Returns
+    -------
+    cartopy.mpl.gridliner.Gridliner
+    """
     gridlines = axes.gridlines(draw_labels=True, auto_update=True)
     gridlines.top_labels = False
     gridlines.right_labels = False
     return gridlines
+
+
+def add_landmarks(
+    axes: Axes,
+    landmarks: Iterable[Landmark],
+    color: str = 'black',
+    outline_color: str = 'white',
+    outline_width: int = 2,
+) -> None:
+    """
+    Place some named landmarks on a plot.
+
+    Parameters
+    ----------
+    axes : matplotlib.axes.Axes
+        The axes to add the landmarks to.
+    landmarks : list of :data:`landmarks <emsarray.types.Landmark>`
+        The landmarks to add. These are tuples of (name, point).
+    color : str, default 'black'
+        The color for the landmark marker and labels.
+    outline_color : str, default 'white'
+        The color for the outline.
+        Both the marker and the labels are outlined.
+    outline_width : ind, default 2
+        The linewidth of the outline.
+
+    Examples
+    --------
+    Draw a plot of a specific area with some landmarks:
+
+    .. code-block:: python
+
+        import emsarray.plot
+        import shapely
+        from matplotlib import pyplot
+
+        dataset = emsarray.tutorial.open_dataset('gbr4')
+
+        # Set up the figure
+        figure = pyplot.figure()
+        axes = figure.add_subplot(projection=dataset.ems.data_crs)
+        axes.set_title("Sea surface temperature around Mackay")
+        axes.set_aspect('equal', adjustable='datalim')
+        emsarray.plot.add_coast(axes, zorder=1)
+
+        # Focus on the area of interest
+        axes.set_extent((148.245710, 151.544167, -19.870197, -21.986412))
+
+        # Plot the temperature
+        temperature = dataset.ems.make_poly_collection(
+            dataset['temp'].isel(time=0, k=-1),
+            cmap='jet', edgecolor='face', zorder=0)
+        axes.add_collection(temperature)
+        figure.colorbar(temperature, label='°C')
+
+        # Name key locations
+        emsarray.plot.add_landmarks(axes, [
+            ('The Percy Group', shapely.Point(150.270579, -21.658269)),
+            ('Whitsundays', shapely.Point(148.955319, -20.169076)),
+            ('Mackay', shapely.Point(149.192671, -21.146719)),
+        ])
+
+        figure.show()
+    """
+    outline = patheffects.withStroke(
+        linewidth=outline_width, foreground=outline_color)
+
+    points = axes.scatter(
+        [p.x for n, p in landmarks], [p.y for n, p in landmarks],
+        c=color, edgecolors=outline_color, linewidths=outline_width / 2)
+    points.set_path_effects([outline])
+
+    for name, point in landmarks:
+        text = axes.annotate(
+            name, (point.x, point.y),
+            textcoords='offset pixels', xytext=(10, -5))
+        text.set_path_effects([outline])
 
 
 def bounds_to_extent(bounds: Tuple[float, float, float, float]) -> List[float]:
@@ -136,6 +226,7 @@ def plot_on_figure(
     vector: Optional[Tuple[xarray.DataArray, xarray.DataArray]] = None,
     title: Optional[str] = None,
     projection: Optional[cartopy.crs.Projection] = None,
+    landmarks: Optional[Iterable[Landmark]] = None,
 ) -> None:
     """
     Plot a :class:`~xarray.DataArray`
@@ -162,6 +253,8 @@ def plot_on_figure(
         Optional, defaults to :class:`~cartopy.crs.PlateCarree`.
         This is different to the coordinate reference system for the data,
         which is defined in :attr:`.Convention.data_crs`.
+    landmarks : list of :data:`landmarks <emsarray.types.Landmark>`, optional
+        Landmarks to add to the plot. These are tuples of (name, point).
     """
     if projection is None:
         projection = cartopy.crs.PlateCarree()
@@ -192,6 +285,9 @@ def plot_on_figure(
     if title:
         axes.set_title(title)
 
+    if landmarks:
+        add_landmarks(axes, landmarks)
+
     add_coast(axes)
     add_gridlines(axes)
     axes.autoscale()
@@ -207,6 +303,7 @@ def animate_on_figure(
     vector: Optional[Tuple[xarray.DataArray, xarray.DataArray]] = None,
     title: Optional[Union[str, Callable[[Any], str]]] = None,
     projection: Optional[cartopy.crs.Projection] = None,
+    landmarks: Optional[Iterable[Landmark]] = None,
     interval: int = 1000,
     repeat: Union[bool, Literal['cycle', 'bounce']] = True,
 ) -> animation.FuncAnimation:
@@ -250,6 +347,8 @@ def animate_on_figure(
         Optional, defaults to :class:`~cartopy.crs.PlateCarree`.
         This is different to the coordinate reference system for the data,
         which is defined in :attr:`.Convention.data_crs`.
+    landmarks : list of :data:`landmarks <emsarray.types.Landmark>`, optional
+        Landmarks to add to the plot. These are tuples of (name, point).
     interval : int
         The interval between frames of animation
     repeat : {True, False, 'cycle', 'bounce'}
@@ -302,6 +401,8 @@ def animate_on_figure(
     # Draw a coast overlay
     add_coast(axes)
     gridlines = add_gridlines(axes)
+    if landmarks:
+        add_landmarks(axes, landmarks)
     axes.autoscale()
 
     repeat_arg = True
