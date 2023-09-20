@@ -32,6 +32,40 @@ from emsarray.utils import move_dimensions_to_end
 ORIGIN = shapely.Point(0, 0)
 
 
+def plot(
+    dataset: xarray.Dataset,
+    line: shapely.LineString,
+    data_array: xarray.DataArray,
+    *,
+    figsize: tuple = (12, 3),
+    **kwargs: Any,
+) -> Figure:
+    """
+    Plot a transect of a dataset.
+
+    This is convenience function that handles the most common use cases.
+    For more options refer to the :class:`.Transect` class.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        The dataset to transect.
+    line : shapely.LineString
+        The transect path to plot.
+    data_array : xarray.DataArray
+        A variable from the dataset to plot.
+    figsize : tuple of int, int
+        The size of the figure.
+    **kwargs
+        Passed to :meth:`Transect.plot_on_figure()`.
+    """
+    figure = pyplot.figure(layout="constrained", figsize=figsize)
+    transect = Transect(dataset, line)
+    transect.plot_on_figure(figure, data_array, **kwargs)
+    figure.show()
+    return figure
+
+
 @dataclasses.dataclass
 class TransectPoint:
     """
