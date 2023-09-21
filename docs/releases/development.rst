@@ -20,4 +20,10 @@ Next release (in development)
   (:pr:`103`).
 * Add :meth:`emsarray.plot.add_landmarks()`
   and `landmarks` parameter to :meth:`Convention.plot` and related functions.
-  (:pr:`105`).
+  (:pr:`107`).
+* Make the `positive_down` and `deep_to_shallow` parameters optional
+  for :func:`~emsarray.operations.depth.normalize_depth_variables`.
+  If not supplied, that feature of the depth variable is not normalized.
+  This is a breaking change if you previously relied
+  on the default value of `True` for these parameters.
+  (:pr:`108`).

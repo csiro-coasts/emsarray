@@ -197,8 +197,8 @@ def normalize_depth_variables(
     dataset: xarray.Dataset,
     depth_variables: List[Hashable],
     *,
-    positive_down: bool = True,
-    deep_to_shallow: bool = True,
+    positive_down: Optional[bool] = None,
+    deep_to_shallow: Optional[bool] = None,
 ) -> xarray.Dataset:
     """
     Some datasets represent depth as a positive variable, some as negative.
@@ -206,30 +206,35 @@ def normalize_depth_variables(
     from shallow to deep. :func:`normalize_depth_variables` will return
     a new dataset with the depth variables normalized.
 
-    The default behaviour is for positive values to indicate deeper depths
-    (indicated via the variable attribute ``positive: "down"``),
-    and for the layers to be ordered deep to shallow.
-    This behaviour can be modified using the parameters
-    ``positive_down`` and ``deep_to_shallow`` respectively.
+    All depth variables should have a ``positive: "up"`` or ``positive: "down"`` attribute.
+    If this attribute is missing,
+    a warning is generated and
+    a value is determined by examining the coordinate values.
 
     Parameters
     ----------
-    dataset
+    dataset : xarray.Dataset
         The dataset to normalize
-    depth_variables
+    depth_variables : list of Hashable
         The names of the depth coordinate variables.
         This should be the names of the variables, not the dimensions,
         for datasets where these differ.
-    positive_down
-        When true (the default), positive values will indicate depth below the
-        surface. When false, negative values indicate depth below the surface.
-    deep_to_shallow
-        When true (the default), the layers are ordered such that deeper layers
-        have lower indices.
+    positive_down : bool, optional
+        If True, positive values will indicate depth below the surface.
+        If False, negative values indicate depth below the surface.
+        If None, this attribute of the depth coordinate is left unmodified.
+    deep_to_shallow : bool, optional
+        If True, the layers are ordered such that deeper layers have lower indices.
+        If False, the layers are ordered such that deeper layers have higher indices.
+        If None, this attribute of the depth coordinate is left unmodified.
+
+    Returns
+    -------
+    xarray.Dataset
+        A copy of the dataset with the depth variables normalized.
 
     See Also
     --------
-
     :meth:`.Convention.normalize_depth_variables`
     :meth:`.Convention.get_all_depth_names`
     """
@@ -244,23 +249,29 @@ def normalize_depth_variables(
         dimension = variable.dims[0]
 
         new_variable = new_dataset[name]
-        new_variable.attrs['positive'] = 'down' if positive_down else 'up'
+        if positive_down is not None:
+            new_variable.attrs['positive'] = 'down' if positive_down else 'up'
 
-        positive_attr = variable.attrs.get('positive')
-        if positive_attr is None:
-            # This is a _depth_ variable. If there are more values >0 than <0,
-            # positive is probably down.
+        if 'positive' in variable.attrs:
+            positive_attr = variable.attrs.get('positive')
+            data_positive_down = (positive_attr == 'down')
+        else:
+            # No positive attribute set.
+            # This is a violation of the CF conventions,
+            # however it is a very common violation and we can make a good guess.
+            # This is a _depth_ variable.
+            # If there are more values >0 than <0, positive is probably down.
             total_values = len(variable.values)
             positive_values = len(variable.values[variable.values > 0])
-            positive_attr = 'down' if positive_values > total_values / 2 else 'up'
+            data_positive_down = positive_values > (total_values / 2)
 
             warnings.warn(
                 f"Depth variable {name!r} had no 'positive' attribute, "
-                f"guessing `positive: {positive_attr!r}`",
+                f"guessing `positive: {'down' if data_positive_down else 'up'!r}`",
                 stacklevel=2)
 
-        # Reverse the polarity
-        if (positive_attr == 'down') != positive_down:
+        if positive_down is not None and data_positive_down != positive_down:
+            # Reverse the polarity
             new_values = -1 * new_variable.values
             if name == dimension:
                 new_dataset = new_dataset.assign_coords({name: new_values})
@@ -273,15 +284,34 @@ def normalize_depth_variables(
                 })
                 new_variable = new_dataset[name]
 
-        # Check if the existing data goes from deep to shallow, correcting for
-        # the positive_down we just adjusted above. This assumes that depth
-        # data are monotonic across all values. If this is not the case,
-        # good luck.
-        d1, d2 = new_variable.values[0:2]
-        data_deep_to_shallow = (d1 > d2) == positive_down
+            try:
+                bounds_name = new_variable.attrs['bounds']
+                bounds_variable = new_dataset[bounds_name]
+            except KeyError:
+                pass
+            else:
+                new_dataset = new_dataset.assign({
+                    bounds_name: (
+                        bounds_variable.dims,
+                        -1 * bounds_variable.values,
+                        bounds_variable.attrs,
+                        bounds_variable.encoding,
+                    ),
+                })
 
-        # Flip the order of the coordinate
-        if data_deep_to_shallow != deep_to_shallow:
-            new_dataset = new_dataset.isel({dimension: numpy.s_[::-1]})
+            # Update this so the deep-to-shallow normalization can use it
+            data_positive_down = positive_down
+
+        if deep_to_shallow is not None:
+            # Check if the existing data goes from deep to shallow, correcting for
+            # the positive_down we just adjusted above. This assumes that depth
+            # data are monotonic across all values. If this is not the case,
+            # good luck.
+            d1, d2 = new_variable.values[0:2]
+            data_deep_to_shallow = (d1 > d2) == data_positive_down
+
+            # Flip the order of the coordinate
+            if data_deep_to_shallow != deep_to_shallow:
+                new_dataset = new_dataset.isel({dimension: numpy.s_[::-1]})
 
     return new_dataset

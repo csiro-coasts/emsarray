@@ -1716,7 +1716,10 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             non_spatial_variables=[self.get_time_name()])
 
     def normalize_depth_variables(
-        self, positive_down: bool = True, deep_to_shallow: bool = True,
+        self,
+        *,
+        positive_down: Optional[bool] = None,
+        deep_to_shallow: Optional[bool] = None,
     ) -> xarray.Dataset:
         """An alias for :func:`emsarray.operations.depth.normalize_depth_variables`"""
         return depth.normalize_depth_variables(
