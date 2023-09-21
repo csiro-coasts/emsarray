@@ -12,3 +12,21 @@ To explore these notebooks interactively on the web you can launch a
 If you would prefer to download the examples and explore them locally,
 they are available on Github at
 `csiro-coasts/emsarray-notebooks <https://github.com/csiro-coasts/emsarray-notebooks>`_.
+
+Gallery
+=======
+
+.. toctree::
+   :glob:
+   :hidden:
+
+   *
+
+.. list-table::
+
+   * - :ref:`example-kgari-transect`
+
+       .. image:: /_static/images/kgari-transect.png
+          :width: 200
+          :class: no-scaled-link
+
