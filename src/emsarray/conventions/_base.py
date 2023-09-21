@@ -888,6 +888,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         scalar: Optional[DataArrayOrName] = None,
         vector: Optional[Tuple[DataArrayOrName, DataArrayOrName]] = None,
         title: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """Plot values for a :class:`~xarray.DataArray`
         on a :mod:`matplotlib` :class:`~matplotlib.figure.Figure`.
@@ -911,12 +912,14 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             A tuple of the *u* and *v* components of a vector.
             The components should be a :class:`~xarray.DataArray`,
             or the name of an existing DataArray in this Dataset.
+        **kwargs
+            Any extra keyword arguments are passed on to
+            :meth:`emsarray.plot.plot_on_figure`
 
         See Also
         --------
         :func:`.plot.plot_on_figure` : The underlying implementation
         """
-        kwargs: Dict[str, Any] = {}
         if scalar is not None:
             kwargs['scalar'] = self._get_data_array(scalar)
 
@@ -952,28 +955,22 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         plot_on_figure(figure, self, **kwargs)
 
     @_requires_plot
-    def plot(
-        self,
-        scalar: Optional[DataArrayOrName] = None,
-        vector: Optional[Tuple[DataArrayOrName, DataArrayOrName]] = None,
-        title: Optional[str] = None,
-    ) -> None:
+    def plot(self, *args: Any, **kwargs: Any) -> None:
         """Plot a data array and automatically display it.
 
         This method is most useful when working in Jupyter notebooks
         which display figures automatically.
+        This method is a wrapper around :meth:`.plot_on_figure`
+        that creates and shows a :class:`~matplotlib.figure.Figure` for you.
+        All arguments are passed on to :meth:`.plot_on_figure`,
+        refer to that function for details.
 
         See Also
         --------
         :meth:`.plot_on_figure`
         """
         from matplotlib import pyplot
-        self.plot_on_figure(
-            pyplot.figure(),
-            scalar=scalar,
-            vector=vector,
-            title=title,
-        )
+        self.plot_on_figure(pyplot.figure(), *args, **kwargs)
         pyplot.show()
 
     @_requires_plot
@@ -993,19 +990,21 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Parameters
         ----------
-        figure
+        figure : matplotlib.figure.Figure
             The :class:`matplotlib.figure.Figure` to plot the animation on
-        data_array
+        data_array : Hashable or xarray.DataArray
             The :class:`xarray.DataArray` to plot.
             If a string is passed in,
             the variable with that name is taken from :attr:`dataset`.
-        coordinate
+        coordinate : Hashable or xarray.DataArray, optional
             The coordinate to vary across the animation.
             Pass in either the name of a coordinate variable
             or coordinate variable itself.
             Optional, if not supplied the time coordinate
             from :meth:`get_time_name` is used.
             Other appropriate coordinates to animate over include depth.
+        **kwargs
+            Any extra arguments are passed to :func:`.plot.animate_on_figure`.
 
         Returns
         -------
