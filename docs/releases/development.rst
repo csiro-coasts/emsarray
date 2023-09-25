@@ -31,3 +31,5 @@ Next release (in development)
   This feature is considered experimental
   and may change significantly in future releases.
   (:pr:`110`).
+* Fix an issue with plotting variables with no ``long_name`` attribute.
+  (:issue:`105`, :pr:`111`).

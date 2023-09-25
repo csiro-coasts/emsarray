@@ -1,10 +1,17 @@
+import logging
+import pathlib
+
 import cartopy.crs
 import matplotlib.figure
+import matplotlib.pyplot
 import numpy
 import pytest
 import shapely
 
+import emsarray
 from emsarray.plot import add_landmarks, polygons_to_collection
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.matplotlib
@@ -43,3 +50,52 @@ def test_add_landmarks():
     for landmark, text in zip(landmarks, axes.texts):
         assert text.get_text() == landmark[0]
         assert text.xy == landmark[1].coords.xy
+
+
+@pytest.mark.matplotlib(mock_coast=True)
+@pytest.mark.tutorial
+def test_plot(
+    datasets: pathlib.Path,
+    tmp_path: pathlib.Path,
+):
+    """
+    Test plotting a variable with no long_name attribute works.
+    Regression test for https://github.com/csiro-coasts/emsarray/issues/105
+    """
+    dataset = emsarray.tutorial.open_dataset('gbr4')
+    temp = dataset['temp'].copy()
+    temp = temp.isel(time=0, k=-1)
+
+    dataset.ems.plot(temp)
+
+    figure = matplotlib.pyplot.gcf()
+    axes = figure.axes[0]
+    assert axes.get_title() == 'Temperature\n2022-05-11T14:00:00.000000000'
+
+    matplotlib.pyplot.savefig(tmp_path / 'plot.png')
+    logger.info("Saved plot to %r", tmp_path / 'plot.png')
+
+
+@pytest.mark.matplotlib(mock_coast=True)
+@pytest.mark.tutorial
+def test_plot_no_long_name(
+    datasets: pathlib.Path,
+    tmp_path: pathlib.Path,
+):
+    """
+    Test plotting a variable with no long_name attribute works.
+    Regression test for https://github.com/csiro-coasts/emsarray/issues/105
+    """
+    dataset = emsarray.tutorial.open_dataset('gbr4')
+    temp = dataset['temp'].copy()
+    temp = temp.isel(time=0, k=-1)
+    del temp.attrs['long_name']
+
+    dataset.ems.plot(temp)
+
+    figure = matplotlib.pyplot.gcf()
+    axes = figure.axes[0]
+    assert axes.get_title() == '2022-05-11T14:00:00.000000000'
+
+    matplotlib.pyplot.savefig(tmp_path / 'plot.png')
+    logger.info("Saved plot to %r", tmp_path / 'plot.png')
