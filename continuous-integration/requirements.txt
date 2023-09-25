@@ -28,7 +28,11 @@ certifi==2023.7.22
     #   pyproj
     #   requests
 cftime==1.6.2
-    # via netcdf4
+    # via
+    #   cfunits
+    #   netcdf4
+cfunits==3.3.6
+    # via emsarray (setup.cfg)
 chardet==5.2.0
     # via tox
 charset-normalizer==3.2.0
@@ -127,6 +131,7 @@ numpy==1.25.2
     #   bottleneck
     #   cartopy
     #   cftime
+    #   cfunits
     #   contourpy
     #   dask
     #   emsarray (setup.cfg)
@@ -142,6 +147,7 @@ packaging==23.1
     # via
     #   bokeh
     #   cartopy
+    #   cfunits
     #   dask
     #   distributed
     #   emsarray (setup.cfg)

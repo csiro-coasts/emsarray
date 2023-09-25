@@ -33,21 +33,28 @@ You can install these by :ref:`choosing some extras at install time <extras>`.
 Dependencies
 ============
 
-``emsarray`` depends on
-`cartopy <https://scitools.org.uk/cartopy/docs/latest/installing.html>`_
-for plotting.
-This depends on the non-Python ``geos`` library.
+Most of the dependencies of ``emsarray`` are installable via pip,
+however some dependencies require non-Python components
+that must be installed using some other method.
+``emsarray`` uses the following libraries that can not be installed via pip:
+
+* ``geos``, via
+  `cartopy <https://scitools.org.uk/cartopy/docs/latest/installing.html>`_.
+  This is used for plotting
+* ``udunits2``, via
+* `cfunits <https://ncas-cms.github.io/cfunits/installation.html>`.
+  This is used for plotting.
 
 These can be installed via your package manager or via ``conda``.
 Installing from ``conda`` is the recommended approach
 as these packages are often more up-to-date than the system packages
-and it guarantees that compatible versions of ``geos`` is installed.
+and it guarantees that compatible versions are installed.
 
 .. code-block:: shell-session
 
    $ conda create -n my-env
    $ conda activate my-env
-   $ conda install cartopy
+   $ conda install cartopy cfunits
 
 If ``geos`` is installed using your system package manager,
 and ``cartopy`` is installed via pip,

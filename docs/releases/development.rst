@@ -27,3 +27,7 @@ Next release (in development)
   This is a breaking change if you previously relied
   on the default value of `True` for these parameters.
   (:pr:`108`).
+* Add new module :mod:`emsarray.transect` for making transect plots.
+  This feature is considered experimental
+  and may change significantly in future releases.
+  (:pr:`110`).

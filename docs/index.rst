@@ -44,7 +44,7 @@ Contents
 
     getting-started/index.rst
     concepts/index.rst
-    examples.rst
+    examples/index.rst
     api/index.rst
     cli.rst
     developing/index.rst
