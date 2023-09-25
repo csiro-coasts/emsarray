@@ -3,3 +3,4 @@ channels:
 
 dependencies:
   - geos ~=3.10.2
+  - udunits2 >=2.2.25
