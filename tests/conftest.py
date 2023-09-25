@@ -1,9 +1,12 @@
+import logging
 import pathlib
 from unittest import mock
 
 import pytest
 
 import emsarray
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -19,6 +22,7 @@ def pytest_runtest_setup(item):
 
 @pytest.fixture
 def matplotlib_backend(
+    request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
     backend: str = 'template',
 ):
@@ -27,6 +31,12 @@ def matplotlib_backend(
     """
     import matplotlib
     import matplotlib.pyplot
+
+    node = request.node
+    mark = node.get_closest_marker('matplotlib')
+
+    if mark.kwargs.get('mock_coast', False):
+        monkeypatch.setattr(emsarray.plot, 'add_coast', lambda figure: None)
 
     show_mock = mock.Mock(spec=matplotlib.pyplot.show)
     monkeypatch.setattr(matplotlib.pyplot, 'show', show_mock)

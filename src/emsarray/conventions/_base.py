@@ -938,7 +938,10 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             #
             # Users can supply their own titles
             # if this automatic behaviour is insufficient
-            kwargs['title'] = kwargs['scalar'].attrs.get('long_name')
+            title_bits: list[str] = []
+            long_name = kwargs['scalar'].attrs.get('long_name')
+            if long_name is not None:
+                title_bits.append(str(long_name))
             try:
                 time_coordinate = self.dataset.variables[self.get_time_name()]
             except KeyError:
@@ -949,8 +952,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 # as long as the time coordinate is a proper coordinate with
                 # matching dimension name, not an auxiliary coordinate.
                 if time_coordinate.size == 1:
-                    time = time_coordinate.values
-                    kwargs['title'] = kwargs['title'] + '\n' + str(time)
+                    time = time_coordinate.values[0]
+                    title_bits.append(str(time))
+
+            if title_bits:
+                kwargs['title'] = '\n'.join(title_bits)
 
         plot_on_figure(figure, self, **kwargs)
 
