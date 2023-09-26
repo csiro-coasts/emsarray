@@ -62,7 +62,7 @@ def plot(
     figure = pyplot.figure(layout="constrained", figsize=figsize)
     transect = Transect(dataset, line)
     transect.plot_on_figure(figure, data_array, **kwargs)
-    figure.show()
+    pyplot.show()
     return figure
 
 
