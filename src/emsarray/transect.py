@@ -11,7 +11,7 @@ import numpy
 import shapely
 import xarray
 from cartopy import crs
-from matplotlib import animation, cm, pyplot
+from matplotlib import animation, colormaps, pyplot
 from matplotlib.artist import Artist
 from matplotlib.axes import Axes
 from matplotlib.collections import PolyCollection
@@ -760,7 +760,7 @@ class Transect:
         if title is not None:
             axes.set_title(title)
 
-        cmap = cm.get_cmap(cmap).copy()
+        cmap = colormaps[cmap].copy()
         cmap.set_bad(ocean_floor_colour)
         collection = self.make_poly_collection(
             cmap=cmap, clim=(numpy.nanmin(data_array), numpy.nanmax(data_array)))
