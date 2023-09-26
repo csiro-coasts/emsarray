@@ -8,6 +8,7 @@ from typing import (
 import numpy
 import xarray
 
+from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.types import Landmark
 from emsarray.utils import requires_extra
 
@@ -215,6 +216,48 @@ def polygons_to_collection(
         closed=False,
         **kwargs
     )
+
+
+def make_plot_title(
+    dataset: xarray.Dataset,
+    data_array: xarray.DataArray,
+) -> Optional[str]:
+    """
+    Make a suitable plot title for a variable.
+    This will attempt to find a name for the variable by looking through the attributes.
+    If the variable has a time coordinate,
+    and the time coordinate has a single value,
+    the time step is appended after the title.
+    """
+    if 'long_name' in data_array.attrs:
+        title = str(data_array.attrs['long_name'])
+    elif 'standard_name' in data_array.attrs:
+        title = str(data_array.attrs['standard_name'])
+    elif data_array.name is not None:
+        title = str(data_array.name)
+    else:
+        return None
+
+    # Check if this variable has a time coordinate
+    try:
+        time_coordinate = dataset.ems.time_coordinate
+    except NoSuchCoordinateError:
+        return title
+    if time_coordinate.name not in data_array.coords:
+        return title
+    # Fetch the coordinate from the data array itself,
+    # in case someone did `data_array = dataset['temp'].isel(time=0)`
+    time_coordinate = data_array.coords[time_coordinate.name]
+
+    if len(time_coordinate.dims) == 0:
+        time_value = time_coordinate.values
+    elif time_coordinate.size == 1:
+        time_value = time_coordinate.values[0]
+    else:
+        return title
+
+    time_string = numpy.datetime_as_string(time_value, unit='auto')
+    return f'{title}\n{time_string}'
 
 
 @_requires_plot

@@ -443,6 +443,7 @@ def test_plot():
         'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
     })
     convention = SimpleConvention(dataset)
+    convention.bind()
 
     # Naming a simple variable should work fine
     convention.plot('botz')

@@ -20,7 +20,7 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import EngFormatter, Formatter
 
 from emsarray.conventions import Convention, Index
-from emsarray.plot import _requires_plot
+from emsarray.plot import _requires_plot, make_plot_title
 from emsarray.types import Landmark
 from emsarray.utils import move_dimensions_to_end
 
@@ -493,6 +493,10 @@ class Transect:
             The input data array transformed to have the correct shape
             for plotting on the transect.
         """
+        # Some of the following operations drop attrs,
+        # so keep a reference to the original ones
+        attrs = data_array.attrs
+
         data_array = self.convention.ravel(data_array)
 
         depth_dimension = self.transect_dataset.coords['depth'].dims[0]
@@ -501,6 +505,9 @@ class Transect:
 
         linear_indices = self.transect_dataset['linear_index'].values
         data_array = data_array.isel({index_dimension: linear_indices})
+
+        # Restore attrs after reformatting
+        data_array.attrs.update(attrs)
 
         return data_array
 
@@ -749,7 +756,7 @@ class Transect:
         axes.set_ylim(depth_limit_deep, depth_limit_shallow)
 
         if title is None:
-            title = data_array.attrs.get('long_name')
+            title = make_plot_title(self.dataset, data_array)
         if title is not None:
             axes.set_title(title)
 

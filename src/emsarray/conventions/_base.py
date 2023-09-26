@@ -23,7 +23,8 @@ from emsarray.compat.shapely import SpatialIndex
 from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.operations import depth
 from emsarray.plot import (
-    _requires_plot, animate_on_figure, plot_on_figure, polygons_to_collection
+    _requires_plot, animate_on_figure, make_plot_title, plot_on_figure,
+    polygons_to_collection
 )
 from emsarray.state import State
 from emsarray.types import Bounds, Pathish
@@ -938,25 +939,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             #
             # Users can supply their own titles
             # if this automatic behaviour is insufficient
-            title_bits: list[str] = []
-            long_name = kwargs['scalar'].attrs.get('long_name')
-            if long_name is not None:
-                title_bits.append(str(long_name))
-            try:
-                time_coordinate = self.dataset.variables[self.get_time_name()]
-            except KeyError:
-                pass
-            else:
-                # Add a time stamp when the time coordinate has a single value.
-                # This happens when you `.sel()` a single time slice to plot -
-                # as long as the time coordinate is a proper coordinate with
-                # matching dimension name, not an auxiliary coordinate.
-                if time_coordinate.size == 1:
-                    time = time_coordinate.values[0]
-                    title_bits.append(str(time))
-
-            if title_bits:
-                kwargs['title'] = '\n'.join(title_bits)
+            kwargs['title'] = make_plot_title(self.dataset, kwargs['scalar'])
 
         plot_on_figure(figure, self, **kwargs)
 
