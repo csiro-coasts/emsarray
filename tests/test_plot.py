@@ -58,11 +58,7 @@ def test_plot(
     datasets: pathlib.Path,
     tmp_path: pathlib.Path,
 ):
-    """
-    Test plotting a variable with no long_name attribute works.
-    Regression test for https://github.com/csiro-coasts/emsarray/issues/105
-    """
-    dataset = emsarray.tutorial.open_dataset('gbr4')
+    dataset = emsarray.tutorial.open_dataset('fraser')
     temp = dataset['temp'].copy()
     temp = temp.isel(time=0, k=-1)
 
@@ -70,7 +66,7 @@ def test_plot(
 
     figure = matplotlib.pyplot.gcf()
     axes = figure.axes[0]
-    assert axes.get_title() == 'Temperature\n2022-05-11T14:00:00.000000000'
+    assert axes.get_title() == 'Temperature\n2022-05-11T14:00'
 
     matplotlib.pyplot.savefig(tmp_path / 'plot.png')
     logger.info("Saved plot to %r", tmp_path / 'plot.png')
@@ -86,7 +82,7 @@ def test_plot_no_long_name(
     Test plotting a variable with no long_name attribute works.
     Regression test for https://github.com/csiro-coasts/emsarray/issues/105
     """
-    dataset = emsarray.tutorial.open_dataset('gbr4')
+    dataset = emsarray.tutorial.open_dataset('fraser')
     temp = dataset['temp'].copy()
     temp = temp.isel(time=0, k=-1)
     del temp.attrs['long_name']
@@ -95,7 +91,7 @@ def test_plot_no_long_name(
 
     figure = matplotlib.pyplot.gcf()
     axes = figure.axes[0]
-    assert axes.get_title() == '2022-05-11T14:00:00.000000000'
+    assert axes.get_title() == 'temp\n2022-05-11T14:00'
 
     matplotlib.pyplot.savefig(tmp_path / 'plot.png')
     logger.info("Saved plot to %r", tmp_path / 'plot.png')
