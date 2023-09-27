@@ -62,7 +62,7 @@ def add_coast(axes: Axes, **kwargs: Any) -> None:
     axes.add_feature(coast, **kwargs)
 
 
-def add_gridlines(axes: Axes) -> gridliner.Gridliner:
+def add_gridlines(axes: Axes, **kwargs: Any) -> gridliner.Gridliner:
     """
     Add some gridlines to the axes.
 
@@ -75,10 +75,12 @@ def add_gridlines(axes: Axes) -> gridliner.Gridliner:
     -------
     cartopy.mpl.gridliner.Gridliner
     """
-    gridlines = axes.gridlines(draw_labels=True, auto_update=True)
-    gridlines.top_labels = False
-    gridlines.right_labels = False
-    return gridlines
+    kwargs = {
+        'draw_labels': ['left', 'bottom'],
+        'auto_update': True,
+        **kwargs,
+    }
+    return axes.gridlines(**kwargs)
 
 
 def add_landmarks(
@@ -270,6 +272,8 @@ def plot_on_figure(
     title: Optional[str] = None,
     projection: Optional[cartopy.crs.Projection] = None,
     landmarks: Optional[Iterable[Landmark]] = None,
+    gridlines: bool = True,
+    coast: bool = True,
 ) -> None:
     """
     Plot a :class:`~xarray.DataArray`
@@ -298,6 +302,10 @@ def plot_on_figure(
         which is defined in :attr:`.Convention.data_crs`.
     landmarks : list of :data:`landmarks <emsarray.types.Landmark>`, optional
         Landmarks to add to the plot. These are tuples of (name, point).
+    gridlines : bool, default True
+        Whether to add gridlines to the plot using :func:`add_gridlines()`.
+    coast : bool, default True
+        Whether to add coastlines to the plot using :func:`add_coast()`.
     """
     if projection is None:
         projection = cartopy.crs.PlateCarree()
@@ -331,9 +339,18 @@ def plot_on_figure(
     if landmarks:
         add_landmarks(axes, landmarks)
 
-    add_coast(axes)
-    add_gridlines(axes)
+    if coast:
+        add_coast(axes)
+    if gridlines:
+        add_gridlines(axes)
+
     axes.autoscale()
+
+    # Work around for gridline positioning issues
+    # https://github.com/SciTools/cartopy/issues/2245#issuecomment-1732313921
+    layout_engine = figure.get_layout_engine()
+    if layout_engine is not None:
+        layout_engine.execute(figure)
 
 
 @_requires_plot
@@ -347,6 +364,8 @@ def animate_on_figure(
     title: Optional[Union[str, Callable[[Any], str]]] = None,
     projection: Optional[cartopy.crs.Projection] = None,
     landmarks: Optional[Iterable[Landmark]] = None,
+    gridlines: bool = True,
+    coast: bool = True,
     interval: int = 1000,
     repeat: Union[bool, Literal['cycle', 'bounce']] = True,
 ) -> animation.FuncAnimation:
@@ -392,6 +411,10 @@ def animate_on_figure(
         which is defined in :attr:`.Convention.data_crs`.
     landmarks : list of :data:`landmarks <emsarray.types.Landmark>`, optional
         Landmarks to add to the plot. These are tuples of (name, point).
+    gridlines : bool, default True
+        Whether to add gridlines to the plot using :func:`add_gridlines()`.
+    coast : bool, default True
+        Whether to add coastlines to the plot using :func:`add_coast()`.
     interval : int
         The interval between frames of animation
     repeat : {True, False, 'cycle', 'bounce'}
@@ -442,8 +465,10 @@ def animate_on_figure(
         axes.add_collection(quiver)
 
     # Draw a coast overlay
-    add_coast(axes)
-    gridlines = add_gridlines(axes)
+    if coast:
+        add_coast(axes)
+    if gridlines:
+        gridliner = add_gridlines(axes)
     if landmarks:
         add_landmarks(axes, landmarks)
     axes.autoscale()
@@ -470,8 +495,9 @@ def animate_on_figure(
         coordinate_value = coordinate.values[index]
         axes.title.set_text(coordinate_callable(coordinate_value))
         changes.append(axes.title)
-        changes.extend(gridlines.xline_artists)
-        changes.extend(gridlines.yline_artists)
+        if gridlines:
+            changes.extend(gridliner.xline_artists)
+            changes.extend(gridliner.yline_artists)
 
         if collection is not None:
             collection.set_array(scalar_values[index])

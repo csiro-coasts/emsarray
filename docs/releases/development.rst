@@ -5,3 +5,11 @@ Next release (in development)
 * Fix transect plot title and units.
   All attributes were being dropped accidentally in `prepare_data_array_for_transect()`.
   (:pr:`114`).
+* Add `coast` and `gridlines` parameters to :func:`emsarray.plot.plot_on_figure()`,
+  allowing users to disable these components of a plot.
+  Currently gridlines can cause issues in interactive Jupyter notebooks
+  and some other environments.
+  There is no one solution to every situation.
+  Allowing users to disable gridlines is a temporary work around
+  while other solutions are being sought.
+  (:pr:`115`, :issue:`SciTools/cartopy#2245`, :issue:`SciTools/cartopy#2246`, :issue:`SciTools/cartopy#2247`).
