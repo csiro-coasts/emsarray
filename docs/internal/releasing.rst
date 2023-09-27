@@ -25,8 +25,7 @@ Push this branch and make a pull request on Github.
 
    $ ./scripts/release.py pre 1.2.0
 
-Manually run the 'Prerelease checks' workflow for this branch in the 'Actions' tab on Github.
-This will check that a conda package can be built from the Python package tarball.
+Merge this pull request once all the CI tests pass.
 
 Build and publish packages
 ==========================
