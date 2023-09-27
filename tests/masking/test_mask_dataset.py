@@ -136,6 +136,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
         },
     )
     t.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
+    t.encoding["dtype"] = numpy.dtype("float32")
 
     botz_missing_value = numpy.float32(-99.)
     botz = xarray.DataArray(

@@ -1,6 +1,7 @@
 import datetime
 import logging
 import pathlib
+from importlib.metadata import version
 
 import netCDF4
 import numpy
@@ -9,11 +10,15 @@ import pandas
 import pytest
 import xarray
 import xarray.testing
+from packaging.version import parse
 
 from emsarray import utils
 from tests.utils import filter_warning
 
 logger = logging.getLogger(__name__)
+
+
+xarray_version = parse(version('xarray'))
 
 
 @pytest.mark.parametrize(
@@ -87,6 +92,7 @@ def test_disable_default_fill_value(tmp_path: pathlib.Path):
         data=td_data, dims=['j', 'i'])
     timedelta_with_missing_value_var.encoding['missing_value'] = numpy.float64('1e35')
     timedelta_with_missing_value_var.encoding['units'] = 'days'
+    timedelta_with_missing_value_var.encoding['dtype'] = numpy.dtype('float64')
 
     dataset = xarray.Dataset(data_vars={
         "int_var": int_var,
@@ -96,7 +102,7 @@ def test_disable_default_fill_value(tmp_path: pathlib.Path):
     })
 
     # Save to a netCDF4 and then prove that it is bad
-    # This emits warnings in current versions of xarray / numpy.
+    # This emits warnings in older versions of xarray / numpy.
     # See https://github.com/pydata/xarray/issues/7942
     with filter_warning(
         'default', category=RuntimeWarning,
@@ -105,7 +111,10 @@ def test_disable_default_fill_value(tmp_path: pathlib.Path):
         record=True,
     ) as ws:
         dataset.to_netcdf(tmp_path / "bad.nc")
-        assert len(ws) == 1
+        if xarray_version >= parse('2023.09'):
+            assert len(ws) == 0
+        else:
+            assert len(ws) == 1
 
     with netCDF4.Dataset(tmp_path / "bad.nc", "r") as nc_dataset:
         # This one shouldn't be here because it is an integer datatype. xarray
@@ -116,6 +125,8 @@ def test_disable_default_fill_value(tmp_path: pathlib.Path):
         assert numpy.isnan(nc_dataset.variables["float_var"].getncattr("_FillValue"))
         # This one is quite alright, we did explicitly set it after all
         assert numpy.isnan(nc_dataset.variables["float_with_fill_value_var"].getncattr("_FillValue"))
+        # Same with this one
+        assert nc_dataset.variables["timedelta_with_missing_value_var"].getncattr("missing_value") == numpy.float64('1e35')
         # This one is incorrect, a `missing_value` attribute has already been set
         assert numpy.isnan(nc_dataset.variables["timedelta_with_missing_value_var"].getncattr("_FillValue"))
 
@@ -129,7 +140,10 @@ def test_disable_default_fill_value(tmp_path: pathlib.Path):
         record=True,
     ) as ws:
         dataset.to_netcdf(tmp_path / "good.nc")
-        assert len(ws) == 1
+        if xarray_version >= parse('2023.09'):
+            assert len(ws) == 0
+        else:
+            assert len(ws) == 1
 
     with netCDF4.Dataset(tmp_path / "good.nc", "r") as nc_dataset:
         # This one should still be unset
