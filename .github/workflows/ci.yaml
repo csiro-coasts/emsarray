@@ -30,6 +30,30 @@ jobs:
         shell: bash -l {0}
         run: unzip -l dist/*.whl | grep -q py.typed
 
+  build_conda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: ['build']
+    continue-on-error: true
+
+    if: startsWith(github.head_ref, 'release-')
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+        with:
+          repository: conda-forge/emsarray-feedstock
+          path: emsarray-feedstock
+
+      - uses: ./.github/actions/environment
+        with:
+          python-version: ${{ env.python-version }}
+          package-artifact-name: ${{ needs.build.outputs.artifact-name }}
+
+      - run: |
+          conda install conda-build
+          ./scripts/build-local-conda-package.sh
+
   test:
     name: python ${{ matrix.python-version }}, ${{ matrix.experimental && 'latest' || 'pinned' }} dependencies
     runs-on: ubuntu-latest
