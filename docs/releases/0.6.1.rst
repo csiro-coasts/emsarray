@@ -1,6 +1,8 @@
-=============================
-Next release (in development)
-=============================
+=====
+0.6.1
+=====
+
+Released on 2023-09-27
 
 * Fix transect plot title and units.
   All attributes were being dropped accidentally in `prepare_data_array_for_transect()`.
