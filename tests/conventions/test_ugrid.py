@@ -206,6 +206,10 @@ def make_dataset(
     # EMS fails to parse. There is no way around this using xarray natively,
     # you have to adjust it with nctool after saving it.
     t.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
+    # This can not be represented as an int, so explicitly set the dtype.
+    # xarray >=2023.09 warns when encoding variables without a dtype
+    # that can not be represented exactly.
+    t.encoding["dtype"] = "float32"
 
     botz = xarray.DataArray(
         data=numpy.random.random(cell_size) * 10 + 50,

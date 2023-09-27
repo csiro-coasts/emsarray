@@ -94,6 +94,14 @@ def make_dataset(
             "coordinate_type": "time",
         },
     )
+    # Note: xarray will reformat this in to 1990-01-01T00:00:00+10:00, which
+    # EMS fails to parse. There is no way around this using xarray natively,
+    # you have to adjust it with nctool after saving it.
+    time.encoding["units"] = "days since 1990-01-01 00:00:00 +10"
+    # This can not be represented as an int, so explicitly set the dtype.
+    # xarray >=2023.09 warns when encoding variables without a dtype
+    # that can not be represented exactly.
+    time.encoding["dtype"] = "float32"
 
     botz = xarray.DataArray(
         data=numpy.random.random((j_size, i_size)) * 10 + 50,
