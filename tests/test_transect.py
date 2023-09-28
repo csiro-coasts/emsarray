@@ -55,3 +55,45 @@ def test_plot(
 
     matplotlib.pyplot.savefig(tmp_path / 'plot.png')
     logger.info("Saved plot to %r", tmp_path / 'plot.png')
+
+
+@pytest.mark.matplotlib(mock_coast=True)
+@pytest.mark.tutorial
+def test_plot_no_intersection(
+    datasets: pathlib.Path,
+    tmp_path: pathlib.Path,
+):
+    """
+    Transects that do not intersect the dataset geometry need special handling.
+    This should produce an empty transect plot, which is better than raising an error.
+    """
+    dataset = emsarray.tutorial.open_dataset('gbr4')
+    temp = dataset['temp'].copy()
+    temp = temp.isel(time=-1)
+
+    # This line goes through the Bass Strait, no where near the GBR.
+    # Someone picked the wrong dataset...
+    line = shapely.LineString([
+        [142.097168, -39.206719],
+        [145.393066, -39.3088],
+        [149.798584, -39.172659],
+    ])
+    emsarray.transect.plot(
+        dataset, line, temp,
+        bathymetry=dataset['botz'])
+
+    figure = matplotlib.pyplot.gcf()
+    axes = figure.axes[0]
+    # This is assembled from the variable long_name and the time coordinate
+    assert axes.get_title() == 'Temperature\n2022-05-11T14:00'
+    # This is the long_name of the depth coordinate
+    assert axes.get_ylabel() == 'Z coordinate'
+    # This is made up
+    assert axes.get_xlabel() == 'Distance along transect'
+
+    colorbar = figure.axes[-1]
+    # This is the variable units
+    assert colorbar.get_ylabel() == 'degrees C'
+
+    matplotlib.pyplot.savefig(tmp_path / 'plot.png')
+    logger.info("Saved plot to %r", tmp_path / 'plot.png')

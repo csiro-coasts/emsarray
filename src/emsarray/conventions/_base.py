@@ -268,21 +268,19 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 "cannot assign a new convention.")
         state.bind_convention(self)
 
+    @abc.abstractmethod
     def _get_data_array(self, data_array: DataArrayOrName) -> xarray.DataArray:
         """
         Utility to help get a data array for this dataset.
         If a string is passed in, the matching data array is fetched from the dataset.
-        If a data array is passed in, it is inspected to ensure the dimensions match
+        If a data array is passed in,
+        it is inspected to ensure the surface dimensions align
         before being returned as-is.
 
         This is useful for methods that support being passed either
         the name of a data array or a data array instance.
         """
-        if isinstance(data_array, xarray.DataArray):
-            utils.check_data_array_dimensions_match(self.dataset, data_array)
-            return data_array
-        else:
-            return self.dataset[data_array]
+        pass
 
     @cached_property
     def time_coordinate(self) -> xarray.DataArray:
@@ -1011,6 +1009,9 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         if coordinate is None:
             # Assume the user wants to plot along the time axis by default.
             coordinate = self.get_time_name()
+        if isinstance(coordinate, xarray.DataArray):
+            utils.check_data_array_dimensions_match(
+                self.dataset, coordinate, dimensions=coordinate.dims)
 
         coordinate = self._get_data_array(coordinate)
 
@@ -1786,6 +1787,23 @@ class DimensionConvention(Convention[GridKind, Index]):
             if actual_dimensions.issuperset(dimensions):
                 return kind
         raise ValueError("Unknown grid kind")
+
+    def _get_data_array(self, data_array: DataArrayOrName) -> xarray.DataArray:
+        if isinstance(data_array, xarray.DataArray):
+            grid_kind = self.get_grid_kind(data_array)
+            grid_dimensions = self.grid_dimensions[grid_kind]
+            for dimension in grid_dimensions:
+                # The data array already has matching dimension names
+                # as we found the grid kind using `Convention.get_grid_kind()`.
+                if self.dataset.sizes[dimension] != data_array.sizes[dimension]:
+                    raise ValueError(
+                        f"Mismatched dimension {dimension!r}, "
+                        "dataset has size {self.dataset.sizes[dimension]} but "
+                        "data array has size {data_array.sizes[dimension]}!"
+                    )
+            return data_array
+        else:
+            return self.dataset[data_array]
 
     @abc.abstractmethod
     def unpack_index(self, index: Index) -> Tuple[GridKind, Sequence[int]]:
