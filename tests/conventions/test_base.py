@@ -398,7 +398,7 @@ def test_select_index():
     ds_point = convention.select_index(SimpleGridIndex(y, x))
 
     # The x and y dims should have been dropped, as they are now of size 1
-    assert ds_point.dims == {'t': 5, 'z': 5}
+    assert ds_point.sizes == {'t': 5, 'z': 5}
     # The x and y coords should be single values
     assert ds_point.coords['x'].values == x
     assert ds_point.coords['y'].values == y

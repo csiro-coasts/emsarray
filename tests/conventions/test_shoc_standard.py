@@ -256,8 +256,8 @@ def test_face_centres():
     face_centres = convention.face_centres
     lons = dataset['x_centre'].values
     lats = dataset['y_centre'].values
-    for j in range(dataset.dims['j_centre']):
-        for i in range(dataset.dims['i_centre']):
+    for j in range(dataset.sizes['j_centre']):
+        for i in range(dataset.sizes['i_centre']):
             lon = lons[j, i]
             lat = lats[j, i]
             linear_index = convention.ravel_index((ArakawaCGridKind.face, j, i))
@@ -375,7 +375,7 @@ def test_select_index_face():
         # because of how xarray handles multidimensional coordinates
         'x_centre', 'y_centre',
     }
-    assert face.dims == {'record': 4, 'k_centre': 5}
+    assert face.sizes == {'record': 4, 'k_centre': 5}
     assert face['x_centre'].values == dataset['x_centre'].values[3, 4]
     assert face['y_centre'].values == dataset['y_centre'].values[3, 4]
 
@@ -393,7 +393,7 @@ def test_select_index_edge():
         # because of how xarray handles multidimensional coordinates
         'x_left', 'y_left'
     }
-    assert left.dims == {'record': 4, 'k_centre': 5}
+    assert left.sizes == {'record': 4, 'k_centre': 5}
 
     back = convention.select_index((ArakawaCGridKind.back, 3, 4))
     assert set(back.data_vars.keys()) == {
@@ -404,7 +404,7 @@ def test_select_index_edge():
         # because of how xarray handles multidimensional coordinates
         'x_back', 'y_back'
     }
-    assert back.dims == {'record': 4, 'k_centre': 5}
+    assert back.sizes == {'record': 4, 'k_centre': 5}
 
 
 def test_select_index_grid():
@@ -420,14 +420,14 @@ def test_select_index_grid():
         # because of how xarray handles multidimensional coordinates
         'x_grid', 'y_grid'
     }
-    assert node.dims == {'record': 4, 'k_centre': 5}
+    assert node.sizes == {'record': 4, 'k_centre': 5}
 
 
 def test_drop_geometry(datasets: pathlib.Path):
     dataset = xarray.open_dataset(datasets / 'shoc_standard.nc')
 
     dropped = dataset.ems.drop_geometry()
-    assert dropped.dims.keys() == {'face_i', 'face_j'}
+    assert set(dropped.dims) == {'face_i', 'face_j'}
     for topology in [dataset.ems.face, dataset.ems.back, dataset.ems.left, dataset.ems.node]:
         assert topology.longitude_name in dataset.variables
         assert topology.longitude_name in dataset.variables
@@ -587,7 +587,7 @@ def test_apply_clip_mask(tmp_path):
     # Check that the variable and dimension keys were preserved
     assert set(dataset.data_vars.keys()) == set(clipped.data_vars.keys())
     assert set(dataset.coords.keys()) == set(clipped.coords.keys())
-    assert set(dataset.dims.keys()) == set(clipped.dims.keys())
+    assert set(dataset.dims) == set(clipped.dims)
 
     # Check that the new topology seems reasonable
     assert clipped.ems.face.longitude.shape == (3, 3)

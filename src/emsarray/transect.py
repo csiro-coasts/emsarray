@@ -422,7 +422,7 @@ class Transect:
                 (distance_bounds[index, 1], depth_bounds[depth_index][0]),
             ]
             for depth_index in range(transect_dataset.coords['depth'].size)
-            for index in range(transect_dataset.dims['index'])
+            for index in range(transect_dataset.sizes['index'])
         ]
         return PolyCollection(vertices, **kwargs)
 
@@ -474,7 +474,7 @@ class Transect:
                 (distance_bounds[index, 1], deepest),
                 (distance_bounds[index, 1], bathymetry_values[linear_indices[index]]),
             ]
-            for index in range(transect_dataset.dims['index'])
+            for index in range(transect_dataset.sizes['index'])
         ]
         return PolyCollection(vertices, **kwargs)
 

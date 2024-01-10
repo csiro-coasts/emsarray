@@ -186,15 +186,15 @@ def test_dataset_like():
     # Variables have an order in the dataset. The order in the new dataset is wrong
     assert list(sample_dataset.data_vars.keys()) == ['foo', 'bar']
     assert list(new_dataset.data_vars.keys()) == ['bar', 'foo']
-    assert list(sample_dataset.dims.keys()) == ['x', 'y']
-    assert list(new_dataset.dims.keys()) == ['y', 'x']
+    assert list(sample_dataset.dims) == ['x', 'y']
+    assert list(new_dataset.dims) == ['y', 'x']
 
     # Make a new dataset like the input dataset
     like_dataset = utils.dataset_like(sample_dataset, new_dataset)
 
     # The data variables and dimensions should now be identical
     assert list(like_dataset.data_vars.keys()) == ['foo', 'bar']
-    assert list(like_dataset.dims.keys()) == ['x', 'y']
+    assert list(like_dataset.dims) == ['x', 'y']
     # The attributes and encodings should be merged
     assert like_dataset.attrs == {"hello": "world", "from": "new"}
     assert like_dataset.encoding == {"reticulation": "quartic"}

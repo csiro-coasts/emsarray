@@ -108,8 +108,8 @@ def test_normalize_depth_variable(
     assert_equal(out['depth_name'].values, expected_depths)
     assert out['depth_name'].dims == ('depth_dimension',)
 
-    assert out.dims['depth_coord'] == 6
-    assert out.dims['depth_dimension'] == 6
+    assert out.sizes['depth_coord'] == 6
+    assert out.sizes['depth_dimension'] == 6
 
     # Check that a warning was raised if the positive: 'up'/'down' attribute
     # was not set

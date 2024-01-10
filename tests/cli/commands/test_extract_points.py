@@ -35,7 +35,7 @@ def test_extract_points(
     point_dataset = xarray.open_dataset(out_path)
 
     assert 'point' in point_dataset.dims
-    assert point_dataset.dims['point'] == num_points
+    assert point_dataset.sizes['point'] == num_points
     assert_equal(points_df['name'], point_dataset['name'].values)
     assert_allclose(points_df['lon'], point_dataset['lon'].values)
     assert_allclose(points_df['lat'], point_dataset['lat'].values)

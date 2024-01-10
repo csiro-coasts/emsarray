@@ -1767,7 +1767,7 @@ class DimensionConvention(Convention[GridKind, Index]):
         """
         return {
             grid_kind: tuple(
-                self.dataset.dims[dim]
+                self.dataset.sizes[dim]
                 for dim in self.grid_dimensions[grid_kind]
             )
             for grid_kind in self.grid_kinds
@@ -1877,7 +1877,7 @@ class DimensionConvention(Convention[GridKind, Index]):
             grid_kind = self.default_grid_kind
 
         dimensions = self.grid_dimensions[grid_kind]
-        sizes = [self.dataset.dims[dim] for dim in dimensions]
+        sizes = [self.dataset.sizes[dim] for dim in dimensions]
 
         return utils.wind_dimension(
             data_array,

@@ -890,10 +890,10 @@ class Mesh2DTopology:
         """
         two = 'Two'
         # Check for the standard name
-        if two in self.dataset.dims and self.dataset.dims[two] == 2:
+        if two in self.dataset.sizes and self.dataset.sizes[two] == 2:
             return two
         # Check for any other dimension of size 2
-        for name, size in self.dataset.dims.items():
+        for name, size in self.dataset.sizes.items():
             if size == 2:
                 return name
         # Make up a new dimension with the standard name
@@ -975,7 +975,7 @@ class Mesh2DTopology:
     @property
     def node_count(self) -> int:
         """The number of nodes in the dataset."""
-        return self.dataset.dims[self.node_dimension]
+        return self.dataset.sizes[self.node_dimension]
 
     @property
     def edge_count(self) -> int:
@@ -986,7 +986,7 @@ class Mesh2DTopology:
         # This dimension may not be defined, so ignore KeyErrors. We can
         # compute it below.
         with suppress(KeyError):
-            return self.dataset.dims[self.edge_dimension]
+            return self.dataset.sizes[self.edge_dimension]
 
         # By computing the edge_node array we can determine how many edges exist
         return self.edge_node_array.shape[0]
@@ -996,12 +996,12 @@ class Mesh2DTopology:
         """
         The number of faces in the dataset.
         """
-        return self.dataset.dims[self.face_dimension]
+        return self.dataset.sizes[self.face_dimension]
 
     @property
     def max_node_count(self) -> int:
         """The maximum number of nodes / edges per face."""
-        return self.dataset.dims[self.max_node_dimension]
+        return self.dataset.sizes[self.max_node_dimension]
 
 
 class UGridKind(str, enum.Enum):

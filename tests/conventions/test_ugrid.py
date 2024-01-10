@@ -378,7 +378,7 @@ def test_polygons():
     polygons = dataset.ems.polygons
 
     # Should be one item for every face
-    assert len(polygons) == dataset.dims['nMesh2_face']
+    assert len(polygons) == dataset.sizes['nMesh2_face']
 
     # There should be no empty polygons
     assert all(poly is not None for poly in polygons)
@@ -405,7 +405,7 @@ def test_face_centres_from_variables():
     face_centres = convention.face_centres
     lons = dataset['Mesh2_face_x'].values
     lats = dataset['Mesh2_face_y'].values
-    for face in range(dataset.dims['nMesh2_face']):
+    for face in range(dataset.sizes['nMesh2_face']):
         lon = lons[face]
         lat = lats[face]
         linear_index = convention.ravel_index((UGridKind.face, face))
@@ -417,7 +417,7 @@ def test_face_centres_from_centroids():
     convention: UGrid = dataset.ems
 
     face_centres = convention.face_centres
-    for face in range(dataset.dims['nMesh2_face']):
+    for face in range(dataset.sizes['nMesh2_face']):
         linear_index = convention.ravel_index((UGridKind.face, face))
         polygon = convention.polygons[linear_index]
         lon, lat = polygon.centroid.coords[0]
@@ -459,7 +459,7 @@ def test_make_geojson_geometry():
 def test_ravel():
     dataset = make_dataset(width=3)
     convention: UGrid = dataset.ems
-    for linear_index in range(dataset.dims['nMesh2_face']):
+    for linear_index in range(dataset.sizes['nMesh2_face']):
         index = (UGridKind.face, linear_index)
         assert convention.ravel_index(index) == linear_index
         assert convention.wind_index(linear_index) == index
@@ -524,7 +524,7 @@ def test_drop_geometry_minimal():
     ]
 
     dropped = dataset.ems.drop_geometry()
-    assert dropped.dims.keys() == {
+    assert set(dropped.dims) == {
         # These still exist because there are variables defined on them
         topology.face_dimension, 'Mesh2_layers', 'record'
     }
@@ -576,7 +576,7 @@ def test_drop_geometry_full():
 
     print(list(dataset.variables.keys()))
     dropped = dataset.ems.drop_geometry()
-    assert dropped.dims.keys() == {
+    assert set(dropped.dims) == {
         # These still exist because there are variables defined on them
         topology.face_dimension, topology.edge_dimension,
         'Mesh2_layers', 'record'
@@ -654,7 +654,7 @@ def test_mask_from_face_indices_without_edges():
     node_indices = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
 
     mask = mask_from_face_indices(numpy.array(face_indices), topology)
-    assert mask.dims == {
+    assert mask.sizes == {
         'old_node_index': topology.node_count,
         'old_face_index': topology.face_count,
     }
@@ -677,7 +677,7 @@ def test_mask_from_face_indices_with_edges():
     node_indices = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
 
     mask = mask_from_face_indices(numpy.array(face_indices), topology)
-    assert mask.dims == {
+    assert mask.sizes == {
         'old_node_index': topology.node_count,
         'old_edge_index': topology.edge_count,
         'old_face_index': topology.face_count,
@@ -713,7 +713,7 @@ def test_apply_clip_mask(tmp_path):
 
     # Check that the variable and dimension keys were preserved
     assert set(dataset.variables.keys()) == set(clipped.variables.keys())
-    assert set(dataset.dims.keys()) == set(clipped.dims.keys())
+    assert set(dataset.dims) == set(clipped.dims)
 
     # Check that the new topology seems reasonable
     assert clipped.ems.topology.face_count == len(face_indices)
@@ -762,7 +762,7 @@ def test_make_and_apply_clip_mask(tmp_path):
     # Make a clip mask
     clip_mask = dataset.ems.make_clip_mask(polygon, buffer=1)
     clip_mask.to_netcdf(tmp_path / "clip.nc")
-    assert clip_mask.dims == {
+    assert clip_mask.sizes == {
         'old_face_index': topology.face_count,
         'old_edge_index': topology.edge_count,
         'old_node_index': topology.node_count,

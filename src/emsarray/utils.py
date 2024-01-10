@@ -454,7 +454,7 @@ def check_data_array_dimensions_match(dataset: xarray.Dataset, data_array: xarra
                 f"Data array has unknown dimension {dimension} of size {data_array_size}"
             )
 
-        dataset_size = dataset.dims[dimension]
+        dataset_size = dataset.sizes[dimension]
         if data_array_size != dataset_size:
             raise ValueError(
                 "Dimension mismatch between dataset and data array: "
