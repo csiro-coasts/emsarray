@@ -24,6 +24,7 @@ from shapely.testing import assert_geometries_equal
 from emsarray.conventions import get_dataset_convention
 from emsarray.conventions.grid import CFGrid2DTopology, CFGridKind
 from emsarray.conventions.shoc import ShocSimple
+from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.operations import geometry
 from tests.utils import (
     DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator,
@@ -173,6 +174,16 @@ def test_varnames():
     assert dataset.ems.get_depth_name() == 'zc'
     assert dataset.ems.get_all_depth_names() == ['zc']
     assert dataset.ems.get_time_name() == 'time'
+
+
+def test_no_depth_coordinate():
+    dataset = make_dataset(j_size=10, i_size=10)
+    dataset = dataset.isel({'k': -1}, drop=True)
+    print(dataset)
+
+    assert dataset.ems.get_all_depth_names() == []
+    with pytest.raises(NoSuchCoordinateError):
+        dataset.ems.get_depth_name()
 
 
 @pytest.mark.parametrize(

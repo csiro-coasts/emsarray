@@ -32,7 +32,7 @@ def make_dataset(
     corner_size: int = 0,
 ) -> xarray.Dataset:
     """
-    Make a dummy SHOC simple dataset of a particular size.
+    Make a dummy SHOC standard dataset of a particular size.
     It will have a sheared grid of points located near (0, 0),
     with increasing j moving north east, and increasing i moving south east.
 
@@ -187,7 +187,7 @@ def make_dataset(
 def test_make_dataset():
     dataset = make_dataset(j_size=5, i_size=9, corner_size=2)
 
-    # Check that this is recognised as a ShocSimple dataset
+    # Check that this is recognised as a ShocStandard dataset
     assert get_dataset_convention(dataset) is ShocStandard
 
     # Check that the correct convention is used
