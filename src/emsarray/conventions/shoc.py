@@ -57,7 +57,9 @@ class ShocStandard(ArakawaC):
         return name
 
     def get_all_depth_names(self) -> List[Hashable]:
-        return ['z_centre', 'z_grid']
+        return [
+            name for name in ['z_centre', 'z_grid']
+            if name in self.dataset.variables]
 
     def get_time_name(self) -> Hashable:
         name = 't'
@@ -123,4 +125,8 @@ class ShocSimple(CFGrid2D):
         return name
 
     def get_all_depth_names(self) -> List[Hashable]:
-        return [self.get_depth_name()]
+        name = 'zc'
+        if name in self.dataset.variables:
+            return [name]
+        else:
+            return []
