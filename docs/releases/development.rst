@@ -11,6 +11,9 @@ Next release (in development)
 * Drop dependency on importlib_metadata.
   This was only required to support Python 3.8, which was dropped in a previous release
   (:issue:`122`, :pr:`125`).
-* Fix an error with `ShocSimple.get_all_depth_names()`
+* Fix an error with ``ShocSimple.get_all_depth_names()``
   when the dataset had no depth coordinates
   (:issue:`123`, :pr:`126`).
+* Use `PEP 585 generic type annotations <https://peps.python.org/pep-0585/>`_
+  and stop using `PEP 563 postponed annotation evaluation <https://peps.python.org/pep-0563/>`_
+  (:issue:`109`, :pr:`127`).
