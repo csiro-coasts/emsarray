@@ -2,6 +2,7 @@
 Test convention class registration by entry points or manual registration.
 """
 import sys
+from importlib import metadata
 from typing import Dict, List, Tuple
 
 import pytest
@@ -63,11 +64,6 @@ def monkeypatch_entrypoint(
     monkeypatch,
     entry_points: Dict[str, List[Tuple[str, str]]],
 ):
-    if sys.version_info >= (3, 10):
-        from importlib import metadata
-    else:
-        import importlib_metadata as metadata
-
     _entry_points = {
         group: [
             metadata.EntryPoint(group=group, name=name, value=value)
@@ -75,8 +71,12 @@ def monkeypatch_entrypoint(
         ] for group, entries in entry_points.items()
     }
 
-    def mocked(group: str) -> List[metadata.EntryPoint]:
-        return _entry_points.get(group, [])
+    if sys.version_info >= (3, 10):
+        def mocked(group: str) -> List[metadata.EntryPoint]:
+            return _entry_points.get(group, [])
+    else:
+        def mocked() -> List[metadata.EntryPoint]:
+            return _entry_points
 
     monkeypatch.setattr(metadata, 'entry_points', mocked)
     return entry_points

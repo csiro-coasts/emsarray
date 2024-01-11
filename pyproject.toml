@@ -36,7 +36,6 @@ module = [
 	"cfunits.*",
 	"cryptography.*",
 	"geojson.*",
-	"importlib_metadata.*",
 	"matplotlib.*",
 	"netCDF4.*",
 	"pooch.*",

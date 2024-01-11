@@ -5,18 +5,13 @@ import sys
 import warnings
 from contextlib import suppress
 from functools import cached_property
+from importlib import metadata
 from itertools import chain
 from typing import Iterable, List, Optional, Tuple, Type
 
 import xarray
 
 from ._base import Convention
-
-if sys.version_info >= (3, 10):
-    from importlib import metadata
-else:
-    import importlib_metadata as metadata
-
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +147,12 @@ def entry_point_conventions() -> Iterable[Type[Convention]]:
         ('emsarray.formats', True),
     ]
     for group, deprecated in groups:
-        for entry_point in metadata.entry_points(group=group):
+        if sys.version_info >= (3, 10):
+            entry_points = metadata.entry_points(group=group)
+        else:
+            entry_points = metadata.entry_points().get(group, [])
+
+        for entry_point in entry_points:
             if deprecated:
                 warnings.warn(
                     '`emsarray.formats` entrypoint has been renamed to `emsarray.conventions`. '

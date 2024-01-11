@@ -52,7 +52,9 @@ contourpy==1.1.0
     #   bokeh
     #   matplotlib
 coverage[toml]==7.3.0
-    # via pytest-cov
+    # via
+    #   coverage
+    #   pytest-cov
 cycler==0.11.0
     # via matplotlib
 dask[array,complete,dataframe,diagnostics,distributed]==2023.8.1
@@ -86,9 +88,7 @@ idna==3.4
 imagesize==1.4.1
     # via sphinx
 importlib-metadata==6.8.0
-    # via
-    #   dask
-    #   emsarray (setup.cfg)
+    # via dask
 iniconfig==2.0.0
     # via pytest
 isort==5.12.0
@@ -307,7 +307,9 @@ urllib3==2.0.4
 virtualenv==20.24.3
     # via tox
 xarray[parallel]==2023.8.0
-    # via emsarray (setup.cfg)
+    # via
+    #   emsarray (setup.cfg)
+    #   xarray
 xyzservices==2023.7.0
     # via bokeh
 zict==3.0.0
