@@ -1,7 +1,7 @@
 import argparse
 import logging
 from pathlib import Path
-from typing import Callable, Dict
+from typing import Callable
 
 import xarray
 
@@ -13,7 +13,7 @@ from emsarray.types import Pathish
 logger = logging.getLogger(__name__)
 
 Writer = Callable[[xarray.Dataset, Pathish], None]
-format_writers: Dict[str, Writer] = {
+format_writers: dict[str, Writer] = {
     'geojson': geometry.write_geojson,
     'shapefile': geometry.write_shapefile,
     'wkt': geometry.write_wkt,

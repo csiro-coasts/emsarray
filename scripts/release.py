@@ -6,7 +6,7 @@ import re
 import shlex
 import subprocess
 import sys
-from typing import List, Optional
+from typing import Optional
 
 PROJECT = pathlib.Path(__file__).parent.parent
 
@@ -29,7 +29,7 @@ Next release (in development)
 
 
 def main(
-    args: Optional[List[str]] = None,
+    args: Optional[list[str]] = None,
 ) -> None:
     parser = argparse.ArgumentParser()
     add_options(parser)

@@ -14,11 +14,10 @@ See Also
 --------
 `SHOC documentation <https://research.csiro.au/cem/software/ems/hydro/strucutured-shoc/>`_
 """
-from __future__ import annotations
-
 import logging
+from collections.abc import Hashable
 from functools import cached_property
-from typing import Hashable, List, Optional, Tuple
+from typing import Optional
 
 import xarray
 
@@ -56,7 +55,7 @@ class ShocStandard(ArakawaC):
                 f"SHOC dataset did not have expected depth coordinate {name!r}")
         return name
 
-    def get_all_depth_names(self) -> List[Hashable]:
+    def get_all_depth_names(self) -> list[Hashable]:
         return [
             name for name in ['z_centre', 'z_grid']
             if name in self.dataset.variables]
@@ -81,7 +80,7 @@ class ShocSimple(CFGrid2D):
     The latitude and longitude coordinate variables are named ``j`` and ``i``.
     Edge and node dimensions are dropped.
     """
-    _dimensions: Tuple[Hashable, Hashable] = ('j', 'i')
+    _dimensions: tuple[Hashable, Hashable] = ('j', 'i')
 
     @cached_property
     def topology(self) -> CFGrid2DTopology:
@@ -124,7 +123,7 @@ class ShocSimple(CFGrid2D):
                 f"SHOC dataset did not have expected depth coordinate {name!r}")
         return name
 
-    def get_all_depth_names(self) -> List[Hashable]:
+    def get_all_depth_names(self) -> list[Hashable]:
         name = 'zc'
         if name in self.dataset.variables:
             return [name]

@@ -1,11 +1,10 @@
-from __future__ import annotations
-
 import abc
 import contextlib
 import itertools
 import warnings
+from collections.abc import Hashable
 from functools import cached_property
-from typing import Any, Dict, Hashable, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy
 import shapely
@@ -40,7 +39,7 @@ def box(minx, miny, maxx, maxy) -> shapely.Polygon:
     ])
 
 
-def reduce_axes(arr: numpy.ndarray, axes: Optional[Tuple[bool, ...]] = None) -> numpy.ndarray:
+def reduce_axes(arr: numpy.ndarray, axes: Optional[tuple[bool, ...]] = None) -> numpy.ndarray:
     """
     Reduce the size of an array by one on an axis-by-axis basis. If an axis is
     reduced, neigbouring values are averaged together
@@ -55,7 +54,7 @@ def reduce_axes(arr: numpy.ndarray, axes: Optional[Tuple[bool, ...]] = None) -> 
     return numpy.mean([arr[tuple(p)] for p in itertools.product(*axes_slices)], axis=0)  # type: ignore
 
 
-def mask_from_strings(mask_strings: List[str]) -> numpy.ndarray:
+def mask_from_strings(mask_strings: list[str]) -> numpy.ndarray:
     """
     Make a boolean mask array from a list of strings:
 
@@ -76,7 +75,7 @@ class ShocLayerGenerator(abc.ABC):
         self.k_size = k
 
     @property
-    def standard_vars(self) -> Dict[Hashable, xarray.DataArray]:
+    def standard_vars(self) -> dict[Hashable, xarray.DataArray]:
         return {
             "z_grid": xarray.DataArray(
                 data=self.z_grid,
@@ -99,7 +98,7 @@ class ShocLayerGenerator(abc.ABC):
         }
 
     @property
-    def simple_coords(self) -> Dict[Hashable, xarray.DataArray]:
+    def simple_coords(self) -> dict[Hashable, xarray.DataArray]:
         return {
             "zc": xarray.DataArray(
                 data=self.z_centre,
@@ -169,7 +168,7 @@ class ShocGridGenerator(abc.ABC):
         })
 
     @property
-    def standard_vars(self) -> Dict[Hashable, xarray.DataArray]:
+    def standard_vars(self) -> dict[Hashable, xarray.DataArray]:
         return {
             "x_grid": xarray.DataArray(
                 data=self.x_grid,
@@ -254,7 +253,7 @@ class ShocGridGenerator(abc.ABC):
         }
 
     @property
-    def simple_vars(self) -> Dict[str, xarray.DataArray]:
+    def simple_vars(self) -> dict[str, xarray.DataArray]:
         simple_vars = {}
         if self.include_bounds:
             simple_vars.update({
@@ -280,7 +279,7 @@ class ShocGridGenerator(abc.ABC):
         return simple_vars
 
     @property
-    def simple_coords(self) -> Dict[Hashable, xarray.DataArray]:
+    def simple_coords(self) -> dict[Hashable, xarray.DataArray]:
         return {
             "longitude": xarray.DataArray(
                 data=self.x_centre,

@@ -1,9 +1,7 @@
-from __future__ import annotations
-
 import argparse
 import json
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import geojson
 import pytest
@@ -70,7 +68,7 @@ def test_nice_console_errors_uncaught_exception(caplog: pytest.LogCaptureFixture
         (['--silent'], 0),
     ],
 )
-def test_add_verbosity_group(args: List[str], expected: int) -> None:
+def test_add_verbosity_group(args: list[str], expected: int) -> None:
     parser = argparse.ArgumentParser()
     utils.add_verbosity_group(parser)
     options = parser.parse_args(args)

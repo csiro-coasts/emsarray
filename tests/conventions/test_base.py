@@ -1,10 +1,9 @@
-from __future__ import annotations
-
 import dataclasses
 import enum
 import pathlib
+from collections.abc import Hashable
 from functools import cached_property
-from typing import Dict, Hashable, List, Optional, Tuple
+from typing import Optional
 
 import numpy
 import pandas
@@ -51,12 +50,12 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
             return data_array_or_name
 
     @cached_property
-    def shape(self) -> Tuple[int, int]:
+    def shape(self) -> tuple[int, int]:
         y, x = map(int, self.dataset['botz'].shape)
         return (y, x)
 
     @cached_property
-    def grid_size(self) -> Dict[SimpleGridKind, int]:
+    def grid_size(self) -> dict[SimpleGridKind, int]:
         return {SimpleGridKind.face: int(numpy.prod(self.shape))}
 
     def get_grid_kind(self, data_array: xarray.DataArray) -> SimpleGridKind:
@@ -64,7 +63,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
             return SimpleGridKind.face
         raise ValueError("Unknown grid type")
 
-    def get_all_geometry_names(self) -> List[Hashable]:
+    def get_all_geometry_names(self) -> list[Hashable]:
         return ['x', 'y']
 
     def wind_index(
@@ -79,7 +78,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     def ravel_index(self, indices: SimpleGridIndex) -> int:
         return int(numpy.ravel_multi_index((indices.y, indices.x), self.shape))
 
-    def selector_for_index(self, index: SimpleGridIndex) -> Dict[Hashable, int]:
+    def selector_for_index(self, index: SimpleGridIndex) -> dict[Hashable, int]:
         return {'x': index.x, 'y': index.y}
 
     def ravel(

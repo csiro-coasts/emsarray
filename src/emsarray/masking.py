@@ -3,14 +3,13 @@ Common functions for working with dataset masks.
 Masks are used when clipping datasets to a smaller geographic subset,
 such as :meth:`.Convention.clip`.
 """
-from __future__ import annotations
-
 import functools
 import itertools
 import logging
 import operator
 import pathlib
-from typing import Any, Dict, Hashable, List, cast
+from collections.abc import Hashable
+from typing import Any, cast
 
 import numpy
 import xarray
@@ -64,7 +63,7 @@ def mask_grid_dataset(
     mask = mask.isel(bounds)
     dataset = dataset.isel(bounds)
 
-    mfdataset_names: List[pathlib.Path] = []
+    mfdataset_names: list[pathlib.Path] = []
 
     logger.info("Applying masks...")
     # This is done variable-by-variable, as trying to do it to the entire
@@ -205,7 +204,7 @@ def find_fill_value(data_array: xarray.DataArray) -> Any:
     raise ValueError("No appropriate fill value found")
 
 
-def calculate_grid_mask_bounds(mask: xarray.Dataset) -> Dict[Hashable, slice]:
+def calculate_grid_mask_bounds(mask: xarray.Dataset) -> dict[Hashable, slice]:
     """
     Calculate the included bounds of a mask dataset for each dimension.
 
@@ -247,7 +246,7 @@ def calculate_grid_mask_bounds(mask: xarray.Dataset) -> Dict[Hashable, slice]:
     return bounds
 
 
-def smear_mask(arr: numpy.ndarray, pad_axes: List[bool]) -> numpy.ndarray:
+def smear_mask(arr: numpy.ndarray, pad_axes: list[bool]) -> numpy.ndarray:
     """
     Take a boolean numpy array and a list indicating which axes to smear along.
     Return a new array, expanded along the axes, with the boolean values

@@ -1,5 +1,6 @@
 import re
-from typing import Callable, Iterable, List, Tuple, cast
+from collections.abc import Iterable
+from typing import Callable, cast
 
 import yaml
 from docutils import nodes, utils
@@ -30,7 +31,7 @@ def _github_link(
         inliner: Inliner,
         options: dict = {},
         content: list = [],
-    ) -> Tuple[list, list]:
+    ) -> tuple[list, list]:
         match = GITHUB_FULL_REF.match(utils.unescape(text))
         if match is not None:
             repo = match.group('repo')
@@ -83,7 +84,7 @@ class Citation(Directive):
         with open(citation_file, 'r') as f:
             return cast(dict, yaml.load(f, yaml.Loader))
 
-    def run(self) -> List[nodes.Node]:
+    def run(self) -> list[nodes.Node]:
         if self.options['format'] == 'apa':
             return self.run_apa()
         elif self.options['format'] == 'biblatex':
@@ -91,7 +92,7 @@ class Citation(Directive):
         else:
             raise ValueError("Unknown format")
 
-    def run_apa(self) -> List[nodes.Node]:
+    def run_apa(self) -> list[nodes.Node]:
         citation = self.load_citation_file()
         names = self.comma_ampersand_join(map(self.apa_name, citation['authors']))
         year = citation['date-released'].year
@@ -118,7 +119,7 @@ class Citation(Directive):
             return items[0]
         return '{}, & {}'.format(', '.join(items[:-1]), items[-1])
 
-    def run_biblatex(self) -> List[nodes.Node]:
+    def run_biblatex(self) -> list[nodes.Node]:
         citation = self.load_citation_file()
 
         year = citation['date-released'].year

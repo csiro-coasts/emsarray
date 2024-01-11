@@ -1,7 +1,8 @@
 # > imports
 import enum
+from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import Dict, Hashable, Optional, Sequence, Tuple
+from typing import Optional
 
 import numpy
 import xarray
@@ -19,7 +20,7 @@ class GrassGridKind(enum.Enum):
     fence = 'fence'
 
 
-GrassIndex = Tuple[GrassGridKind, Sequence[int]]
+GrassIndex = tuple[GrassGridKind, Sequence[int]]
 
 
 class Grass(DimensionConvention[GrassGridKind, GrassIndex]):
@@ -37,14 +38,14 @@ class Grass(DimensionConvention[GrassGridKind, GrassIndex]):
             return Specificity.HIGH
         return None
 
-    def unpack_index(self, index: GrassIndex) -> Tuple[GrassGridKind, Sequence[int]]:
+    def unpack_index(self, index: GrassIndex) -> tuple[GrassGridKind, Sequence[int]]:
         return index[0], list(index[1])
 
     def pack_index(self, grid_kind: GrassGridKind, indices: Sequence[int]) -> GrassIndex:
         return (grid_kind, list(indices))
 
     @cached_property
-    def grid_dimensions(self) -> Dict[GrassGridKind, Sequence[Hashable]]:
+    def grid_dimensions(self) -> dict[GrassGridKind, Sequence[Hashable]]:
         return {
             GrassGridKind.field: ['warp', 'weft'],
             GrassGridKind.fence: ['post'],

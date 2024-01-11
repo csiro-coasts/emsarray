@@ -9,9 +9,10 @@ import logging.config
 import re
 import sys
 import textwrap
+from collections.abc import Iterator
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Iterator, List, Optional, Protocol
+from typing import Callable, Optional, Protocol
 
 from shapely.geometry import box, shape
 from shapely.geometry.base import BaseGeometry
@@ -29,7 +30,7 @@ command_exception_logger = error_logger.getChild('command')
 class MainCallable(Protocol):
     def __call__(
         self,
-        argv: Optional[List[str]] = None,
+        argv: Optional[list[str]] = None,
         handle_errors: bool = True,
     ) -> None:
         ...
@@ -90,7 +91,7 @@ def console_entrypoint(
     .. code-block:: python
 
         @nice_console_errors()
-        def main(argv: Optional[List[str]]) -> None:
+        def main(argv: Optional[list[str]]) -> None:
             parser = argparse.ArgumentParser()
             add_verbosity_group(parser)
             command_line_flags(parser)
@@ -111,7 +112,7 @@ def console_entrypoint(
     ) -> MainCallable:
         @wraps(fn)
         def wrapper(
-            argv: Optional[List[str]] = None,
+            argv: Optional[list[str]] = None,
             handle_errors: bool = True,
         ) -> None:
             parser = argparse.ArgumentParser(

@@ -6,12 +6,11 @@ See Also
 `Arakawa grids <https://en.wikipedia.org/wiki/Arakawa_grids>`_ on Wikipedia
 
 """
-from __future__ import annotations
-
 import enum
 import logging
+from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import Dict, Hashable, List, Optional, Sequence, Tuple, cast
+from typing import Optional, cast
 
 import numpy
 import xarray
@@ -67,7 +66,7 @@ class ArakawaCGridTopology:
         return self.latitude.dims[1]
 
     @cached_property
-    def shape(self) -> Tuple[int, int]:
+    def shape(self) -> tuple[int, int]:
         """The shape of this grid, as a tuple of ``(j, i)``."""
         return (
             self.dataset.sizes[self.j_dimension],
@@ -118,7 +117,7 @@ class ArakawaCGridKind(str, enum.Enum):
     #: :meta hide-value:
     node = 'node'
 
-    def __call__(self, j: int, i: int) -> ArakawaCIndex:
+    def __call__(self, j: int, i: int) -> 'ArakawaCIndex':
         return (self, j, i)
 
 
@@ -126,9 +125,9 @@ class ArakawaCGridKind(str, enum.Enum):
 #: is a tuple with three elements: ``(kind, j, i).``
 #:
 #: :meta hide-value:
-ArakawaCIndex = Tuple[ArakawaCGridKind, int, int]
-ArakawaCCoordinates = Dict[ArakawaCGridKind, Tuple[Hashable, Hashable]]
-ArakawaCDimensions = Dict[ArakawaCGridKind, Tuple[Hashable, Hashable]]
+ArakawaCIndex = tuple[ArakawaCGridKind, int, int]
+ArakawaCCoordinates = dict[ArakawaCGridKind, tuple[Hashable, Hashable]]
+ArakawaCDimensions = dict[ArakawaCGridKind, tuple[Hashable, Hashable]]
 
 
 class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
@@ -169,7 +168,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         self,
         dataset: xarray.Dataset,
         *,
-        coordinate_names: Optional[Dict[Hashable, Tuple[Hashable, Hashable]]] = None,
+        coordinate_names: Optional[dict[Hashable, tuple[Hashable, Hashable]]] = None,
     ):
         super().__init__(dataset)
 
@@ -206,7 +205,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         return None
 
     @cached_property
-    def _topology_for_grid_kind(self) -> Dict[ArakawaCGridKind, ArakawaCGridTopology]:
+    def _topology_for_grid_kind(self) -> dict[ArakawaCGridKind, ArakawaCGridTopology]:
         return {
             kind: ArakawaCGridTopology(
                 self.dataset,
@@ -249,13 +248,13 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         return self._topology_for_grid_kind[ArakawaCGridKind.node]
 
     @cached_property
-    def grid_dimensions(self) -> Dict[ArakawaCGridKind, Sequence[Hashable]]:
+    def grid_dimensions(self) -> dict[ArakawaCGridKind, Sequence[Hashable]]:
         return {
-            kind: cast(Tuple[Hashable, Hashable], self.dataset[coordinates[0]].dims)
+            kind: cast(tuple[Hashable, Hashable], self.dataset[coordinates[0]].dims)
             for kind, coordinates in self.coordinate_names.items()
         }
 
-    def unpack_index(self, index: ArakawaCIndex) -> Tuple[ArakawaCGridKind, Sequence[int]]:
+    def unpack_index(self, index: ArakawaCIndex) -> tuple[ArakawaCGridKind, Sequence[int]]:
         return index[0], index[1:]
 
     def pack_index(self, grid_kind: ArakawaCGridKind, indices: Sequence[int]) -> ArakawaCIndex:
@@ -285,7 +284,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         ))
         return cast(numpy.ndarray, centres)
 
-    def get_all_geometry_names(self) -> List[Hashable]:
+    def get_all_geometry_names(self) -> list[Hashable]:
         return [
             self.face.longitude.name,
             self.face.latitude.name,
@@ -320,7 +319,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
 
         # Complete the rest of the mask
         grid_dimensions = cast(
-            Dict[ArakawaCGridKind, Tuple[Hashable, Hashable]],
+            dict[ArakawaCGridKind, tuple[Hashable, Hashable]],
             self.grid_dimensions)
         return c_mask_from_centres(face_mask, grid_dimensions, self.dataset.coords)
 

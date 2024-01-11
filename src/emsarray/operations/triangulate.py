@@ -1,18 +1,18 @@
 """
 Operations for making a triangular mesh out of the polygons of a dataset.
 """
-from typing import List, Tuple, cast
+from typing import cast
 
 import xarray
 from shapely.geometry import LineString, MultiPoint, Polygon
 
-Vertex = Tuple[float, float]
-Triangle = Tuple[int, int, int]
+Vertex = tuple[float, float]
+Triangle = tuple[int, int, int]
 
 
 def triangulate_dataset(
     dataset: xarray.Dataset,
-) -> Tuple[List[Vertex], List[Triangle], List[int]]:
+) -> tuple[list[Vertex], list[Triangle], list[int]]:
     """
     Triangulate the polygon cells of a dataset
 
@@ -89,7 +89,7 @@ def triangulate_dataset(
     # Getting all the vertices is easy - extract them from the polygons.
     # By going through a set, this will deduplicate the vertices.
     # Back to a list and we have a stable order
-    vertices: List[Vertex] = list({
+    vertices: list[Vertex] = list({
         vertex
         for polygon in polygons
         if polygon is not None
@@ -114,13 +114,13 @@ def triangulate_dataset(
         for polygon, dataset_index in polygons_with_index
         for triangle_coords in _triangulate_polygon(polygon)
     )
-    triangles: List[Triangle] = [tri for tri, index in triangles_with_index]  # type: ignore
+    triangles: list[Triangle] = [tri for tri, index in triangles_with_index]  # type: ignore
     indices = [index for tri, index in triangles_with_index]
 
     return (vertices, triangles, indices)
 
 
-def _triangulate_polygon(polygon: Polygon) -> List[Tuple[Vertex, Vertex, Vertex]]:
+def _triangulate_polygon(polygon: Polygon) -> list[tuple[Vertex, Vertex, Vertex]]:
     """
     Triangulate a polygon.
 
@@ -163,7 +163,7 @@ def _triangulate_polygon(polygon: Polygon) -> List[Tuple[Vertex, Vertex, Vertex]
     # Maintain a consistent winding order
     polygon = polygon.normalize()
 
-    triangles: List[Tuple[Vertex, Vertex, Vertex]] = []
+    triangles: list[tuple[Vertex, Vertex, Vertex]] = []
     # Note that shapely polygons with n vertices will be closed, and thus have
     # n+1 coordinates. We trim that superfluous coordinate off in the next line
     while len(polygon.exterior.coords) > 4:
@@ -195,6 +195,6 @@ def _triangulate_polygon(polygon: Polygon) -> List[Tuple[Vertex, Vertex, Vertex]
     # The trimmed polygon is now a triangle. Add it to the list and we are done!
 
     triangles.append(cast(
-        Tuple[Vertex, Vertex, Vertex],
+        tuple[Vertex, Vertex, Vertex],
         tuple(map(tuple, polygon.exterior.coords[:-1]))))
     return triangles

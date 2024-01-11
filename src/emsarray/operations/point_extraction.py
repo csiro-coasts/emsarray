@@ -14,7 +14,8 @@ This is useful if you want to add your own metadata to the subset dataset.
 :ref:`emsarray extract-points` is a command line interface to :func:`.extract_dataframe`.
 """
 import dataclasses
-from typing import Any, Hashable, List, Literal, Tuple
+from collections.abc import Hashable
+from typing import Any, Literal
 
 import numpy
 import pandas
@@ -35,7 +36,7 @@ class NonIntersectingPoints(ValueError):
     indices: numpy.ndarray
 
     #: The non-intersecting points
-    points: List[shapely.Point]
+    points: list[shapely.Point]
 
     def __post_init__(self) -> None:
         super().__init__(f"{self.points[0].wkt} does not intersect the dataset geometry")
@@ -55,7 +56,7 @@ def _dataframe_to_dataset(
 
 def extract_points(
     dataset: xarray.Dataset,
-    points: List[shapely.Point],
+    points: list[shapely.Point],
     *,
     point_dimension: Hashable = 'point',
     missing_points: Literal['error', 'drop'] = 'error',
@@ -128,7 +129,7 @@ def extract_points(
 def extract_dataframe(
     dataset: xarray.Dataset,
     dataframe: pandas.DataFrame,
-    coordinate_columns: Tuple[str, str],
+    coordinate_columns: tuple[str, str],
     *,
     point_dimension: Hashable = 'point',
     missing_points: Literal['error', 'drop', 'fill'] = 'error',

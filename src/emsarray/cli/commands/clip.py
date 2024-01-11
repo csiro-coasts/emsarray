@@ -3,7 +3,6 @@ import contextlib
 import logging
 import tempfile
 from pathlib import Path
-from typing import ContextManager
 
 import emsarray
 from emsarray.cli import BaseCommand
@@ -39,7 +38,7 @@ class Command(BaseCommand):
             ))
 
     def handle(self, options: argparse.Namespace) -> None:
-        work_context: ContextManager[Pathish]
+        work_context: contextlib.AbstractContextManager[Pathish]
         if options.work_dir:
             work_context = contextlib.nullcontext(options.work_dir)
         else:

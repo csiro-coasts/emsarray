@@ -1,6 +1,6 @@
 import warnings
 from functools import wraps
-from typing import Any, Optional, Type
+from typing import Any, Optional
 
 import xarray
 
@@ -17,7 +17,7 @@ def _warn_old_new(old: str, new: str, **kwargs: Any) -> None:
 
 
 @wraps(get_dataset_convention)
-def get_file_format(dataset: xarray.Dataset, **kwargs: Any) -> Optional[Type[Convention]]:
+def get_file_format(dataset: xarray.Dataset, **kwargs: Any) -> Optional[type[Convention]]:
     _warn_old_new(
         old="emsarray.formats.get_file_format",
         new="emsarray.conventions.get_dataset_convention",

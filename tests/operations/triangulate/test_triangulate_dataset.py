@@ -1,6 +1,5 @@
 from collections import defaultdict
 from functools import reduce
-from typing import List, Tuple
 
 import numpy
 import pytest
@@ -86,9 +85,9 @@ def test_triangulate_dataset_ugrid(datasets):
 
 def check_triangulation(
     dataset: xarray.Dataset,
-    vertices: List[Tuple[float, float]],
-    triangles: List[Tuple[int, int, int]],
-    cell_indices: List[int],
+    vertices: list[tuple[float, float]],
+    triangles: list[tuple[int, int, int]],
+    cell_indices: list[int],
 ):
     """
     Check the triangulation of a dataset by reconstructing all polygons.
