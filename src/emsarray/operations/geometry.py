@@ -5,10 +5,9 @@ The geometry is represented as a collection of Polygons.
 import json
 import os
 import pathlib
+from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
-from typing import (
-    IO, Any, Generator, Iterable, Iterator, Optional, TypeVar, Union
-)
+from typing import IO, Any, Optional, TypeVar, Union
 
 import geojson
 import shapefile

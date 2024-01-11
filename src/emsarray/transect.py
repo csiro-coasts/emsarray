@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Hashable, Iterable
 from functools import cached_property
-from typing import (
-    Any, Callable, Generic, Hashable, Iterable, List, Optional, Tuple, Union
-)
+from typing import Any, Callable, Generic, Optional, Union
 
 import cfunits
 import numpy
@@ -223,7 +222,7 @@ class Transect:
             },
         )
 
-    def _set_up_axis(self, variable: xarray.DataArray) -> Tuple[str, Formatter]:
+    def _set_up_axis(self, variable: xarray.DataArray) -> tuple[str, Formatter]:
         title = str(variable.attrs.get('long_name'))
         units: Optional[str] = variable.attrs.get('units')
 
@@ -247,7 +246,7 @@ class Transect:
     @cached_property
     def points(
         self,
-    ) -> List[TransectPoint]:
+    ) -> list[TransectPoint]:
         """
         A list of :class:`TransectPoints <TransectPoint>`,
         one for each point in the transect :attr:`.line`.
@@ -283,7 +282,7 @@ class Transect:
         return points
 
     @cached_property
-    def segments(self) -> List[TransectSegment[Index]]:
+    def segments(self) -> list[TransectSegment[Index]]:
         """
         A list of :class:`.TransectSegmens` for each intersecting segment of the transect line and the dataset geometry.
         Segments are listed in order from the start of the line to the end of the line.
@@ -305,7 +304,7 @@ class Transect:
                     shapely.Point(intersection.coords[0]),
                     shapely.Point(intersection.coords[-1])
                 ]
-                projections: Iterable[Tuple[shapely.Point, float]] = (
+                projections: Iterable[tuple[shapely.Point, float]] = (
                     (point, self.distance_along_line(point))
                     for point in points)
                 start, end = sorted(projections, key=lambda pair: pair[1])
@@ -326,7 +325,7 @@ class Transect:
     def _intersect_polygon(
         self,
         polygon: shapely.Polygon,
-    ) -> List[shapely.LineString]:
+    ) -> list[shapely.LineString]:
         """
         Intersect a cell of the dataset geometry with the transect line,
         and return a list of all LineString segments of the intersection.
@@ -518,7 +517,7 @@ class Transect:
 
         return data_array
 
-    def _find_depth_bounds(self, data_array: xarray.DataArray) -> Tuple[int, int]:
+    def _find_depth_bounds(self, data_array: xarray.DataArray) -> tuple[int, int]:
         """
         Find the shallowest and deepest layers of the data array
         where there is at least one value per depth.
@@ -565,7 +564,7 @@ class Transect:
         bathymetry: Optional[xarray.DataArray] = None,
         cmap: Union[str, Colormap] = 'jet',
         ocean_floor_colour: str = 'black',
-        landmarks: Optional[List[Landmark]] = None,
+        landmarks: Optional[list[Landmark]] = None,
     ) -> None:
         """
         Plot the data array along this transect.
@@ -625,7 +624,7 @@ class Transect:
         bathymetry: Optional[xarray.DataArray] = None,
         cmap: Union[str, Colormap] = 'jet',
         ocean_floor_colour: str = 'black',
-        landmarks: Optional[List[Landmark]] = None,
+        landmarks: Optional[list[Landmark]] = None,
         coordinate: Optional[xarray.DataArray] = None,
         interval: int = 200,
     ) -> animation.FuncAnimation:
@@ -682,7 +681,7 @@ class Transect:
         )
 
         def animate(index: int) -> Iterable[Artist]:
-            changes: List[Artist] = []
+            changes: list[Artist] = []
 
             coordinate_value = coordinate.values[index]
             axes.set_title(coordinate_callable(coordinate_value))
@@ -714,8 +713,8 @@ class Transect:
         bathymetry: Optional[xarray.DataArray] = None,
         cmap: Union[str, Colormap] = 'jet',
         ocean_floor_colour: str = 'black',
-        landmarks: Optional[List[Landmark]] = None,
-    ) -> Tuple[Axes, PolyCollection, xarray.DataArray]:
+        landmarks: Optional[list[Landmark]] = None,
+    ) -> tuple[Axes, PolyCollection, xarray.DataArray]:
         """
         Construct the axes and PolyCollections on a plot,
         and reformat the data array to the correct shape for plotting.

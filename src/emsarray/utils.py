@@ -16,11 +16,11 @@ import logging
 import textwrap
 import time
 import warnings
-from types import TracebackType
-from typing import (
-    Any, Callable, Hashable, Iterable, List, Literal, Mapping, MutableMapping,
-    Optional, Sequence, Tuple, Type, TypeVar, Union, cast
+from collections.abc import (
+    Hashable, Iterable, Mapping, MutableMapping, Sequence
 )
+from types import TracebackType
+from typing import Any, Callable, Literal, Optional, TypeVar, Union, cast
 
 import cftime
 import netCDF4
@@ -60,7 +60,7 @@ class PerfTimer:
 
     def __exit__(
         self,
-        exc_type: Optional[Type[_Exception]],
+        exc_type: Optional[type[_Exception]],
         exc_value: Optional[_Exception],
         traceback: TracebackType
     ) -> Optional[bool]:
@@ -240,7 +240,7 @@ def fix_time_units_for_ems(
         dataset.sync()
 
 
-def _get_variables(dataset_or_array: Union[xarray.Dataset, xarray.DataArray]) -> List[xarray.Variable]:
+def _get_variables(dataset_or_array: Union[xarray.Dataset, xarray.DataArray]) -> list[xarray.Variable]:
     if isinstance(dataset_or_array, xarray.Dataset):
         return list(dataset_or_array.variables.values())
     else:
@@ -378,7 +378,7 @@ def extract_vars(
     return dataset.drop_vars(drop_vars)
 
 
-def pairwise(iterable: Iterable[_T]) -> Iterable[Tuple[_T, _T]]:
+def pairwise(iterable: Iterable[_T]) -> Iterable[tuple[_T, _T]]:
     """
     Iterate over values in an iterator in pairs.
 
@@ -397,8 +397,8 @@ def pairwise(iterable: Iterable[_T]) -> Iterable[Tuple[_T, _T]]:
 
 def dimensions_from_coords(
     dataset: xarray.Dataset,
-    coordinate_names: List[Hashable],
-) -> List[Hashable]:
+    coordinate_names: list[Hashable],
+) -> list[Hashable]:
     """
     Get the names of the dimensions for a set of coordinates.
 
@@ -481,7 +481,7 @@ def check_data_array_dimensions_match(
 
 def move_dimensions_to_end(
     data_array: xarray.DataArray,
-    dimensions: List[Hashable],
+    dimensions: list[Hashable],
 ) -> xarray.DataArray:
     """
     Transpose the dimensions of a :class:`xarray.DataArray`
@@ -524,7 +524,7 @@ def move_dimensions_to_end(
 
 def ravel_dimensions(
     data_array: xarray.DataArray,
-    dimensions: List[Hashable],
+    dimensions: list[Hashable],
     linear_dimension: Optional[Hashable] = None,
 ) -> xarray.DataArray:
     """
@@ -692,7 +692,7 @@ class RequiresExtraException(Exception):
 def requires_extra(
     extra: str,
     import_error: Optional[ImportError],
-    exception_class: Type[RequiresExtraException] = RequiresExtraException,
+    exception_class: type[RequiresExtraException] = RequiresExtraException,
 ) -> Callable[[_T], _T]:
     if import_error is None:
         return lambda fn: fn
@@ -741,7 +741,7 @@ def make_polygons_with_holes(
     return out
 
 
-def deprecated(message: str, category: Type[Warning] = DeprecationWarning) -> Callable:
+def deprecated(message: str, category: type[Warning] = DeprecationWarning) -> Callable:
     def decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
         def wrapped(*args: Any, **kwargs: Any) -> Any:
@@ -751,5 +751,5 @@ def deprecated(message: str, category: Type[Warning] = DeprecationWarning) -> Ca
     return decorator
 
 
-def splice_tuple(t: Tuple, index: int, values: Sequence) -> Tuple:
+def splice_tuple(t: tuple, index: int, values: Sequence) -> tuple:
     return t[:index] + tuple(values) + t[index:][1:]

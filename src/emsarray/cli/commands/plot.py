@@ -2,7 +2,7 @@ import argparse
 import functools
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Text, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 import emsarray
 from emsarray.cli import BaseCommand, CommandException
@@ -12,7 +12,7 @@ T = TypeVar('T')
 logger = logging.getLogger(__name__)
 
 
-def key_value(arg: str, value_type: Callable = str) -> Dict[str, T]:
+def key_value(arg: str, value_type: Callable = str) -> dict[str, T]:
     try:
         name, value = arg.split("=", 2)
     except ValueError:
@@ -24,11 +24,11 @@ def key_value(arg: str, value_type: Callable = str) -> Dict[str, T]:
 class UpdateDict(argparse.Action):
     def __init__(
         self,
-        option_strings: List[str],
+        option_strings: list[str],
         dest: str,
         *,
         value_type: Callable = str,
-        default: Optional[Dict[str, Any]] = None,
+        default: Optional[dict[str, Any]] = None,
         **kwargs: Any,
     ):
         if default is None:
@@ -42,7 +42,7 @@ class UpdateDict(argparse.Action):
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
         values: Any,
-        option_string: Optional[Text] = None,
+        option_string: Optional[str] = None,
     ) -> None:
         super().__call__
         holder = getattr(namespace, self.dest, {})

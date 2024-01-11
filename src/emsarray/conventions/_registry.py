@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 import sys
 import warnings
+from collections.abc import Iterable
 from contextlib import suppress
 from functools import cached_property
 from importlib import metadata
 from itertools import chain
-from typing import Iterable, List, Optional, Tuple, Type
+from typing import Optional
 
 import xarray
 
@@ -17,13 +18,13 @@ logger = logging.getLogger(__name__)
 
 
 class ConventionRegistry:
-    registered_conventions: List[Type[Convention]]
+    registered_conventions: list[type[Convention]]
 
     def __init__(self) -> None:
         self.registered_conventions = []
 
     @cached_property
-    def conventions(self) -> Iterable[Type[Convention]]:
+    def conventions(self) -> Iterable[type[Convention]]:
         """
         A list of all the registered Convention subclasses.
         This includes those registered via entry points
@@ -51,7 +52,7 @@ class ConventionRegistry:
         return conventions
 
     @cached_property
-    def entry_point_conventions(self) -> List[Type[Convention]]:
+    def entry_point_conventions(self) -> list[type[Convention]]:
         """
         Find all conventions registered via the ``emsarray.conventions`` entry point.
         This list is cached.
@@ -64,7 +65,7 @@ class ConventionRegistry:
         """
         return list(entry_point_conventions())
 
-    def add_convention(self, convention: Type[Convention]) -> None:
+    def add_convention(self, convention: type[Convention]) -> None:
         """Register a Convention subclass with this registry.
         Datasets will be checked against this Convention when guessing file types.
         """
@@ -72,7 +73,7 @@ class ConventionRegistry:
             del self.conventions
         self.registered_conventions.append(convention)
 
-    def match_conventions(self, dataset: xarray.Dataset) -> List[Tuple[Type[Convention], int]]:
+    def match_conventions(self, dataset: xarray.Dataset) -> list[tuple[type[Convention], int]]:
         """
         Get all :class:`~.Convention` implementations that support this dataset.
 
@@ -88,14 +89,14 @@ class ConventionRegistry:
             A higher specificity means a better match.
             The list of matches will be ordered from most to least specific.
         """
-        matches: List[Tuple[Type[Convention], int]] = []
+        matches: list[tuple[type[Convention], int]] = []
         for convention in self.conventions:
             match = convention.check_dataset(dataset)
             if match is not None:
                 matches.append((convention, match))
         return sorted(matches, key=lambda m: m[1], reverse=True)
 
-    def guess_convention(self, dataset: xarray.Dataset) -> Optional[Type[Convention]]:
+    def guess_convention(self, dataset: xarray.Dataset) -> Optional[type[Convention]]:
         """
         Guess the correct :class:`.Convention` implementation for a dataset.
         """
@@ -110,7 +111,7 @@ class ConventionRegistry:
 registry = ConventionRegistry()
 
 
-def get_dataset_convention(dataset: xarray.Dataset) -> Optional[Type[Convention]]:
+def get_dataset_convention(dataset: xarray.Dataset) -> Optional[type[Convention]]:
     """Find the most appropriate Convention subclass for this dataset.
 
     Parameters
@@ -136,7 +137,7 @@ def get_dataset_convention(dataset: xarray.Dataset) -> Optional[Type[Convention]
     return registry.guess_convention(dataset)
 
 
-def entry_point_conventions() -> Iterable[Type[Convention]]:
+def entry_point_conventions() -> Iterable[type[Convention]]:
     """
     Finds conventions registered using entry points
     """
@@ -175,7 +176,7 @@ def entry_point_conventions() -> Iterable[Type[Convention]]:
                 seen.add(obj)
 
 
-def register_convention(convention: Type[Convention]) -> Type[Convention]:
+def register_convention(convention: type[Convention]) -> type[Convention]:
     """
     Register a Convention subclass, used for guessing file types.
     Can be used as a decorator.

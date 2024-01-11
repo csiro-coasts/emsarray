@@ -5,10 +5,10 @@ import dataclasses
 import enum
 import logging
 import warnings
+from collections.abc import Hashable, Iterable, Sequence
 from functools import cached_property
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, FrozenSet, Generic, Hashable, Iterable,
-    List, Optional, Sequence, Tuple, TypeVar, Union, cast
+    TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, Union, cast
 )
 
 import numpy
@@ -399,7 +399,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         except IndexError:
             raise NoSuchCoordinateError("Could not find depth coordinate in dataset")
 
-    def get_all_depth_names(self) -> List[Hashable]:
+    def get_all_depth_names(self) -> list[Hashable]:
         """Get the names of all depth layers.
         Some datasets include both a depth layer centre,
         and the depth layer 'edges'.
@@ -595,7 +595,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     @property
     @abc.abstractmethod
-    def grid_kinds(self) -> FrozenSet[GridKind]:
+    def grid_kinds(self) -> frozenset[GridKind]:
         """
         All of the :data:`grid kinds <.GridKind>` this dataset includes.
         """
@@ -612,7 +612,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     @property
     @abc.abstractmethod
-    def grid_size(self) -> Dict[GridKind, int]:
+    def grid_size(self) -> dict[GridKind, int]:
         """The linear size of each grid kind."""
         pass
 
@@ -662,7 +662,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     def get_grid_kind_and_size(
         self, data_array: xarray.DataArray,
-    ) -> Tuple[GridKind, int]:
+    ) -> tuple[GridKind, int]:
         """
         Determines the relevant index kind and the extent of the linear index space
         for this data array.
@@ -885,7 +885,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         self,
         figure: Figure,
         scalar: Optional[DataArrayOrName] = None,
-        vector: Optional[Tuple[DataArrayOrName, DataArrayOrName]] = None,
+        vector: Optional[tuple[DataArrayOrName, DataArrayOrName]] = None,
         title: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
@@ -965,7 +965,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         self,
         figure: Figure,
         scalar: Optional[DataArrayOrName] = None,
-        vector: Optional[Tuple[DataArrayOrName, DataArrayOrName]] = None,
+        vector: Optional[tuple[DataArrayOrName, DataArrayOrName]] = None,
         coordinate: Optional[DataArrayOrName] = None,
         title: Optional[Union[str, Callable[[Any], str]]] = None,
         **kwargs: Any,
@@ -1187,7 +1187,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         # sometimes preferring to fill them in later,
         # so `u` and `v` are optional.
         # If they are not provided, we set default quiver values of `numpy.nan`.
-        values: Union[Tuple[numpy.ndarray, numpy.ndarray], Tuple[float, float]]
+        values: Union[tuple[numpy.ndarray, numpy.ndarray], tuple[float, float]]
         values = numpy.nan, numpy.nan
 
         if u is not None and v is not None:
@@ -1422,7 +1422,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return None
 
     @abc.abstractmethod
-    def selector_for_index(self, index: Index) -> Dict[Hashable, int]:
+    def selector_for_index(self, index: Index) -> dict[Hashable, int]:
         """
         Convert a convention native index into a selector
         that can be passed to :meth:`Dataset.isel <xarray.Dataset.isel>`.
@@ -1516,7 +1516,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return self.select_index(index.index)
 
     @abc.abstractmethod
-    def get_all_geometry_names(self) -> List[Hashable]:
+    def get_all_geometry_names(self) -> list[Hashable]:
         """
         Return a list of the names of all geometry variables used by this convention.
 
@@ -1742,7 +1742,7 @@ class DimensionConvention(Convention[GridKind, Index]):
 
     @property
     @abc.abstractmethod
-    def grid_dimensions(self) -> Dict[GridKind, Sequence[Hashable]]:
+    def grid_dimensions(self) -> dict[GridKind, Sequence[Hashable]]:
         """
         The dimensions associated with a particular grid kind.
 
@@ -1760,7 +1760,7 @@ class DimensionConvention(Convention[GridKind, Index]):
         pass
 
     @property
-    def grid_shape(self) -> Dict[GridKind, Sequence[int]]:
+    def grid_shape(self) -> dict[GridKind, Sequence[int]]:
         """
         The :attr:`shape <numpy.ndarray.shape>` of each grid kind.
 
@@ -1775,7 +1775,7 @@ class DimensionConvention(Convention[GridKind, Index]):
         }
 
     @property
-    def grid_size(self) -> Dict[GridKind, int]:
+    def grid_size(self) -> dict[GridKind, int]:
         return {
             grid_kind: int(numpy.prod(shape))
             for grid_kind, shape in self.grid_shape.items()
@@ -1806,7 +1806,7 @@ class DimensionConvention(Convention[GridKind, Index]):
             return self.dataset[data_array]
 
     @abc.abstractmethod
-    def unpack_index(self, index: Index) -> Tuple[GridKind, Sequence[int]]:
+    def unpack_index(self, index: Index) -> tuple[GridKind, Sequence[int]]:
         """Convert a native index in to a grid kind and dimension indices.
 
         Parameters
@@ -1902,7 +1902,7 @@ class DimensionConvention(Convention[GridKind, Index]):
             dimensions=dimensions, sizes=sizes,
             linear_dimension=linear_dimension)
 
-    def selector_for_index(self, index: Index) -> Dict[Hashable, int]:
+    def selector_for_index(self, index: Index) -> dict[Hashable, int]:
         grid_kind, indices = self.unpack_index(index)
         dimensions = self.grid_dimensions[grid_kind]
         return dict(zip(dimensions, indices))

@@ -12,13 +12,11 @@ import logging
 import pathlib
 import warnings
 from collections import defaultdict
+from collections.abc import Hashable, Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import cached_property
-from typing import (
-    Any, Dict, FrozenSet, Hashable, Iterable, List, Mapping, Optional,
-    Sequence, Set, Tuple, cast
-)
+from typing import Any, Optional, cast
 
 import numpy
 import shapely
@@ -36,7 +34,7 @@ from ._base import DimensionConvention, Specificity
 logger = logging.getLogger(__name__)
 
 
-def _split_coord(attr: str) -> Tuple[str, str]:
+def _split_coord(attr: str) -> tuple[str, str]:
     x, y = attr.split(None, 1)
     return (x, y)
 
@@ -386,7 +384,7 @@ class Mesh2DTopology:
             raise ValueError("No mesh variable found")
 
     @property
-    def mesh_attributes(self) -> Dict[Hashable, str]:
+    def mesh_attributes(self) -> dict[Hashable, str]:
         """
         Get the mesh topology attributes from the dummy variable with the
         attribute ``cf_role`` of ``"mesh_topology"``.
@@ -420,15 +418,15 @@ class Mesh2DTopology:
         return int('9' * (len(str(max_count)) + 1))
 
     @cached_property
-    def _node_coordinates(self) -> Tuple[Hashable, Hashable]:
+    def _node_coordinates(self) -> tuple[Hashable, Hashable]:
         return _split_coord(self.mesh_attributes['node_coordinates'])
 
     @cached_property
-    def _edge_coordinates(self) -> Tuple[Hashable, Hashable]:
+    def _edge_coordinates(self) -> tuple[Hashable, Hashable]:
         return _split_coord(self.mesh_attributes['edge_coordinates'])
 
     @cached_property
-    def _face_coordinates(self) -> Tuple[Hashable, Hashable]:
+    def _face_coordinates(self) -> tuple[Hashable, Hashable]:
         return _split_coord(self.mesh_attributes['face_coordinates'])
 
     @property
@@ -598,7 +596,7 @@ class Mesh2DTopology:
         # once for each face. To de-duplicate this, edges are built up using
         # this dict-of-sets, where the dict index is the node with the
         # lower index, and the set is the node indices of the other end.
-        low_highs: Dict[int, Set[int]] = defaultdict(set)
+        low_highs: dict[int, set[int]] = defaultdict(set)
 
         for face_index, node_pairs in self._face_and_node_pair_iter():
             for pair in node_pairs:
@@ -857,7 +855,7 @@ class Mesh2DTopology:
 
         return face_face
 
-    def _face_and_node_pair_iter(self) -> Iterable[Tuple[int, List[Tuple[int, int]]]]:
+    def _face_and_node_pair_iter(self) -> Iterable[tuple[int, list[tuple[int, int]]]]:
         """
         An iterator returning a tuple of ``(face_index, edges)``,
         where ``edges`` is a list of ``(node_index, node_index)`` tuples
@@ -870,7 +868,7 @@ class Mesh2DTopology:
             yield face_index, list(utils.pairwise(node_indices))
 
     @cached_property
-    def dimension_for_grid_kind(self) -> Dict[UGridKind, Hashable]:
+    def dimension_for_grid_kind(self) -> dict[UGridKind, Hashable]:
         """
         Get the dimension names for each of the grid types in this dataset.
         """
@@ -1012,7 +1010,7 @@ class UGridKind(str, enum.Enum):
 
 
 #: UGRID indices are always single integers, for all index kinds.
-UGridIndex = Tuple[UGridKind, int]
+UGridIndex = tuple[UGridKind, int]
 
 
 class UGrid(DimensionConvention[UGridKind, UGridIndex]):
@@ -1051,8 +1049,8 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         return Mesh2DTopology(self.dataset)
 
     @cached_property
-    def grid_dimensions(self) -> Dict[UGridKind, Sequence[Hashable]]:
-        dimensions: Dict[UGridKind, Sequence[Hashable]] = {
+    def grid_dimensions(self) -> dict[UGridKind, Sequence[Hashable]]:
+        dimensions: dict[UGridKind, Sequence[Hashable]] = {
             UGridKind.node: [self.topology.node_dimension],
             UGridKind.face: [self.topology.face_dimension],
         }
@@ -1060,14 +1058,14 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
             dimensions[UGridKind.edge] = [self.topology.edge_dimension]
         return dimensions
 
-    def unpack_index(self, index: UGridIndex) -> Tuple[UGridKind, Sequence[int]]:
+    def unpack_index(self, index: UGridIndex) -> tuple[UGridKind, Sequence[int]]:
         return index[0], index[1:]
 
     def pack_index(self, grid_kind: UGridKind, indices: Sequence[int]) -> UGridIndex:
         return (grid_kind, indices[0])
 
     @cached_property
-    def grid_kinds(self) -> FrozenSet[UGridKind]:
+    def grid_kinds(self) -> frozenset[UGridKind]:
         items = [UGridKind.face, UGridKind.node]
         # The edge dimension is optional, not all UGRID datasets define it
         if self.topology.has_edge_dimension:
@@ -1088,7 +1086,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         # `shapely.polygons` will make polygons with the same number of vertices.
         # UGRID polygons have arbitrary numbers of vertices.
         # Group polygons by how many vertices they have, then make them in bulk.
-        polygons_of_size: Mapping[int, Dict[int, numpy.ndarray]] = defaultdict(dict)
+        polygons_of_size: Mapping[int, dict[int, numpy.ndarray]] = defaultdict(dict)
         for index, row in enumerate(face_node):
             vertices = row.compressed()
             polygons_of_size[vertices.size][index] = numpy.c_[node_x[vertices], node_y[vertices]]
@@ -1176,7 +1174,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         # Collect all the topology variables here. These need special handling,
         # compared to data variables. The mesh variable can be reused without
         # any changes.
-        topology_variables: List[xarray.DataArray] = [topology.mesh_variable]
+        topology_variables: list[xarray.DataArray] = [topology.mesh_variable]
 
         # This is the fill value used in the mask.
         new_fill_value = clip_mask.data_vars['new_node_index'].encoding['_FillValue']
@@ -1240,7 +1238,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         del topology_variables
 
         logger.debug("Slicing data variables...")
-        dimension_masks: Dict[Hashable, numpy.ndarray] = {
+        dimension_masks: dict[Hashable, numpy.ndarray] = {
             topology.node_dimension: ~numpy.ma.getmask(new_node_indices),
             topology.face_dimension: ~numpy.ma.getmask(new_face_indices),
         }
@@ -1287,7 +1285,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         new_dataset = xarray.open_mfdataset(mfdataset_paths, lock=False)
         return utils.dataset_like(dataset, new_dataset)
 
-    def get_all_geometry_names(self) -> List[Hashable]:
+    def get_all_geometry_names(self) -> list[Hashable]:
         topology = self.topology
 
         names = [

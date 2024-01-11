@@ -4,7 +4,8 @@ such as the output from ocean models.
 """
 import warnings
 from collections import defaultdict
-from typing import Dict, FrozenSet, Hashable, List, Optional, cast
+from collections.abc import Hashable
+from typing import Optional, cast
 
 import numpy
 import xarray
@@ -14,9 +15,9 @@ from emsarray import utils
 
 def ocean_floor(
     dataset: xarray.Dataset,
-    depth_variables: List[Hashable],
+    depth_variables: list[Hashable],
     *,
-    non_spatial_variables: Optional[List[Hashable]] = None,
+    non_spatial_variables: Optional[list[Hashable]] = None,
 ) -> xarray.Dataset:
     """Make a new :class:`xarray.Dataset` reduced along the given depth
     coordinates to only contain values along the ocean floor.
@@ -117,7 +118,7 @@ def ocean_floor(
     non_spatial_dimensions = utils.dimensions_from_coords(dataset, non_spatial_variables)
 
     for depth_dimension in sorted(depth_dimensions, key=hash):
-        dimension_sets: Dict[FrozenSet[Hashable], List[Hashable]] = defaultdict(list)
+        dimension_sets: dict[frozenset[Hashable], list[Hashable]] = defaultdict(list)
         for name, variable in dataset.data_vars.items():
             if depth_dimension not in variable.dims:
                 continue  # Skip data variables without this depth dimension
@@ -195,7 +196,7 @@ def _find_ocean_floor_indices(
 
 def normalize_depth_variables(
     dataset: xarray.Dataset,
-    depth_variables: List[Hashable],
+    depth_variables: list[Hashable],
     *,
     positive_down: Optional[bool] = None,
     deep_to_shallow: Optional[bool] = None,

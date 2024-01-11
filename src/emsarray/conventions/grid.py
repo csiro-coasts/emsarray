@@ -8,12 +8,10 @@ import abc
 import enum
 import itertools
 import warnings
+from collections.abc import Hashable, Sequence
 from contextlib import suppress
 from functools import cached_property
-from typing import (
-    Dict, Generic, Hashable, List, Optional, Sequence, Tuple, Type, TypeVar,
-    cast
-)
+from typing import Generic, Optional, TypeVar, cast
 
 import numpy
 import xarray
@@ -33,7 +31,7 @@ class CFGridKind(str, enum.Enum):
 
 
 #: A two-tuple of ``(y, x)``.
-CFGridIndex = Tuple[int, int]
+CFGridIndex = tuple[int, int]
 
 
 CF_LATITUDE_UNITS = {
@@ -171,7 +169,7 @@ class CFGridTopology(abc.ABC):
         pass
 
     @cached_property
-    def shape(self) -> Tuple[int, int]:
+    def shape(self) -> tuple[int, int]:
         """The shape of this grid, as a tuple of ``(y, x)``."""
         sizes = self.dataset.sizes
         return (sizes[self.y_dimension], sizes[self.x_dimension])
@@ -198,7 +196,7 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
 
     grid_kinds = frozenset(CFGridKind)
     default_grid_kind = CFGridKind.face
-    topology_class: Type[Topology]
+    topology_class: type[Topology]
 
     def __init__(
         self,
@@ -255,18 +253,18 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
         return (min_x, min_y, max_x, max_y)
 
     @cached_property
-    def grid_dimensions(self) -> Dict[CFGridKind, Sequence[Hashable]]:
+    def grid_dimensions(self) -> dict[CFGridKind, Sequence[Hashable]]:
         return {
             CFGridKind.face: [self.topology.y_dimension, self.topology.x_dimension],
         }
 
-    def unpack_index(self, index: CFGridIndex) -> Tuple[CFGridKind, Sequence[int]]:
+    def unpack_index(self, index: CFGridIndex) -> tuple[CFGridKind, Sequence[int]]:
         return CFGridKind.face, index
 
     def pack_index(self, grid_kind: CFGridKind, indices: Sequence[int]) -> CFGridIndex:
         return cast(CFGridIndex, indices)
 
-    def get_all_geometry_names(self) -> List[Hashable]:
+    def get_all_geometry_names(self) -> list[Hashable]:
         # Grid datasets contain latitude and longitude variables
         # plus optional bounds variables.
         names = [
@@ -274,7 +272,7 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
             self.topology.latitude_name,
         ]
 
-        bounds_names: List[Optional[Hashable]] = [
+        bounds_names: list[Optional[Hashable]] = [
             self.topology.longitude.attrs.get('bounds', None),
             self.topology.latitude.attrs.get('bounds', None),
         ]

@@ -3,7 +3,6 @@ from __future__ import annotations
 import itertools
 import json
 import pathlib
-from typing import Type
 
 import numpy
 import pandas
@@ -28,7 +27,7 @@ def make_dataset(
     j_size: int,
     i_size: int,
     time_size: int = 4,
-    grid_type: Type[ShocGridGenerator] = DiagonalShocGrid,
+    grid_type: type[ShocGridGenerator] = DiagonalShocGrid,
     corner_size: int = 0,
 ) -> xarray.Dataset:
     """

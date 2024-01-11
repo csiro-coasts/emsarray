@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import pathlib
 import warnings
-from typing import Tuple
 
 import geojson
 import numpy
@@ -26,7 +25,7 @@ from emsarray.operations import geometry
 from tests.utils import assert_property_not_cached, filter_warning
 
 
-def make_faces(width: int, height, fill_value: int) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+def make_faces(width: int, height, fill_value: int) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     triangle_nodes = sum(range(width + 2))
     square_rows = height
     square_columns = width

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from typing import (
-    TYPE_CHECKING, Any, Callable, Iterable, List, Literal, Optional, Tuple,
-    Union
-)
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Union
 
 import numpy
 import xarray
@@ -119,7 +117,7 @@ def add_landmarks(
 
         dataset = emsarray.tutorial.open_dataset('gbr4')
 
-        # Set up the figure
+        # set up the figure
         figure = pyplot.figure()
         axes = figure.add_subplot(projection=dataset.ems.data_crs)
         axes.set_title("Sea surface temperature around Mackay")
@@ -160,7 +158,7 @@ def add_landmarks(
         text.set_path_effects([outline])
 
 
-def bounds_to_extent(bounds: Tuple[float, float, float, float]) -> List[float]:
+def bounds_to_extent(bounds: tuple[float, float, float, float]) -> list[float]:
     """
     Convert a Shapely bounds tuple to a matplotlib extents.
 
@@ -268,7 +266,7 @@ def plot_on_figure(
     convention: Convention,
     *,
     scalar: Optional[xarray.DataArray] = None,
-    vector: Optional[Tuple[xarray.DataArray, xarray.DataArray]] = None,
+    vector: Optional[tuple[xarray.DataArray, xarray.DataArray]] = None,
     title: Optional[str] = None,
     projection: Optional[cartopy.crs.Projection] = None,
     landmarks: Optional[Iterable[Landmark]] = None,
@@ -360,7 +358,7 @@ def animate_on_figure(
     *,
     coordinate: xarray.DataArray,
     scalar: Optional[xarray.DataArray] = None,
-    vector: Optional[Tuple[xarray.DataArray, xarray.DataArray]] = None,
+    vector: Optional[tuple[xarray.DataArray, xarray.DataArray]] = None,
     title: Optional[Union[str, Callable[[Any], str]]] = None,
     projection: Optional[cartopy.crs.Projection] = None,
     landmarks: Optional[Iterable[Landmark]] = None,
@@ -491,7 +489,7 @@ def animate_on_figure(
         coordinate_callable = title
 
     def animate(index: int) -> Iterable[Artist]:
-        changes: List[Artist] = []
+        changes: list[Artist] = []
         coordinate_value = coordinate.values[index]
         axes.title.set_text(coordinate_callable(coordinate_value))
         changes.append(axes.title)

@@ -9,8 +9,9 @@ All these functions take paths to datasets as arguments, not
 :class:`xarray.Dataset` instances.
 """
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Optional, Union
 
 Pathish = Union[Path, str]
 

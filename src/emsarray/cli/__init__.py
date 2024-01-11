@@ -6,7 +6,7 @@ and a set of tools to make writing your own command line scripts easier.
 import argparse
 import importlib
 import pkgutil
-from typing import Iterable, Type
+from collections.abc import Iterable
 
 import emsarray
 
@@ -40,7 +40,7 @@ def main(options: argparse.Namespace) -> None:
     options.func(options)
 
 
-def _find_all_commands() -> Iterable[Type[BaseCommand]]:
+def _find_all_commands() -> Iterable[type[BaseCommand]]:
     for moduleinfo in pkgutil.iter_modules(commands.__path__):
         if moduleinfo.name.startswith('_'):
             continue
