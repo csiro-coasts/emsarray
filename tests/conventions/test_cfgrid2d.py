@@ -323,8 +323,8 @@ def test_face_centres():
     face_centres = convention.face_centres
     lons = dataset.variables['longitude'].values
     lats = dataset.variables['latitude'].values
-    for j in range(dataset.dims['j']):
-        for i in range(dataset.dims['i']):
+    for j in range(dataset.sizes['j']):
+        for i in range(dataset.sizes['i']):
             lon = lons[j, i]
             lat = lats[j, i]
             linear_index = convention.ravel_index((j, i))
@@ -391,7 +391,7 @@ def test_wind():
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocSimple = dataset.ems
 
-    time_size = dataset.dims['time']
+    time_size = dataset.sizes['time']
     values = numpy.arange(time_size * convention.grid_size[CFGridKind.face])
     flat_array = xarray.DataArray(
         data=values.reshape((time_size, -1)),
@@ -410,7 +410,7 @@ def test_drop_geometry(datasets: pathlib.Path):
     dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
 
     dropped = dataset.ems.drop_geometry()
-    assert dropped.dims.keys() == {'i', 'j'}
+    assert set(dropped.dims) == {'i', 'j'}
 
     topology = dataset.ems.topology
     assert topology.longitude_name in dataset.variables

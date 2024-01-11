@@ -69,7 +69,10 @@ class ArakawaCGridTopology:
     @cached_property
     def shape(self) -> Tuple[int, int]:
         """The shape of this grid, as a tuple of ``(j, i)``."""
-        return (self.dataset.dims[self.j_dimension], self.dataset.dims[self.i_dimension])
+        return (
+            self.dataset.sizes[self.j_dimension],
+            self.dataset.sizes[self.i_dimension],
+        )
 
     @cached_property
     def size(self) -> int:

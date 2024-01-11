@@ -348,7 +348,7 @@ def test_drop_geometry(datasets: pathlib.Path):
     dataset = xarray.open_dataset(datasets / 'cfgrid1d.nc')
 
     dropped = dataset.ems.drop_geometry()
-    assert dropped.dims.keys() == {'lon', 'lat'}
+    assert set(dropped.dims) == {'lon', 'lat'}
 
     topology = dataset.ems.topology
     assert topology.longitude_name in dataset.variables
@@ -408,7 +408,7 @@ def test_make_clip_mask():
     assert_equal(mask.data_vars['cell_mask'].values, expected_cells)
 
     assert mask.attrs == {'type': 'CFGrid mask'}
-    assert mask.dims == {
+    assert mask.sizes == {
         topology.longitude_name: topology.longitude.size,
         topology.latitude_name: topology.latitude.size,
     }
@@ -448,7 +448,7 @@ def test_apply_clip_mask(tmp_path):
     # Check that the variable and dimension keys were preserved
     assert set(dataset.data_vars.keys()) == set(clipped.data_vars.keys())
     assert set(dataset.coords.keys()) == set(clipped.coords.keys())
-    assert set(dataset.dims.keys()) == set(clipped.dims.keys())
+    assert set(dataset.dims) == set(clipped.dims)
 
     # Check that the new topology seems reasonable
     assert clipped.ems.topology.longitude.size == 5

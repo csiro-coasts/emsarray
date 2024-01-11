@@ -36,7 +36,7 @@ def test_ocean_floor():
 
     floor_dataset = ocean_floor(dataset, ['depth'], non_spatial_variables=['time'])
 
-    assert floor_dataset.dims == {
+    assert floor_dataset.sizes == {
         't': 5,
         'x': 5,
         'y': 5,

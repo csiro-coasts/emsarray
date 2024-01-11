@@ -28,7 +28,7 @@ def test_extract_dataframe(
     # There should be a new dimension named 'points'
     # with the same size as the number of rows in the CSV
     assert 'point' in point_dataset.dims
-    assert point_dataset.dims['point'] == num_points
+    assert point_dataset.sizes['point'] == num_points
 
     # All the columns from the CSV should have been merged in
     assert_equal(points_df['name'], point_dataset['name'].values)
@@ -69,7 +69,7 @@ def test_extract_dataframe_point_dimension(
     in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     point_dataset = point_extraction.extract_dataframe(
         in_dataset, points_df, ('lon', 'lat'), point_dimension='foo')
-    assert point_dataset.dims['foo'] == 4
+    assert point_dataset.sizes['foo'] == 4
     assert point_dataset['foo'].dims == ('foo',)
     assert_equal(point_dataset['foo'].values, [0, 1, 2, 3])
     assert point_dataset['values'].dims == ('foo',)
@@ -101,7 +101,7 @@ def test_extract_points_missing_point_drop(
     in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     point_dataset = point_extraction.extract_dataframe(
         in_dataset, points_df, ('lon', 'lat'), missing_points='drop')
-    assert point_dataset.dims['point'] == 2
+    assert point_dataset.sizes['point'] == 2
     assert 'values' in point_dataset.data_vars
     assert_equal(point_dataset['values'].values, [
         in_dataset.ems.select_point(Point(0, 0))['values'].values,
@@ -122,7 +122,7 @@ def test_extract_points_missing_point_fill(
     in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     point_dataset = point_extraction.extract_dataframe(
         in_dataset, points_df, ('lon', 'lat'), missing_points='fill')
-    assert point_dataset.dims['point'] == 4
+    assert point_dataset.sizes['point'] == 4
     assert 'values' in point_dataset.data_vars
     assert_equal(point_dataset['values'].values, [
         in_dataset.ems.select_point(Point(0, 0))['values'].values,

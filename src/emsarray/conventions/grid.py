@@ -173,8 +173,8 @@ class CFGridTopology(abc.ABC):
     @cached_property
     def shape(self) -> Tuple[int, int]:
         """The shape of this grid, as a tuple of ``(y, x)``."""
-        dims = self.dataset.dims
-        return (dims[self.y_dimension], dims[self.x_dimension])
+        sizes = self.dataset.sizes
+        return (sizes[self.y_dimension], sizes[self.x_dimension])
 
     @cached_property
     def size(self) -> int:
@@ -346,7 +346,7 @@ class CFGrid1DTopology(CFGridTopology):
             if (
                 len(bounds.dims) == 2
                 and bounds.dims[0] == coordinate.dims[0]
-                and self.dataset.dims[bounds.dims[1]] == 2
+                and self.dataset.sizes[bounds.dims[1]] == 2
             ):
                 return bounds
             else:
@@ -481,7 +481,7 @@ class CFGrid2DTopology(CFGridTopology):
                 len(bounds.dims) == 3
                 and bounds.dims[0] == self.y_dimension
                 and bounds.dims[1] == self.x_dimension
-                and self.dataset.dims[bounds.dims[2]] == 4
+                and self.dataset.sizes[bounds.dims[2]] == 4
             ):
                 return cast(xarray.DataArray, bounds)
             else:

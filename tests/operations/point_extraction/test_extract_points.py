@@ -22,7 +22,7 @@ def test_extract_points(
     point_dataset = point_extraction.extract_points(in_dataset, points)
 
     assert 'point' in point_dataset.dims
-    assert point_dataset.dims['point'] == num_points
+    assert point_dataset.sizes['point'] == num_points
 
     assert point_dataset.variables.keys() == {'values', 'point'}
 
@@ -44,7 +44,7 @@ def test_extract_points_point_dimension(
     points = [Point(i, 0) for i in range(4)]
     in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     point_dataset = point_extraction.extract_points(in_dataset, points, point_dimension='foo')
-    assert point_dataset.dims['foo'] == 4
+    assert point_dataset.sizes['foo'] == 4
     assert point_dataset['foo'].dims == ('foo',)
     assert_equal(point_dataset['foo'].values, [0, 1, 2, 3])
 
@@ -66,5 +66,5 @@ def test_extract_points_missing_point_drop(
     points = [Point(i, 0) for i in range(8)]
     in_dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
     point_dataset = point_extraction.extract_points(in_dataset, points, missing_points='drop')
-    assert point_dataset.dims['point'] == 4
+    assert point_dataset.sizes['point'] == 4
     assert_equal(point_dataset['point'].values, [0, 1, 2, 3])

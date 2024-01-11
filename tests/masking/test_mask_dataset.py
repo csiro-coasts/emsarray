@@ -37,7 +37,7 @@ def test_standard_mask_from_centres():
     # The centre should be the same as the input array.
     # Left should be one bigger in the i dimension, back in j.
     # Grid should be one bigger in both j and i dimensions.
-    assert mask.dims == {
+    assert mask.sizes == {
         'j_centre': 6, 'i_centre': 5,
         'j_node': 7, 'i_node': 6,
         'j_left': 6, 'i_left': 6,
