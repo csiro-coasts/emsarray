@@ -83,6 +83,9 @@ jobs:
         shell: bash -l {0}
         run: |
           pytest -v \
+            --mpl \
+            --mpl-results-path=./mpl-results \
+            --mpl-generate-summary html \
             --junitxml=junit-py${{ matrix.python-version }}.xml \
             --cov --cov-report term \
             --cov-report xml:coverage-${{ matrix.python-version }}.xml
@@ -93,6 +96,15 @@ jobs:
         with:
           report_paths: 'junit-py*.xml'
           check_name: "JUnit Test Report - Python ${{ matrix.python-version }}"
+
+      - name: MPL image comparison report
+        uses: actions/upload-artifact@v3
+        if: ${{ failure() }}
+        with:
+          name: "MPL image comparison report - Python ${{ matrix.python-version }}"
+          path: './mpl-results'
+          # No guarantee that the test failures were due to image comparisons
+          if-no-files-found: 'ignore'
 
       - uses: actions/upload-artifact@v3
         with:

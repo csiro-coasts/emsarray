@@ -52,6 +52,7 @@ def test_add_landmarks():
         assert text.xy == landmark[1].coords.xy
 
 
+@pytest.mark.mpl_image_compare
 @pytest.mark.matplotlib(mock_coast=True)
 @pytest.mark.tutorial
 def test_plot(
@@ -68,8 +69,7 @@ def test_plot(
     axes = figure.axes[0]
     assert axes.get_title() == 'Temperature\n2022-05-11T14:00'
 
-    matplotlib.pyplot.savefig(tmp_path / 'plot.png')
-    logger.info("Saved plot to %r", tmp_path / 'plot.png')
+    return figure
 
 
 @pytest.mark.matplotlib(mock_coast=True)
