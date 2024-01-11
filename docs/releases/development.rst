@@ -8,3 +8,6 @@ Next release (in development)
 * Fix an error when creating a transect plot that does not intersect the model geometry.
   Previously this would raise a cryptic error, now it returns an empty transect dataset
   (:issue:`119`, :pr:`120`).
+* Drop dependency on importlib_metadata.
+  This was only required to support Python 3.8, which was dropped in a previous release
+  (:issue:`122`, :pr:`125`).
