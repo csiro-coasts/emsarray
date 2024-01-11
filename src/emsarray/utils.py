@@ -427,38 +427,54 @@ def dimensions_from_coords(
     return dimensions
 
 
-def check_data_array_dimensions_match(dataset: xarray.Dataset, data_array: xarray.DataArray) -> None:
+def check_data_array_dimensions_match(
+    dataset: xarray.Dataset,
+    data_array: xarray.DataArray,
+    *,
+    dimensions: Optional[Sequence[Hashable]] = None,
+) -> None:
     """
     Check that the dimensions of a :class:`xarray.DataArray`
     match the dimensions of a :class:`xarray.Dataset`.
     This is useful when using the metadata of a particular dataset to display a data array,
     without requiring the data array to be taken directly from the dataset.
 
-    If the dimensions do not match, a ValueError is raised, indicating the mismatched dimension.
+    If the dimensions do not match a ValueError is raised indicating the mismatched dimension.
 
     Parameters
     ----------
-    dataset
+    dataset : xarray.Dataset
         The dataset used as a reference
-    data_array
+    data_array : xarray.DataArray
         The data array to check the dimensions of
+    dimensions : list of Hashable, optional
+        The dimension names to check for equal sizes.
+        Optional, defaults to checking all dimensions on the data array.
 
     Raises
     ------
     ValueError
         Raised if the dimensions do not match
     """
-    for dimension, data_array_size in zip(data_array.dims, data_array.shape):
-        if dimension not in dataset.dims:
-            raise ValueError(
-                f"Data array has unknown dimension {dimension} of size {data_array_size}"
-            )
+    if dimensions is None:
+        dimensions = data_array.dims
 
+    for dimension in dimensions:
+        if dimension not in dataset.dims and dimension not in data_array.dims:
+            raise ValueError(
+                f"Dimension {dimension!r} not present on either dataset or data array"
+            )
+        elif dimension not in dataset.dims:
+            raise ValueError(f"Dataset does not have dimension {dimension!r}")
+        elif dimension not in data_array.dims:
+            raise ValueError(f"Data array does not have dimension {dimension!r}")
         dataset_size = dataset.sizes[dimension]
+        data_array_size = data_array.sizes[dimension]
+
         if data_array_size != dataset_size:
             raise ValueError(
                 "Dimension mismatch between dataset and data array: "
-                f"Dataset dimension {dimension} has size {dataset_size}, "
+                f"Dataset dimension {dimension!r} has size {dataset_size}, "
                 f"data array has size {data_array_size}"
             )
 

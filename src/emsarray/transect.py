@@ -188,10 +188,17 @@ class Transect:
             dims=(depth_dimension, 'bounds'),
         )
         distance_bounds = xarray.DataArray(
-            data=[
-                [segment.start_distance, segment.end_distance]
-                for segment in self.segments
-            ],
+            data=numpy.fromiter(
+                (
+                    [segment.start_distance, segment.end_distance]
+                    for segment in self.segments
+                ),
+                # Be explicit here, to handle the case when len(self.segments) == 0.
+                # This happens when the transect line does not intersect the dataset.
+                # This will result in an empty transect plot.
+                count=len(self.segments),
+                dtype=numpy.dtype((float, 2)),
+            ),
             dims=('index', 'bounds'),
             attrs={
                 'long_name': 'Distance along transect',
@@ -762,8 +769,15 @@ class Transect:
 
         cmap = colormaps[cmap].copy()
         cmap.set_bad(ocean_floor_colour)
-        collection = self.make_poly_collection(
-            cmap=cmap, clim=(numpy.nanmin(data_array), numpy.nanmax(data_array)))
+
+        if data_array.size != 0:
+            clim = (numpy.nanmin(data_array), numpy.nanmax(data_array))
+        else:
+            # An empty data array happens when the transect line does not
+            # intersect the dataset geometry.
+            clim = None
+
+        collection = self.make_poly_collection(cmap=cmap, clim=clim, edgecolor='face')
         axes.add_collection(collection)
 
         if bathymetry is not None:

@@ -5,3 +5,6 @@ Next release (in development)
 * Fix a ``FutureWarning`` on accessing :attr:`xarray.Dataset.dims`
   with xarray >= 2023.12.0
   (:pr:`124`, :pr:`pydata/xarray#8500`).
+* Fix an error when creating a transect plot that does not intersect the model geometry.
+  Previously this would raise a cryptic error, now it returns an empty transect dataset
+  (:issue:`119`, :pr:`120`).
