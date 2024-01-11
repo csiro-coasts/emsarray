@@ -1,15 +1,12 @@
 """
 Dataclass for containing state required for emsarray
 """
-from __future__ import annotations
-
 import dataclasses
-from typing import TYPE_CHECKING, Final, Optional, cast
+from typing import Final, Optional, cast
 
 import xarray
 
-if TYPE_CHECKING:
-    from emsarray.conventions._base import Convention
+from emsarray import conventions
 
 
 @dataclasses.dataclass
@@ -20,7 +17,7 @@ class State:
     to avoid convention autodetection.
     """
     dataset: xarray.Dataset
-    convention: Optional[Convention] = None
+    convention: Optional['conventions.Convention'] = None
 
     accessor_name: Final[str] = "_emsarray_state"
 
@@ -32,7 +29,7 @@ class State:
         """
         return cast(State, getattr(dataset, State.accessor_name))
 
-    def bind_convention(self, convention: Convention) -> None:
+    def bind_convention(self, convention: 'conventions.Convention') -> None:
         """
         Bind a Convention instance to this Dataset.
         If the Dataset is already bound, an error is raised.

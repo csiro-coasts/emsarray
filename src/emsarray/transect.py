@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import dataclasses
 from collections.abc import Hashable, Iterable
 from functools import cached_property

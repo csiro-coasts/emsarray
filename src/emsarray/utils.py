@@ -7,8 +7,6 @@ See Also
 --------
 :mod:`emsarray.operations`
 """
-from __future__ import annotations
-
 import datetime
 import functools
 import itertools
@@ -51,7 +49,7 @@ class PerfTimer:
     def __init__(self) -> None:
         self.running = False
 
-    def __enter__(self) -> PerfTimer:
+    def __enter__(self) -> 'PerfTimer':
         if self.running:
             raise RuntimeError("Timer is already running")
         self.running = True

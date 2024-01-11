@@ -6,8 +6,6 @@ See Also
 `Arakawa grids <https://en.wikipedia.org/wiki/Arakawa_grids>`_ on Wikipedia
 
 """
-from __future__ import annotations
-
 import enum
 import logging
 from collections.abc import Hashable, Sequence
@@ -119,7 +117,7 @@ class ArakawaCGridKind(str, enum.Enum):
     #: :meta hide-value:
     node = 'node'
 
-    def __call__(self, j: int, i: int) -> ArakawaCIndex:
+    def __call__(self, j: int, i: int) -> 'ArakawaCIndex':
         return (self, j, i)
 
 

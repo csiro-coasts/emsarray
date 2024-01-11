@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import abc
 import dataclasses
 import enum
@@ -869,7 +867,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     @cached_property  # type: ignore
     @_requires_plot
-    def data_crs(self) -> CRS:
+    def data_crs(self) -> 'CRS':
         """
         The coordinate reference system that coordinates in this dataset are
         defined in.
@@ -883,7 +881,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @_requires_plot
     def plot_on_figure(
         self,
-        figure: Figure,
+        figure: 'Figure',
         scalar: Optional[DataArrayOrName] = None,
         vector: Optional[tuple[DataArrayOrName, DataArrayOrName]] = None,
         title: Optional[str] = None,
@@ -963,13 +961,13 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @_requires_plot
     def animate_on_figure(
         self,
-        figure: Figure,
+        figure: 'Figure',
         scalar: Optional[DataArrayOrName] = None,
         vector: Optional[tuple[DataArrayOrName, DataArrayOrName]] = None,
         coordinate: Optional[DataArrayOrName] = None,
         title: Optional[Union[str, Callable[[Any], str]]] = None,
         **kwargs: Any,
-    ) -> FuncAnimation:
+    ) -> 'FuncAnimation':
         """
         Make an animated plot of a data array.
 
@@ -1066,7 +1064,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         self,
         data_array: Optional[DataArrayOrName] = None,
         **kwargs: Any,
-    ) -> PolyCollection:
+    ) -> 'PolyCollection':
         """
         Make a :class:`~matplotlib.collections.PolyCollection`
         from the geometry of this :class:`~xarray.Dataset`.
@@ -1143,7 +1141,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         self,
         data_array: Optional[DataArrayOrName] = None,
         **kwargs: Any,
-    ) -> PolyCollection:
+    ) -> 'PolyCollection':
         warnings.warn(
             "Convention.make_patch_collection has been renamed to "
             "Convention.make_poly_collection, and now returns a PolyCollection",
@@ -1154,11 +1152,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @_requires_plot
     def make_quiver(
         self,
-        axes: Axes,
+        axes: 'Axes',
         u: Optional[DataArrayOrName] = None,
         v: Optional[DataArrayOrName] = None,
         **kwargs: Any,
-    ) -> Quiver:
+    ) -> 'Quiver':
         """
         Make a :class:`matplotlib.quiver.Quiver` instance to plot vector data.
 

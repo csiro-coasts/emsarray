@@ -5,8 +5,6 @@ The SHOC simple convention is a specific implementation of CFGrid2D.
 Instead of writing two identical test suites,
 the SHOC simple convention is used to test both.
 """
-from __future__ import annotations
-
 import itertools
 import json
 import pathlib

@@ -5,8 +5,6 @@ See Also
 --------
 `UGRID conventions <https://ugrid-conventions.github.io/ugrid-conventions/>`_
 """
-from __future__ import annotations
-
 import enum
 import logging
 import pathlib
@@ -39,7 +37,10 @@ def _split_coord(attr: str) -> tuple[str, str]:
     return (x, y)
 
 
-def buffer_faces(face_indices: numpy.ndarray, topology: Mesh2DTopology) -> numpy.ndarray:
+def buffer_faces(
+    face_indices: numpy.ndarray,
+    topology: 'Mesh2DTopology',
+) -> numpy.ndarray:
     """
     When clipping a dataset to a region, including a buffer of extra faces
     around the included faces is desired. Given an array of face indices,
@@ -68,7 +69,10 @@ def buffer_faces(face_indices: numpy.ndarray, topology: Mesh2DTopology) -> numpy
     return cast(numpy.ndarray, numpy.fromiter(included_faces, dtype=topology.sensible_dtype))
 
 
-def mask_from_face_indices(face_indices: numpy.ndarray, topology: Mesh2DTopology) -> xarray.Dataset:
+def mask_from_face_indices(
+    face_indices: numpy.ndarray,
+    topology: 'Mesh2DTopology',
+) -> xarray.Dataset:
     """
     Make a mask dataset from a list of face indices.
     This mask can later be applied using :meth:`~.Convention.apply_clip_mask`.
@@ -868,7 +872,7 @@ class Mesh2DTopology:
             yield face_index, list(utils.pairwise(node_indices))
 
     @cached_property
-    def dimension_for_grid_kind(self) -> dict[UGridKind, Hashable]:
+    def dimension_for_grid_kind(self) -> dict['UGridKind', Hashable]:
         """
         Get the dimension names for each of the grid types in this dataset.
         """

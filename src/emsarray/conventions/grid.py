@@ -2,8 +2,6 @@
 Datasets following the CF conventions with gridded datasets.
 Both 1D coordinates and 2D coordinates are supported.
 """
-from __future__ import annotations
-
 import abc
 import enum
 import itertools

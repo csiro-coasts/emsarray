@@ -1,17 +1,13 @@
-from __future__ import annotations
-
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
 import numpy
 import xarray
 
+from emsarray import conventions
 from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.types import Landmark
 from emsarray.utils import requires_extra
-
-if TYPE_CHECKING:
-    from .conventions import Convention
 
 try:
     import cartopy.crs
@@ -263,7 +259,7 @@ def make_plot_title(
 @_requires_plot
 def plot_on_figure(
     figure: Figure,
-    convention: Convention,
+    convention: 'conventions.Convention',
     *,
     scalar: Optional[xarray.DataArray] = None,
     vector: Optional[tuple[xarray.DataArray, xarray.DataArray]] = None,
@@ -354,7 +350,7 @@ def plot_on_figure(
 @_requires_plot
 def animate_on_figure(
     figure: Figure,
-    convention: Convention,
+    convention: 'conventions.Convention',
     *,
     coordinate: xarray.DataArray,
     scalar: Optional[xarray.DataArray] = None,

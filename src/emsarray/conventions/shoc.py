@@ -14,8 +14,6 @@ See Also
 --------
 `SHOC documentation <https://research.csiro.au/cem/software/ems/hydro/strucutured-shoc/>`_
 """
-from __future__ import annotations
-
 import logging
 from collections.abc import Hashable
 from functools import cached_property

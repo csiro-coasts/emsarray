@@ -3,8 +3,6 @@ Common functions for working with dataset masks.
 Masks are used when clipping datasets to a smaller geographic subset,
 such as :meth:`.Convention.clip`.
 """
-from __future__ import annotations
-
 import functools
 import itertools
 import logging
