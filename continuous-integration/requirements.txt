@@ -98,6 +98,7 @@ jinja2==3.1.2
     #   bokeh
     #   dask
     #   distributed
+    #   pytest-mpl
     #   sphinx
 kiwisolver==1.4.4
     # via matplotlib
@@ -115,6 +116,7 @@ matplotlib==3.7.2
     # via
     #   cartopy
     #   emsarray (setup.cfg)
+    #   pytest-mpl
 mccabe==0.7.0
     # via flake8
 msgpack==1.0.5
@@ -156,6 +158,7 @@ packaging==23.1
     #   pydata-sphinx-theme
     #   pyproject-api
     #   pytest
+    #   pytest-mpl
     #   sphinx
     #   tox
     #   xarray
@@ -172,6 +175,7 @@ pillow==10.0.0
     # via
     #   bokeh
     #   matplotlib
+    #   pytest-mpl
 platformdirs==3.10.0
     # via
     #   pooch
@@ -214,7 +218,10 @@ pytest==7.4.0
     # via
     #   emsarray (setup.cfg)
     #   pytest-cov
+    #   pytest-mpl
 pytest-cov==4.1.0
+    # via emsarray (setup.cfg)
+pytest-mpl==0.16.1
     # via emsarray (setup.cfg)
 python-dateutil==2.8.2
     # via

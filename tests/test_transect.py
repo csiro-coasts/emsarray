@@ -10,7 +10,8 @@ import emsarray.transect
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.matplotlib(mock_coast=True)
+@pytest.mark.mpl_image_compare
+@pytest.mark.matplotlib
 @pytest.mark.tutorial
 def test_plot(
     datasets: pathlib.Path,
@@ -53,10 +54,10 @@ def test_plot(
     # This is the variable units
     assert colorbar.get_ylabel() == 'degrees C'
 
-    matplotlib.pyplot.savefig(tmp_path / 'plot.png')
-    logger.info("Saved plot to %r", tmp_path / 'plot.png')
+    return figure
 
 
+@pytest.mark.mpl_image_compare
 @pytest.mark.matplotlib(mock_coast=True)
 @pytest.mark.tutorial
 def test_plot_no_intersection(
@@ -95,5 +96,4 @@ def test_plot_no_intersection(
     # This is the variable units
     assert colorbar.get_ylabel() == 'degrees C'
 
-    matplotlib.pyplot.savefig(tmp_path / 'plot.png')
-    logger.info("Saved plot to %r", tmp_path / 'plot.png')
+    return figure

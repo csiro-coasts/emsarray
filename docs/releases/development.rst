@@ -17,3 +17,6 @@ Next release (in development)
 * Use `PEP 585 generic type annotations <https://peps.python.org/pep-0585/>`_
   and stop using `PEP 563 postponed annotation evaluation <https://peps.python.org/pep-0563/>`_
   (:issue:`109`, :pr:`127`).
+* Use `pytest-mpl <https://pypi.org/project/pytest-mpl/>`_ for image comparison tests
+  for testing plotting methods
+  (:pr:`128`).
