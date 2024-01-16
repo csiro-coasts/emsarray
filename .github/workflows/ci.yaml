@@ -95,13 +95,13 @@ jobs:
         if: always()
         with:
           report_paths: 'junit-py*.xml'
-          check_name: "JUnit Test Report - Python ${{ matrix.python-version }}"
+          check_name: "JUnit Test Report - python ${{ matrix.python-version }}, ${{ matrix.experimental && 'latest' || 'pinned' }} dependencies"
 
       - name: MPL image comparison report
         uses: actions/upload-artifact@v3
         if: ${{ failure() }}
         with:
-          name: "MPL image comparison report - Python ${{ matrix.python-version }}"
+          name: "MPL image comparison report - python ${{ matrix.python-version }}, ${{ matrix.experimental && 'latest' || 'pinned' }} dependencies"
           path: './mpl-results'
           # No guarantee that the test failures were due to image comparisons
           if-no-files-found: 'ignore'
