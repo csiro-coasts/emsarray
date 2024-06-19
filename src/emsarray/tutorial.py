@@ -26,7 +26,7 @@ BASE_URL = "https://github.com/csiro-coasts/emsarray-data/raw/{version}/{path}"
 
 # Bump this version as new datasets are added or as old datasets are updated.
 # Should be a tag name or commit hash, something immutable.
-VERSION = "v0.3.0"
+VERSION = "v0.4.0"
 
 
 def _make_download_url(name: str) -> str:
@@ -86,9 +86,9 @@ def open_dataset(name: str, **kwargs: Any) -> xarray.Dataset:
         This dataset is defined on a rectangular grid with one dimensional coordinates,
         handled by the :class:`.CFGrid1D` convenion.
 
-    ``fraser``
+    ``kgari``
         A subset of the Great Barrier Reef 4km (GBR4) v2.0 model, part of the eReefs data.
-        This subset is centred around K'gari / Fraser Island.
+        This subset is centred around K'gari.
         This dataset is defined on a curvilinear grid with two dimensional coordinates,
         handled by the :class:`.CFGrid2D` convention.
         Temperature, sea surface height, and current variables are included.
@@ -117,8 +117,8 @@ def open_dataset(name: str, **kwargs: Any) -> xarray.Dataset:
     .. code-block:: python
 
         import emsarray
-        fraser = emsarray.tutorial.open_dataset('fraser')
-        fraser.ems.plot(fraser['temp'].isel(time=0, k=-1))
+        kgari = emsarray.tutorial.open_dataset('kgari')
+        kgari.ems.plot(kgari['temp'].isel(time=0, k=-1))
     """
     local_path = _fetch(name)
     return emsarray.open_dataset(local_path, **kwargs)
