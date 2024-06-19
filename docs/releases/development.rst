@@ -21,5 +21,7 @@ Next release (in development)
   for testing plotting methods
   (:pr:`128`).
 * Update all URLs to the NCI THREDDS server
-  (`update notice <https://opus.nci.org.au/display/NDP/THREDDS+Upgrade>`,
+  (`update notice <https://opus.nci.org.au/display/NDP/THREDDS+Upgrade>`_,
   :issue:`135`, :pr:`136`, :pr:`csiro-coast/emsarray-data#2`).
+* Correct all references to K'gari, formerly Fraser Island
+  (:issue:`133`, :pr:`csiro-coast/emsarray-data#2`, :pr:`134`).
