@@ -20,3 +20,6 @@ Next release (in development)
 * Use `pytest-mpl <https://pypi.org/project/pytest-mpl/>`_ for image comparison tests
   for testing plotting methods
   (:pr:`128`).
+* Update all URLs to the NCI THREDDS server
+  (`update notice <https://opus.nci.org.au/display/NDP/THREDDS+Upgrade>`,
+  :issue:`135`, :pr:`136`, :pr:`csiro-coast/emsarray-data#2`).
