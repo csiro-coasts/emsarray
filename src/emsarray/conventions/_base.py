@@ -807,7 +807,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             import numpy
             import xarray
 
-            dataset = emsarray.tutorial.open_dataset('fraser')
+            dataset = emsarray.tutorial.open_dataset('kgari')
             face_size = dataset.ems.grid_size[dataset.ems.default_grid_kind]
             flat_array = xarray.DataArray(
                 data=numpy.arange(face_size),

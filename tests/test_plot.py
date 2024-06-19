@@ -59,7 +59,7 @@ def test_plot(
     datasets: pathlib.Path,
     tmp_path: pathlib.Path,
 ):
-    dataset = emsarray.tutorial.open_dataset('fraser')
+    dataset = emsarray.tutorial.open_dataset('kgari')
     temp = dataset['temp'].copy()
     temp = temp.isel(time=0, k=-1)
 
@@ -82,7 +82,7 @@ def test_plot_no_long_name(
     Test plotting a variable with no long_name attribute works.
     Regression test for https://github.com/csiro-coasts/emsarray/issues/105
     """
-    dataset = emsarray.tutorial.open_dataset('fraser')
+    dataset = emsarray.tutorial.open_dataset('kgari')
     temp = dataset['temp'].copy()
     temp = temp.isel(time=0, k=-1)
     del temp.attrs['long_name']
