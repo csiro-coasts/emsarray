@@ -1,5 +1,6 @@
 import abc
 import contextlib
+import importlib.metadata
 import itertools
 import warnings
 from collections.abc import Hashable
@@ -7,8 +8,10 @@ from functools import cached_property
 from typing import Any, Optional
 
 import numpy
+import pytest
 import shapely
 import xarray
+from packaging.requirements import Requirement
 
 from emsarray.conventions.arakawa_c import (
     ArakawaCGridKind, c_mask_from_centres
@@ -376,3 +379,50 @@ def assert_property_not_cached(
     cache = instance.__dict__
     assert prop.attrname not in cache, \
         f"{instance!r}.{prop_name} was cached!"
+
+
+def skip_versions(*requirements: str):
+    """
+    Skips a test function if any of the version specifiers match.
+    """
+    invalid_versions = []
+    for requirement in map(Requirement, requirements):
+        assert not requirement.extras
+        assert requirement.url is None
+        assert requirement.marker is None
+
+        try:
+            version = importlib.metadata.version(requirement.name)
+        except importlib.metadata.PackageNotFoundError:
+            # The package is not installed, so an invalid version isn't installed
+            continue
+
+        if version in requirement.specifier:
+            invalid_versions.append(
+                f'{requirement.name}=={version} matches skipped version specifier {requirement}')
+
+    return pytest.mark.skipif(len(invalid_versions) > 0, reason='\n'.join(invalid_versions))
+
+
+def only_versions(*requirements: str):
+    """
+    Runs a test function only if all of the version specifiers match.
+    """
+    invalid_versions = []
+    for requirement in map(Requirement, requirements):
+        assert not requirement.extras
+        assert requirement.url is None
+        assert requirement.marker is None
+
+        try:
+            version = importlib.metadata.version(requirement.name)
+        except importlib.metadata.PackageNotFoundError:
+            # The package is not installed, so a required version is not installed
+            invalid_versions.append(f'{requirement.name} is not installed')
+            continue
+
+        if version not in requirement.specifier:
+            invalid_versions.append(
+                f'{requirement.name}=={version} does not satisfy {requirement}')
+
+    return pytest.mark.skipif(len(invalid_versions) > 0, reason='\n'.join(invalid_versions))
