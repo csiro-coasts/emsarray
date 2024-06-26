@@ -1,7 +1,9 @@
+import importlib.metadata
 from collections.abc import Iterable
 from typing import Any, Callable, Literal, Optional, Union
 
 import numpy
+import packaging.version
 import xarray
 
 from emsarray import conventions
@@ -30,6 +32,9 @@ __all___ = ['CAN_PLOT', 'plot_on_figure', 'polygons_to_collection']
 
 
 _requires_plot = requires_extra(extra='plot', import_error=IMPORT_EXCEPTION)
+
+CARTOPY_VERSION = packaging.version.Version(importlib.metadata.version('cartopy'))
+CARTOPY_0_23 = CARTOPY_VERSION >= packaging.version.Version('0.23')
 
 
 def add_coast(axes: Axes, **kwargs: Any) -> None:
@@ -71,9 +76,10 @@ def add_gridlines(axes: Axes, **kwargs: Any) -> gridliner.Gridliner:
     """
     kwargs = {
         'draw_labels': ['left', 'bottom'],
-        'auto_update': True,
         **kwargs,
     }
+    if not CARTOPY_0_23:
+        kwargs['auto_update'] = True
     return axes.gridlines(**kwargs)
 
 
