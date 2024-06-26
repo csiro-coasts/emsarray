@@ -45,8 +45,8 @@ def make_float_with_fill_value_and_offset(
 
     fill_value = numpy.float32(-999.0)
     var = ds.createVariable("var", "f4", ["y", "x"], fill_value=fill_value)
-    var.add_offset = 10.
-    var.scale_factor = 2.
+    var.add_offset = numpy.float32(10.)
+    var.scale_factor = numpy.float32(2.)
     var[:] = numpy.ma.masked_array(numpy.arange(4) + 1, [0, 0, 1, 0]).reshape((2, 2))
 
     ds.close()
@@ -78,8 +78,8 @@ def make_int_with_fill_value_and_offset(
 
     fill_value = numpy.int8(-1)
     var = ds.createVariable("var", "i1", ["y", "x"], fill_value=fill_value)
-    var.add_offset = -10.
-    var.scale_factor = .5
+    var.add_offset = numpy.float32(-10.)
+    var.scale_factor = numpy.float32(.5)
     var[:] = numpy.ma.masked_array(numpy.arange(4) + 1, [0, 0, 1, 0]).reshape((2, 2))
 
     ds.close()
