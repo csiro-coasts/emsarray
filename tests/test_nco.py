@@ -1,5 +1,5 @@
-import subprocess
 import pathlib
+import subprocess
 from unittest import mock
 
 import pytest
