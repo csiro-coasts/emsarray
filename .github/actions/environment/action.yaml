@@ -8,15 +8,21 @@ inputs:
     description: Name of the emsarray Python package artifact
     required: false
     default: "Python package"
-  install-latest:
-    description: Install latest dependency versions instead of locked versions
+  dependencies:
+    description: Install pinned, latest, or minimum dependency versions.
     required: false
-    # All inputs are forced to strings
-    default: 'false'
+    default: 'pinned'
   extras:
     description: Which set of emsarray 'extras' to install.
     required: false
     default: 'testing'
+  strict:
+    description: |
+      Whether to install transitive dependencies automatically. When installing
+      from a set of pinned dependencies the assumption is that all dependencies
+      are pinned, so there should be no missing transitive dependencies.
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -56,18 +62,39 @@ runs:
       run: |
         conda install -c conda-forge wheel
 
-    - name: Install locked Python packages
-      if: ${{ inputs.install-latest == 'false' }}
+    - name: Install pinned dependencies
+      if: ${{ inputs.dependencies == 'pinned' }}
       shell: bash -l {0}
       run: |
         wheels=( dist/emsarray-*.whl )
+        args=()
+        if [[ "${{ inputs.strict }}" == "true" ]] ; then args+=('--no-deps') ; fi
 
         pip install \
+          "${args[@]}" \
           -r continuous-integration/requirements.txt \
           "${wheels[0]}[${{ inputs.extras }}]"
+        pip check
 
-    - name: Install latest Python packages
-      if: ${{ inputs.install-latest != 'false'}}
+    - name: Install minimum supported version dependencies
+      if: ${{ inputs.dependencies == 'minimum' }}
+      shell: bash -l {0}
+      run: |
+        wheels=( dist/emsarray-*.whl )
+        args=()
+        if [[ "${{ inputs.strict }}" == "true" ]] ; then args+=('--no-deps') ; fi
+
+        pip install \
+          "${args[@]}" \
+          -r continuous-integration/requirements-minimum.txt \
+          "${wheels[0]}"
+        pip check
+        pip install \
+          -r continuous-integration/requirements-minimum.txt \
+          "${wheels[0]}[${{ inputs.extras }}]"
+
+    - name: Install latest dependencies
+      if: ${{ inputs.dependencies == 'latest' }}
       shell: bash -l {0}
       run: |
         wheels=( dist/emsarray-*.whl )
