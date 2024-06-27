@@ -33,7 +33,7 @@ class UpdateDict(argparse.Action):
     ):
         if default is None:
             default = {}
-        type = functools.partial(key_value, value_type=value_type)
+        type: Callable = functools.partial(key_value, value_type=value_type)
         super().__init__(
             option_strings, dest, default=default, type=type, **kwargs)
 
