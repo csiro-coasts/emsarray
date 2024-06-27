@@ -151,6 +151,7 @@ jobs:
       - uses: ./.github/actions/environment
         with:
           python-version: ${{ env.python-version }}
+          extras: complete,docs
           package-artifact-name: ${{ needs.build.outputs.artifact-name }}
 
       - run: |
