@@ -1,7 +1,9 @@
+import importlib.metadata
 from collections.abc import Iterable
 from typing import Any, Callable, Literal, Optional, Union
 
 import numpy
+import packaging.version
 import xarray
 
 from emsarray import conventions
@@ -13,6 +15,7 @@ try:
     import cartopy.crs
     from cartopy.feature import GSHHSFeature
     from cartopy.mpl import gridliner
+    from cartopy.mpl.geoaxes import GeoAxes
     from matplotlib import animation, patheffects
     from matplotlib.artist import Artist
     from matplotlib.axes import Axes
@@ -31,8 +34,11 @@ __all___ = ['CAN_PLOT', 'plot_on_figure', 'polygons_to_collection']
 
 _requires_plot = requires_extra(extra='plot', import_error=IMPORT_EXCEPTION)
 
+CARTOPY_VERSION = packaging.version.Version(importlib.metadata.version('cartopy'))
+CARTOPY_0_23 = CARTOPY_VERSION >= packaging.version.Version('0.23')
 
-def add_coast(axes: Axes, **kwargs: Any) -> None:
+
+def add_coast(axes: GeoAxes, **kwargs: Any) -> None:
     """
     Add coastlines to an :class:`~matplotlib.axes.Axes`.
     Some default styles are applied:
@@ -56,7 +62,7 @@ def add_coast(axes: Axes, **kwargs: Any) -> None:
     axes.add_feature(coast, **kwargs)
 
 
-def add_gridlines(axes: Axes, **kwargs: Any) -> gridliner.Gridliner:
+def add_gridlines(axes: GeoAxes, **kwargs: Any) -> gridliner.Gridliner:
     """
     Add some gridlines to the axes.
 
@@ -71,9 +77,10 @@ def add_gridlines(axes: Axes, **kwargs: Any) -> gridliner.Gridliner:
     """
     kwargs = {
         'draw_labels': ['left', 'bottom'],
-        'auto_update': True,
         **kwargs,
     }
+    if not CARTOPY_0_23:
+        kwargs['auto_update'] = True
     return axes.gridlines(**kwargs)
 
 
@@ -304,7 +311,7 @@ def plot_on_figure(
     if projection is None:
         projection = cartopy.crs.PlateCarree()
 
-    axes = figure.add_subplot(projection=projection)
+    axes: GeoAxes = figure.add_subplot(projection=projection)
     axes.set_aspect(aspect='equal', adjustable='datalim')
 
     if scalar is None and vector is None:

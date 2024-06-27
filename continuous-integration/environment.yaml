@@ -2,5 +2,5 @@ channels:
   - conda-forge
 
 dependencies:
-  - geos ~=3.10.2
+  - geos ~=3.12.2
   - udunits2 >=2.2.25
