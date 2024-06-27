@@ -13,6 +13,10 @@ inputs:
     required: false
     # All inputs are forced to strings
     default: 'false'
+  extras:
+    description: Which set of emsarray 'extras' to install.
+    required: false
+    default: 'testing'
 
 runs:
   using: composite
@@ -56,14 +60,15 @@ runs:
       if: ${{ inputs.install-latest == 'false' }}
       shell: bash -l {0}
       run: |
+        wheels=( dist/emsarray-*.whl )
+
         pip install \
           -r continuous-integration/requirements.txt \
-          dist/emsarray-*.whl
+          "${wheels[0]}[${{ inputs.extras }}]"
 
     - name: Install latest Python packages
       if: ${{ inputs.install-latest != 'false'}}
       shell: bash -l {0}
       run: |
         wheels=( dist/emsarray-*.whl )
-        echo "${wheels[@]}"
-        pip install "${wheels[0]}[testing]"
+        pip install "${wheels[0]}[${{ inputs.extras }}]"

@@ -7,4 +7,4 @@ dependencies:
   - wheel
   - pip:
     - -r ./requirements.txt
-    - -e ..
+    - -e ..[docs]
