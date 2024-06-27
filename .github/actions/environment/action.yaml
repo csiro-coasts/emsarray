@@ -33,7 +33,7 @@ runs:
       with:
         cache: 'pip'
         cache-dependency-path: |
-          continuous-integration/requirements.txt
+          continuous-integration/requirements-${{ inputs.python-version }}.txt
           continuous-integration/environment.yaml
           setup.cfg
 
@@ -72,7 +72,7 @@ runs:
 
         pip install \
           "${args[@]}" \
-          -r continuous-integration/requirements.txt \
+          -r continuous-integration/requirements-${{ inputs.python-version }}.txt \
           "${wheels[0]}[${{ inputs.extras }}]"
         pip check
 

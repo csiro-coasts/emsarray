@@ -6,5 +6,5 @@ dependencies:
   - python =3.12
   - wheel
   - pip:
-    - -r ./requirements.txt
+    - -r ./requirements-3.12.txt
     - -e ..[docs]
