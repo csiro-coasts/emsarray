@@ -1,7 +1,18 @@
+"""
+emsarray test suite.
+
+.. option --dask-scheduler <scheduler>
+
+   Set the scheduler for dask.
+   Currently the test suite segfaults when the default scheduler is used.
+   The scheduler is overridden to be 'synchronous', which avoids this issue.
+   Use this flag to choose a different scheduler for testing fixes to the segfault.
+"""
 import logging
 import pathlib
 from unittest import mock
 
+import dask
 import pytest
 
 import emsarray
@@ -18,6 +29,39 @@ def datasets() -> pathlib.Path:
 def pytest_runtest_setup(item):
     if 'matplotlib' in item.keywords and "matplotlib_backend" not in item.fixturenames:
         item.fixturenames.append("matplotlib_backend")
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--dask-scheduler", type=str, action="store", default="synchronous",
+        help=(
+            "Set the dask scheduler. Valid options include `synchronous' (the default), "
+            "`distributed', `multiprocessing', `processes', `single-threaded', "
+            "`sync', `synchronous', `threading', `threads'."
+        ))
+
+
+@pytest.fixture(autouse=True, scope='session')
+def disable_dask_threads(request):
+    """
+    Currently the tests will regularly segfault while subsetting ugrid datasets.
+    This only happens when using the latest dependencies installed from PyPI.
+    Using older dependencies from PyPI or using latest dependencies from
+    conda-forge continues to work fine.
+
+    Disabling dask multithreading stops the issue.
+    This is a temporary work around while the issue is investigated.
+
+    To restore the default behaviour switch to the 'threads' scheduler:
+
+        $ pytest --dask-scheduler 'threads'
+
+    See also
+    --------
+    :option:`--dask-scheduler`
+    https://github.com/csiro-coasts/emsarray/issues/139
+    """
+    dask.config.set(scheduler=request.config.option.dask_scheduler)
 
 
 @pytest.fixture

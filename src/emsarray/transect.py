@@ -1,7 +1,7 @@
 import dataclasses
 from collections.abc import Hashable, Iterable
 from functools import cached_property
-from typing import Any, Callable, Generic, Optional, Union
+from typing import Any, Callable, Generic, Optional, Union, cast
 
 import cfunits
 import numpy
@@ -228,8 +228,8 @@ class Transect:
             # Use cfunits to normalize the units to their short symbol form.
             # EngFormatter will write 'k{unit}', 'G{unit}', etc
             # so unit symbols are required.
-            units = cfunits.Units(units).formatted()
-            formatter = EngFormatter(unit=units)
+            formatted_units = cfunits.Units(units).formatted()
+            formatter = EngFormatter(unit=formatted_units)
 
         return title, formatter
 
@@ -746,7 +746,7 @@ class Transect:
             depth_limit_shallow = up(transect_dataset['depth_bounds'][depth_start])
         depth_limit_deep = down(transect_dataset['depth_bounds'][depth_stop])
 
-        axes = figure.subplots()
+        axes = cast(Axes, figure.subplots())
         x_title, x_formatter = self._set_up_axis(distance_bounds)
         y_title, y_formatter = self._set_up_axis(depth)
         axes.set_xlabel(x_title)
@@ -764,7 +764,8 @@ class Transect:
         if title is not None:
             axes.set_title(title)
 
-        cmap = colormaps[cmap].copy()
+        if isinstance(cmap, str):
+            cmap = colormaps[cmap].copy()
         cmap.set_bad(ocean_floor_colour)
 
         if data_array.size != 0:

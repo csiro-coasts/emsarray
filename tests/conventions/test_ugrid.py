@@ -240,28 +240,10 @@ def make_dataset(
         },
     )
 
-    one_day = numpy.timedelta64(1, 'D').astype('timedelta64[ns]')
-    period = xarray.DataArray(
-        data=numpy.concatenate([
-            numpy.arange(cell_size - 2, dtype=int) * one_day,
-            [numpy.timedelta64('nat', 'ns')] * 2,
-        ]),
-        dims=[face_dimension],
-        name="period",
-        attrs={
-            "long_name": "Some variable counting days",
-        },
-    )
-    period.encoding.update({
-        "units": "days",
-        "_FillValue": numpy.int16(-1),
-        "dtype": numpy.dtype('int16'),
-    })
-
     dataset = xarray.Dataset(
         data_vars={var.name: var for var in [
             mesh, face_node_connectivity, node_x, node_y,
-            t, z, botz, eta, temp, period,
+            t, z, botz, eta, temp,
         ]},
         attrs={
             'title': "COMPAS defalt version",
