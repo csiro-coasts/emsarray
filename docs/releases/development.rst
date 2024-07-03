@@ -25,3 +25,6 @@ Next release (in development)
   :issue:`135`, :pr:`136`, :pr:`csiro-coast/emsarray-data#2`).
 * Correct all references to K'gari, formerly Fraser Island
   (:issue:`133`, :pr:`csiro-coast/emsarray-data#2`, :pr:`134`).
+* Bump minimum versions of dependencies, update pinned dependencies for CI.
+  Officially support numpy version 2.0.0
+  (:pr:`137`).
