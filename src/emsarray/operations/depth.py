@@ -5,19 +5,20 @@ such as the output from ocean models.
 import warnings
 from collections import defaultdict
 from collections.abc import Hashable
-from typing import Optional, cast
+from typing import Iterable, Optional, cast
 
 import numpy
 import xarray
 
 from emsarray import utils
+from emsarray.types import DataArrayOrName
 
 
 def ocean_floor(
     dataset: xarray.Dataset,
-    depth_variables: list[Hashable],
+    depth_coordinates: Iterable[DataArrayOrName],
     *,
-    non_spatial_variables: Optional[list[Hashable]] = None,
+    non_spatial_variables: Optional[Iterable[DataArrayOrName]] = None,
 ) -> xarray.Dataset:
     """Make a new :class:`xarray.Dataset` reduced along the given depth
     coordinates to only contain values along the ocean floor.
@@ -26,12 +27,12 @@ def ocean_floor(
     ----------
     dataset
         The dataset to reduce.
-    depth_variables
-        The names of depth coordinate variables.
+    depth_coordinates : iterable of DataArrayOrName
+        The depth coordinate variables.
         For supported conventions, use :meth:`.Convention.get_all_depth_names()`.
-    non_spatial_variables
+    non_spatial_variables : iterable of DataArrayOrName
         Optional.
-        A list of the names of any non-spatial coordinate variables, such as time.
+        A list of any non-spatial coordinate variables, such as time.
         The ocean floor is assumed to be static across non-spatial dimensions.
         For supported conventions, use :meth:`.Convention.get_time_name()`.
 
@@ -74,7 +75,7 @@ def ocean_floor(
 
         >>> operations.ocean_floor(
         ...     big_dataset['temp'].isel(record=0).to_dataset(),
-        ...     depth_variables=big_dataset.ems.get_all_depth_names())
+        ...     depth_coordinates=big_dataset.ems.get_all_depth_names())
         <xarray.Dataset>
         Dimensions:  (y: 5, x: 5)
         Coordinates:
@@ -106,15 +107,17 @@ def ocean_floor(
     # and that for a combination of depth dimension and spatial dimensions,
     # the ocean floor is static.
 
+    depth_coordinates = list(depth_coordinates)
+
     dataset = normalize_depth_variables(
-        dataset, depth_variables,
+        dataset, depth_coordinates,
         positive_down=True, deep_to_shallow=False)
 
     if non_spatial_variables is None:
         non_spatial_variables = []
 
     # The name of all the relevant _dimensions_, not _coordinates_
-    depth_dimensions = utils.dimensions_from_coords(dataset, depth_variables)
+    depth_dimensions = utils.dimensions_from_coords(dataset, depth_coordinates)
     non_spatial_dimensions = utils.dimensions_from_coords(dataset, non_spatial_variables)
 
     for depth_dimension in sorted(depth_dimensions, key=hash):
@@ -196,7 +199,7 @@ def _find_ocean_floor_indices(
 
 def normalize_depth_variables(
     dataset: xarray.Dataset,
-    depth_variables: list[Hashable],
+    depth_variables: Iterable[DataArrayOrName],
     *,
     positive_down: Optional[bool] = None,
     deep_to_shallow: Optional[bool] = None,
@@ -216,10 +219,8 @@ def normalize_depth_variables(
     ----------
     dataset : xarray.Dataset
         The dataset to normalize
-    depth_variables : list of Hashable
-        The names of the depth coordinate variables.
-        This should be the names of the variables, not the dimensions,
-        for datasets where these differ.
+    depth_variables : iterable of DataArrayOrName
+        The depth coordinate variables.
     positive_down : bool, optional
         If True, positive values will indicate depth below the surface.
         If False, negative values indicate depth below the surface.
@@ -240,8 +241,9 @@ def normalize_depth_variables(
     :meth:`.Convention.get_all_depth_names`
     """
     new_dataset = dataset.copy()
-    for name in depth_variables:
-        variable = dataset[name]
+    for variable in depth_variables:
+        variable = utils.name_to_data_array(dataset, variable)
+        name = variable.name
         if len(variable.dims) != 1:
             raise ValueError(
                 f"Can't normalize multidimensional depth variable {name!r} "

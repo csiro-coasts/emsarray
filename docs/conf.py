@@ -74,6 +74,7 @@ napoleon_preprocess_types = True
 napoleon_type_aliases = {
     'xarray.core.dataset.Dataset': ':class:`~xarray.Dataset',
     'xarray.core.dataarray.DataArray': ':class:`~xarray.DataArray',
+    'DataArrayOrName': ':data:`data array or name <emsarray.types.DataArrayOrName>`',
 }
 
 

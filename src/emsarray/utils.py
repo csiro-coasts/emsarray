@@ -28,7 +28,7 @@ import shapely
 import xarray
 from xarray.core.dtypes import maybe_promote
 
-from emsarray.types import Pathish
+from emsarray.types import DataArrayOrName, Pathish
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ def timed_func(fn: Callable[..., _T]) -> Callable[..., _T]:
 def to_netcdf_with_fixes(
     dataset: xarray.Dataset,
     path: Pathish,
-    time_variable: Optional[Hashable] = None,
+    time_variable: Optional[DataArrayOrName] = None,
     **kwargs: Any,
 ) -> None:
     """Saves a :class:`xarray.Dataset` to a netCDF4 file,
@@ -148,7 +148,7 @@ def to_netcdf_with_fixes(
 
     dataset.to_netcdf(path, **kwargs)
     if time_variable is not None:
-        fix_time_units_for_ems(path, time_variable)
+        fix_time_units_for_ems(path, data_array_to_name(dataset, time_variable))
 
 
 def format_time_units_for_ems(units: str, calendar: Optional[str] = DEFAULT_CALENDAR) -> str:
@@ -395,7 +395,7 @@ def pairwise(iterable: Iterable[_T]) -> Iterable[tuple[_T, _T]]:
 
 def dimensions_from_coords(
     dataset: xarray.Dataset,
-    coordinate_names: list[Hashable],
+    coordinates: Iterable[DataArrayOrName],
 ) -> list[Hashable]:
     """
     Get the names of the dimensions for a set of coordinates.
@@ -413,14 +413,13 @@ def dimensions_from_coords(
         The name of the relevant dimension for each coordinate variable.
     """
     dimensions = []
-    for coordinate_name in coordinate_names:
-        # Don't use dataset.coords[], auxilliary coordinates do not appear there
-        data_array = dataset.variables[coordinate_name]
-        if len(data_array.dims) > 1:
+    for coordinate in coordinates:
+        coordinate = name_to_data_array(dataset, coordinate)
+        if len(coordinate.dims) > 1:
             raise ValueError(
-                f"Coordinate variable {coordinate_name} has more "
-                "than one dimension: {data_array.dims}")
-        dimensions.append(data_array.dims[0])
+                f"Coordinate variable {coordinate.name} has more "
+                "than one dimension: {coordinate.dims}")
+        dimensions.append(coordinate.dims[0])
 
     return dimensions
 
@@ -751,3 +750,75 @@ def deprecated(message: str, category: type[Warning] = DeprecationWarning) -> Ca
 
 def splice_tuple(t: tuple, index: int, values: Sequence) -> tuple:
     return t[:index] + tuple(values) + t[index:][1:]
+
+
+def name_to_data_array(
+    dataset: xarray.Dataset,
+    data_array: DataArrayOrName,
+) -> xarray.DataArray:
+    """
+    Takes either a data array or the name of a data array in the dataset,
+    and returns the data array.
+    If passed a name, a data array with that name must exist in the dataset.
+    If passed a data array, the data array must have compatible dimension sizes.
+
+    Useful for operations using data arrays and datasets
+    where the data array must have a matching shape
+    but does not need to be a variable in the dataset.
+    This allows for transformed data arrays to be plotted, for example.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        The dataset to check data arrays against
+    data_array : Hashable or xarray.DataArray
+        A data array or the name of a data array in the dataset
+
+    Returns
+    -------
+    xarray.DataArray
+        The data array passed in, extracted from the dataset if necessary
+    """
+    if isinstance(data_array, xarray.DataArray):
+        check_data_array_dimensions_match(dataset, data_array)
+        return data_array
+    else:
+        if data_array not in dataset.variables:
+            raise ValueError(f"Data array {data_array!r} is not in the dataset")
+        return dataset[data_array]
+
+
+def data_array_to_name(dataset: xarray.Dataset, data_array: DataArrayOrName) -> Hashable:
+    """
+    Takes either a data array or the name of a data array,
+    and returns just the name.
+    If passed a name, a data array with that name must exist in the dataset.
+    If passed a data array, a data array with the same name and with matching dimensions must exist in the dataset.
+
+    This is useful for operations that must be performed using the data array name,
+    such as manipulations of the dataset itself.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        The dataset to check data arrays against
+    data_array : Hashable or xarray.DataArray
+        A data array or the name of a data array, or a list of data arrays or names of data arrays.
+
+    Returns
+    -------
+    Hashable
+        The name of the data array passed in.
+    """
+    if isinstance(data_array, xarray.DataArray):
+        if data_array.name is None:
+            raise ValueError("Data array has no name")
+        name = data_array.name
+        if name not in dataset:
+            raise ValueError(f"Dataset does not have a data array named {name!r}")
+        check_data_array_dimensions_match(dataset, data_array)
+        return name
+    else:
+        if data_array not in dataset.variables:
+            raise ValueError(f"Data array {data_array!r} is not in the dataset")
+        return data_array

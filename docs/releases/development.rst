@@ -30,3 +30,6 @@ Next release (in development)
   (:pr:`137`).
 * Lint Python code in `docs/` and `scripts/`
   (:pr:`141`).
+* Add :func:`emsarray.utils.name_to_data_array()` and :func:`~emsarray.utils.data_array_to_name()` functions.
+  Allow more functions to interchangeably take either a data array or the name of a data array
+  (:pr:`142`).
