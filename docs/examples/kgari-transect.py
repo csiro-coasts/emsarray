@@ -1,7 +1,8 @@
-import emsarray
 import shapely
-from emsarray import plot, transect
 from matplotlib import pyplot
+
+import emsarray
+from emsarray import plot, transect
 
 dataset_url = 'https://thredds.nci.org.au/thredds/dodsC/fx3/model_data/gbr4_bgc_GBR4_H2p0_B2p0_Chyd_Dcrt.ncml'
 dataset = emsarray.open_dataset(dataset_url).isel(time=-1)
