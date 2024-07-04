@@ -68,8 +68,8 @@ def test_ocean_floor_from_files(name):
     floored = dataset.ems.ocean_floor()
 
     depth_dimensions = {
-        dataset.variables[name].dims[0]
-        for name in dataset.ems.get_all_depth_names()
+        coordinate.dims[0]
+        for coordinate in dataset.ems.depth_coordinates
     }
     original_dimensions = set(dataset.dims)
     floored_dimensions = set(floored.dims)

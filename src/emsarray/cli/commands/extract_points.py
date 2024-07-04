@@ -6,6 +6,7 @@ import pandas
 
 import emsarray
 from emsarray.cli import BaseCommand, CommandException
+from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.operations import point_extraction
 from emsarray.utils import to_netcdf_with_fixes
 
@@ -79,8 +80,8 @@ class Command(BaseCommand):
                 f"{rows.head()}\n"
                 f"(total rows: {len(rows)})")
         try:
-            time_name = dataset.ems.get_time_name()
-        except KeyError:
+            time_name = dataset.ems.time_coordinate.name
+        except NoSuchCoordinateError:
             time_name = None
 
         to_netcdf_with_fixes(

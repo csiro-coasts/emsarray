@@ -218,9 +218,9 @@ def test_make_dataset():
 
 def test_varnames():
     dataset = make_dataset(j_size=10, i_size=10)
-    assert dataset.ems.get_depth_name() == 'z_centre'
-    assert dataset.ems.get_all_depth_names() == ['z_centre', 'z_grid']
-    assert dataset.ems.get_time_name() == 't'
+    assert dataset.ems.depth_coordinate.name == 'z_centre'
+    assert {c.name for c in dataset.ems.depth_coordinates} == {'z_centre', 'z_grid'}
+    assert dataset.ems.time_coordinate.name == 't'
 
 
 def test_polygons():

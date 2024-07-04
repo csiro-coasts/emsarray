@@ -168,19 +168,18 @@ def test_make_dataset():
 
 def test_varnames():
     dataset = make_dataset(j_size=10, i_size=10)
-    assert dataset.ems.get_depth_name() == 'zc'
-    assert dataset.ems.get_all_depth_names() == ['zc']
-    assert dataset.ems.get_time_name() == 'time'
+    assert dataset.ems.depth_coordinate.name == 'zc'
+    assert {c.name for c in dataset.ems.depth_coordinates} == {'zc'}
+    assert dataset.ems.time_coordinate.name == 'time'
 
 
 def test_no_depth_coordinate():
     dataset = make_dataset(j_size=10, i_size=10)
     dataset = dataset.isel({'k': -1}, drop=True)
-    print(dataset)
 
-    assert dataset.ems.get_all_depth_names() == []
+    assert dataset.ems.depth_coordinates == ()
     with pytest.raises(NoSuchCoordinateError):
-        dataset.ems.get_depth_name()
+        dataset.ems.depth_coordinate
 
 
 @pytest.mark.parametrize(

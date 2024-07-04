@@ -276,51 +276,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     @cached_property
     def time_coordinate(self) -> xarray.DataArray:
-        """The time coordinate for this dataset.
-
-        Returns
-        -------
-        xarray.DataArray
-            The variable for the time coordinate for this dataset.
-
-        Raises
-        ------
-        exceptions.NoSuchCoordinateError
-            If no time coordinate was found
-
-        See Also
-        --------
-        get_time_name
         """
-        return self.dataset[self.get_time_name()]
-
-    @cached_property
-    def depth_coordinate(self) -> xarray.DataArray:
-        """The depth coordinate for this dataset.
-
-        Returns
-        -------
-        xarray.DataArray
-            The variable for the depth coordinate for this dataset.
-
-        Raises
-        ------
-        exceptions.NoSuchCoordinateError
-            If no depth coordinate was found
-
-        See Also
-        --------
-        get_depth_name
-        """
-        return self.dataset[self.get_depth_name()]
-
-    def get_time_name(self) -> Hashable:
-        """Get the name of the time variable in this dataset.
-
-        Returns
-        -------
-        Hashable
-            The name of the time coordinate.
+        xarray.DataArray: The time coordinate for this dataset.
 
         Raises
         ------
@@ -339,7 +296,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         .. [1] `CF Conventions v1.10, 4.4 Time Coordinate <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#time-coordinate>`_
         """
-        for name, variable in self.dataset.variables.items():
+        for name in self.dataset.variables.keys():
+            variable = self.dataset[name]
             # xarray will automatically decode all time variables
             # and move the 'units' attribute over to encoding to store this change.
             if 'units' in variable.encoding:
@@ -348,27 +306,20 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 if 'since' in units:
                     # The variable must now be a numpy datetime
                     if variable.dtype.type == numpy.datetime64:
-                        return name
+                        return variable
         raise NoSuchCoordinateError("Could not find time coordinate in dataset")
 
-    def get_depth_name(self) -> Hashable:
-        """Get the name of the layer depth coordinate variable.
-
-        For datasets with multiple depth variables, this should be the one that
-        represents the centre of the layer, not the bounds.
-
-        Note that this is the name of the coordinate variable,
-        not the name of the dimension, for datasets where these differ.
-
-        Returns
-        -------
-        Hashable
-            The name of the depth coordinate.
+    @cached_property
+    def depth_coordinate(self) -> xarray.DataArray:
+        """
+        xarray.DataArray: The depth coordinate for this dataset.
+        For datasets with multiple depth coordinates
+        this will be the depth coordinate with the smallest :attr:`~xarray.DataArray.size`.
 
         Raises
         ------
         exceptions.NoSuchCoordinateError
-            If no time coordinate was found
+            If no depth coordinate was found
 
         Notes
         -----
@@ -382,24 +333,31 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         all coordinates are checked for a ``standard_name: "depth"``,
         ``coordinate_type: "Z"``, or ``axiz: "Z"``.
 
+        See Also
+        --------
+        :attr:`depth_coordinates`
+        :attr:`get_depth_coordinate_for_data_array`
+
         References
         ----------
         .. [2] `CF Conventions v1.10, 4.3 Vertical (Height or Depth) Coordinate <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#vertical-coordinate>`_
         """
-        try:
-            return self.get_all_depth_names()[0]
-        except IndexError:
-            raise NoSuchCoordinateError("Could not find depth coordinate in dataset")
+        depth_coordinates = self.depth_coordinates
+        if len(depth_coordinates) == 0:
+            raise NoSuchCoordinateError("Dataset has no depth coordinate")
+        return min(depth_coordinates, key=lambda c: c.size)
 
-    def get_all_depth_names(self) -> list[Hashable]:
-        """Get the names of all depth layers.
-        Some datasets include both a depth layer centre,
-        and the depth layer 'edges'.
-
-        Note that this is the names of the coordinate variables,
-        not the names of the dimensions, for datasets where these differ.
+    @cached_property
+    def depth_coordinates(self) -> tuple[xarray.DataArray, ...]:
         """
-        depth_names = []
+        tuple of xarray.DataArray: All the depth coordinate for this dataset.
+
+        See Also
+        --------
+        :attr:`depth_coordinate`
+        :attr:`get_depth_coordinate_for_data_array`
+        """
+        depth_coordinates = []
         for name in self.dataset.variables.keys():
             data_array = self.dataset[name]
 
@@ -422,9 +380,103 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 # The variable isn't on a grid - this is good!
                 pass
 
-            depth_names.append(name)
+            depth_coordinates.append(data_array)
 
-        return depth_names
+        return tuple(depth_coordinates)
+
+    @utils.deprecated(
+        (
+            "Convention.get_time_name() is deprecated. "
+            "Use Convention.time_coordinate.name instead."
+        ),
+        DeprecationWarning,
+    )
+    def get_time_name(self) -> Hashable:
+        """Get the name of the time variable in this dataset.
+
+        .. deprecated:: 0.7.0
+            :meth:`Convention.get_time_name()` is deprecated and will be removed.
+            Use `Convention.time_coordinate.name` instead.
+
+        Returns
+        -------
+        Hashable
+            The name of the time coordinate.
+
+        See Also
+        --------
+        :attr:`Convention.time_coordinate`
+
+        Raises
+        ------
+        exceptions.NoSuchCoordinateError
+            If no time coordinate was found
+        """
+        return self.time_coordinate.name
+
+    @utils.deprecated(
+        (
+            "Convention.get_depth_name() is deprecated. "
+            "Use Convention.depth_coordinate.name instead."
+        ),
+        DeprecationWarning,
+    )
+    def get_depth_name(self) -> Hashable:
+        """Get the name of the layer depth coordinate variable.
+
+        .. deprecated:: 0.7.0
+            :meth:`Convention.get_depth_name()` is deprecated and will be removed.
+            Use `Convention.depth_coordinate.name` instead.
+
+        For datasets with multiple depth variables, this should be the one that
+        represents the centre of the layer, not the bounds.
+
+        Note that this is the name of the coordinate variable,
+        not the name of the dimension, for datasets where these differ.
+
+        Returns
+        -------
+        Hashable
+            The name of the depth coordinate.
+
+        Raises
+        ------
+        exceptions.NoSuchCoordinateError
+            If no time coordinate was found
+
+        See Also
+        --------
+        :attr:`Convention.depth_coordinate`
+        :meth:`Convention.get_depth_coordinate_for_data_array`
+        """
+        return self.depth_coordinate.name
+
+    @utils.deprecated(
+        (
+            "Convention.get_all_depth_names() is deprecated. "
+            "Use [c.name for c in Convention.depth_coordinates] instead."
+        ),
+        DeprecationWarning,
+    )
+    def get_all_depth_names(self) -> list[Hashable]:
+        """Get the names of all depth layers.
+        Some datasets include both a depth layer centre,
+        and the depth layer 'edges'.
+
+        .. deprecated:: 0.7.0
+            :meth:`Convention.get_all_depth_names()` is deprecated and will be removed.
+            Use `[c.name for c in Convention.depth_coordinates]` instead.
+
+        Note that this is the names of the coordinate variables,
+        not the names of the dimensions, for datasets where these differ.
+
+        See also
+        --------
+        :attr:`depth_coordinate`
+        :attr:`depth_coordinates`
+        :meth:`get_depth_coordinate_for_data_array`
+        """
+        return [c.name for c in self.depth_coordinates]
 
     @utils.deprecated(
         (
@@ -980,7 +1032,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             Pass in either the name of a coordinate variable
             or coordinate variable itself.
             Optional, if not supplied the time coordinate
-            from :meth:`get_time_name` is used.
+            from :attr:`Convention.time_coordinate` is used.
             Other appropriate coordinates to animate over include depth.
         **kwargs
             Any extra arguments are passed to :func:`.plot.animate_on_figure`.
@@ -1556,17 +1608,17 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         drop_geometry
         """
         all_vars = set(self.dataset.variables.keys())
-        keep_vars = {
+        keep_vars = [
             *variables,
             *self.get_all_geometry_names(),
-            *self.get_all_depth_names(),
-        }
+            *self.depth_coordinates,
+        ]
         try:
-            keep_vars.add(self.get_time_name())
+            keep_vars.append(self.time_coordinate)
         except NoSuchCoordinateError:
             pass
-        keep_vars = {utils.data_array_to_name(self.dataset, v) for v in keep_vars}
-        return self.dataset.drop_vars(all_vars - keep_vars)
+        keep_var_names = {utils.data_array_to_name(self.dataset, v) for v in keep_vars}
+        return self.dataset.drop_vars(all_vars - keep_var_names)
 
     @abc.abstractmethod
     def make_clip_mask(
@@ -1685,7 +1737,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         make the EMS compatible.
         """
         try:
-            time_variable = self.get_time_name()
+            time_variable = self.time_coordinate
         except KeyError:
             time_variable = None
         utils.to_netcdf_with_fixes(
@@ -1696,7 +1748,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def ocean_floor(self) -> xarray.Dataset:
         """An alias for :func:`emsarray.operations.depth.ocean_floor`"""
         return depth.ocean_floor(
-            self.dataset, self.get_all_depth_names(),
+            self.dataset, self.depth_coordinates,
             non_spatial_variables=[self.time_coordinate])
 
     def normalize_depth_variables(
@@ -1707,7 +1759,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     ) -> xarray.Dataset:
         """An alias for :func:`emsarray.operations.depth.normalize_depth_variables`"""
         return depth.normalize_depth_variables(
-            self.dataset, self.get_all_depth_names(),
+            self.dataset, self.depth_coordinates,
             positive_down=positive_down, deep_to_shallow=deep_to_shallow)
 
 
