@@ -28,3 +28,5 @@ Next release (in development)
 * Bump minimum versions of dependencies, update pinned dependencies for CI.
   Officially support numpy version 2.0.0
   (:pr:`137`).
+* Lint Python code in `docs/` and `scripts/`
+  (:pr:`141`).

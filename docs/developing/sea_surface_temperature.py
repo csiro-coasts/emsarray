@@ -3,11 +3,12 @@ import argparse
 import logging
 import pathlib
 
-import emsarray
 import xarray
+from shapely.geometry.base import BaseGeometry
+
+import emsarray
 from emsarray.cli import console_entrypoint
 from emsarray.cli.utils import geometry_argument
-from shapely.geometry.base import BaseGeometry
 
 # Log progress messages using `logger.info(...)`,
 # debug messages using `logger.debug(...)`,
