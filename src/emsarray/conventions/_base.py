@@ -478,6 +478,57 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         return [c.name for c in self.depth_coordinates]
 
+    def get_depth_coordinate_for_data_array(
+        self,
+        data_array: DataArrayOrName,
+    ) -> xarray.DataArray:
+        """
+        Find the depth coordinate for a particular data array.
+        Some conventions will contain multiple depth coordinates,
+        meaning that a default :attr:`depth_coordinate` value can be misleading.
+
+        Parameters
+        ----------
+        data_array : xarray.DataArray or Hashable
+            A data array or the name of a data array in the dataset.
+
+        Returns
+        -------
+        xarray.DataArray
+            The depth coordinate variable for the data array.
+
+        Raises
+        ------
+        NoSuchCoordinateError
+            If data array does not have an associated depth coordinate
+        ValueError
+            If multiple depth coordinates matched the data array.
+
+        See also
+        --------
+        :attr:`depth_coordinate`
+            The default or main depth coordinate for this dataset,
+            but not necessarily the correct depth coordinate for all variables.
+        :attr:`depth_coordinates`
+            All the depth coordinates in this dataset.
+        """
+        data_array = utils.name_to_data_array(self.dataset, data_array)
+        name = repr(data_array.name) if data_array.name is not None else 'data array'
+
+        candidates = [
+            coordinate
+            for coordinate in self.depth_coordinates
+            if coordinate.dims[0] in data_array.dims
+        ]
+        if len(candidates) == 0:
+            raise NoSuchCoordinateError(f"No depth coordinate found for {name}")
+        if len(candidates) > 1:
+            raise ValueError(
+                f"Multiple possible depth coordinates found for {name}: "
+                ", ".join(repr(c.name) for c in candidates)
+            )
+        return candidates[0]
+
     @abc.abstractmethod
     def ravel_index(self, index: Index) -> int:
         """Convert a convention native index to a linear index.

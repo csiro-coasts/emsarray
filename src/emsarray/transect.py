@@ -57,7 +57,8 @@ def plot(
         Passed to :meth:`Transect.plot_on_figure()`.
     """
     figure = pyplot.figure(layout="constrained", figsize=figsize)
-    transect = Transect(dataset, line)
+    depth_coordinate = dataset.ems.get_depth_coordinate_for_data_array(data_array)
+    transect = Transect(dataset, line, depth=depth_coordinate)
     transect.plot_on_figure(figure, data_array, **kwargs)
     pyplot.show()
     return figure
