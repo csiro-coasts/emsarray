@@ -238,8 +238,8 @@ def test_manual_coordinate_names():
 
 def test_varnames():
     dataset = make_dataset(width=11, height=7, depth=5)
-    assert dataset.ems.get_depth_name() == 'depth'
-    assert dataset.ems.get_time_name() == 'time'
+    assert dataset.ems.depth_coordinate.name == 'depth'
+    assert dataset.ems.time_coordinate.name == 'time'
 
 
 def test_polygons_no_bounds():

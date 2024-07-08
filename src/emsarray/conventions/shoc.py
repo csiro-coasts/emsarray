@@ -48,24 +48,30 @@ class ShocStandard(ArakawaC):
         ArakawaCGridKind.node: ('y_grid', 'x_grid'),
     }
 
-    def get_depth_name(self) -> Hashable:
+    @cached_property
+    def depth_coordinate(self) -> xarray.DataArray:
         name = 'z_centre'
-        if name not in self.dataset.variables:
+        try:
+            return self.dataset[name]
+        except KeyError:
             raise NoSuchCoordinateError(
                 f"SHOC dataset did not have expected depth coordinate {name!r}")
-        return name
 
-    def get_all_depth_names(self) -> list[Hashable]:
-        return [
-            name for name in ['z_centre', 'z_grid']
-            if name in self.dataset.variables]
+    @cached_property
+    def depth_coordinates(self) -> tuple[xarray.DataArray, ...]:
+        names = ['z_centre', 'z_grid']
+        return tuple(
+            self.dataset[name] for name in names
+            if name in self.dataset.variables)
 
-    def get_time_name(self) -> Hashable:
+    @cached_property
+    def time_coordinate(self) -> xarray.DataArray:
         name = 't'
-        if name not in self.dataset.variables:
+        try:
+            return self.dataset[name]
+        except KeyError:
             raise NoSuchCoordinateError(
                 f"SHOC dataset did not have expected time coordinate {name!r}")
-        return name
 
     def drop_geometry(self) -> xarray.Dataset:
         dataset = super().drop_geometry()
@@ -109,23 +115,27 @@ class ShocSimple(CFGrid2D):
             return None
         return Specificity.HIGH
 
-    def get_time_name(self) -> Hashable:
-        name = 'time'
-        if name not in self.dataset.variables:
-            raise NoSuchCoordinateError(
-                f"SHOC dataset did not have expected time coordinate {name!r}")
-        return name
-
-    def get_depth_name(self) -> Hashable:
+    @cached_property
+    def depth_coordinate(self) -> xarray.DataArray:
         name = 'zc'
-        if name not in self.dataset.variables:
+        try:
+            return self.dataset[name]
+        except KeyError:
             raise NoSuchCoordinateError(
                 f"SHOC dataset did not have expected depth coordinate {name!r}")
-        return name
 
-    def get_all_depth_names(self) -> list[Hashable]:
-        name = 'zc'
-        if name in self.dataset.variables:
-            return [name]
-        else:
-            return []
+    @cached_property
+    def depth_coordinates(self) -> tuple[xarray.DataArray, ...]:
+        names = ['zc']
+        return tuple(
+            self.dataset[name] for name in names
+            if name in self.dataset.variables)
+
+    @cached_property
+    def time_coordinate(self) -> xarray.DataArray:
+        name = 'time'
+        try:
+            return self.dataset[name]
+        except KeyError:
+            raise NoSuchCoordinateError(
+                f"SHOC dataset did not have expected time coordinate {name!r}")

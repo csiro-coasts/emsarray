@@ -347,9 +347,9 @@ def test_make_dataset():
 
 def test_varnames():
     dataset = make_dataset(width=3)
-    assert dataset.ems.get_depth_name() == 'Mesh2_layers'
-    assert dataset.ems.get_all_depth_names() == ['Mesh2_layers']
-    assert dataset.ems.get_time_name() == 't'
+    assert dataset.ems.depth_coordinate.name == 'Mesh2_layers'
+    assert {c.name for c in dataset.ems.depth_coordinates} == {'Mesh2_layers'}
+    assert dataset.ems.time_coordinate.name == 't'
 
 
 def test_polygons():

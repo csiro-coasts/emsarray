@@ -25,16 +25,15 @@ def ocean_floor(
 
     Parameters
     ----------
-    dataset
+    dataset : xarray.Dataset
         The dataset to reduce.
     depth_coordinates : iterable of DataArrayOrName
         The depth coordinate variables.
-        For supported conventions, use :meth:`.Convention.get_all_depth_names()`.
+        For supported conventions, use :meth:`.Convention.depth_coordinates()`.
     non_spatial_variables : iterable of DataArrayOrName
-        Optional.
         A list of any non-spatial coordinate variables, such as time.
         The ocean floor is assumed to be static across non-spatial dimensions.
-        For supported conventions, use :meth:`.Convention.get_time_name()`.
+        For supported conventions, use :meth:`.Convention.time_coordinate`.
 
     Returns
     -------
@@ -75,7 +74,7 @@ def ocean_floor(
 
         >>> operations.ocean_floor(
         ...     big_dataset['temp'].isel(record=0).to_dataset(),
-        ...     depth_coordinates=big_dataset.ems.get_all_depth_names())
+        ...     depth_coordinates=big_dataset.ems.depth_coordinates))
         <xarray.Dataset>
         Dimensions:  (y: 5, x: 5)
         Coordinates:
@@ -88,7 +87,7 @@ def ocean_floor(
     See Also
     --------
     :meth:`.Convention.ocean_floor`
-    :meth:`.Convention.get_all_depth_names`
+    :meth:`.Convention.depth_coordinates`
     :func:`.normalize_depth_variables`
     :func:`.utils.extract_vars`
     """
@@ -199,7 +198,7 @@ def _find_ocean_floor_indices(
 
 def normalize_depth_variables(
     dataset: xarray.Dataset,
-    depth_variables: Iterable[DataArrayOrName],
+    depth_coordinates: Iterable[DataArrayOrName],
     *,
     positive_down: Optional[bool] = None,
     deep_to_shallow: Optional[bool] = None,
@@ -219,7 +218,7 @@ def normalize_depth_variables(
     ----------
     dataset : xarray.Dataset
         The dataset to normalize
-    depth_variables : iterable of DataArrayOrName
+    depth_coordinates : iterable of DataArrayOrName
         The depth coordinate variables.
     positive_down : bool, optional
         If True, positive values will indicate depth below the surface.
@@ -238,10 +237,10 @@ def normalize_depth_variables(
     See Also
     --------
     :meth:`.Convention.normalize_depth_variables`
-    :meth:`.Convention.get_all_depth_names`
+    :meth:`.Convention.depth_coordinates`
     """
     new_dataset = dataset.copy()
-    for variable in depth_variables:
+    for variable in depth_coordinates:
         variable = utils.name_to_data_array(dataset, variable)
         name = variable.name
         if len(variable.dims) != 1:

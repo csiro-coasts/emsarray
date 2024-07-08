@@ -136,18 +136,19 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
 
 
-def test_get_time_name(datasets: pathlib.Path) -> None:
+def test_time_coordinate(datasets: pathlib.Path) -> None:
     dataset = xarray.open_dataset(datasets / 'times.nc')
     SimpleConvention(dataset).bind()
-    assert dataset.ems.get_time_name() == 'time'
-    xarray.testing.assert_equal(dataset.ems.time_coordinate, dataset['time'])
+    time_coordinate = dataset.ems.time_coordinate
+    assert time_coordinate.name == 'time'
+    xarray.testing.assert_equal(time_coordinate, dataset['time'])
 
 
-def test_get_time_name_missing() -> None:
+def test_time_coordinate_missing() -> None:
     dataset = xarray.Dataset()
     SimpleConvention(dataset).bind()
     with pytest.raises(NoSuchCoordinateError):
-        dataset.ems.get_time_name()
+        dataset.ems.time_coordinate
 
 
 @pytest.mark.parametrize('attrs', [
@@ -156,20 +157,20 @@ def test_get_time_name_missing() -> None:
     {'standard_name': 'depth'},
     {'axis': 'Z'},
 ], ids=lambda a: '{}:{}'.format(*next(iter(a.items()))))
-def test_get_depth_name(attrs: dict) -> None:
+def test_depth_coordinate(attrs: dict) -> None:
     dataset = xarray.Dataset({
         'name': (['dim'], [0, 1, 2], attrs),
     })
     SimpleConvention(dataset).bind()
-    assert dataset.ems.get_depth_name() == 'name'
+    assert dataset.ems.depth_coordinate.name == 'name'
     xarray.testing.assert_equal(dataset.ems.depth_coordinate, dataset['name'])
 
 
-def test_get_depth_name_missing() -> None:
+def test_depth_coordinate_missing() -> None:
     dataset = xarray.Dataset()
     SimpleConvention(dataset).bind()
     with pytest.raises(NoSuchCoordinateError):
-        dataset.ems.get_depth_name()
+        dataset.ems.depth_coordinate
 
 
 @pytest.mark.parametrize('include_time', [True, False])
