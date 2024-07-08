@@ -1,5 +1,5 @@
 import dataclasses
-from collections.abc import Hashable, Iterable
+from collections.abc import Iterable
 from functools import cached_property
 from typing import Any, Callable, Generic, Optional, Union, cast
 
@@ -18,8 +18,8 @@ from matplotlib.ticker import EngFormatter, Formatter
 
 from emsarray.conventions import Convention, Index
 from emsarray.plot import _requires_plot, make_plot_title
-from emsarray.types import Landmark
-from emsarray.utils import move_dimensions_to_end
+from emsarray.types import DataArrayOrName, Landmark
+from emsarray.utils import move_dimensions_to_end, name_to_data_array
 
 # Useful for calculating distances in a AzimuthalEquidistant projection
 # centred on some point:
@@ -116,13 +116,13 @@ class Transect:
         self,
         dataset: xarray.Dataset,
         line: shapely.LineString,
-        depth: Optional[Union[Hashable, xarray.DataArray]] = None,
+        depth: Optional[DataArrayOrName] = None,
     ):
         self.dataset = dataset
         self.convention = dataset.ems
         self.line = line
         if depth is not None:
-            self.depth = self.convention._get_data_array(depth)
+            self.depth = name_to_data_array(dataset, depth)
         else:
             self.depth = self.convention.depth_coordinate
 

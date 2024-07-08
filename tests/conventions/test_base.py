@@ -43,12 +43,6 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
         return None
 
-    def _get_data_array(self, data_array_or_name) -> xarray.DataArray:
-        if isinstance(data_array_or_name, str):
-            return self.dataset[data_array_or_name]
-        else:
-            return data_array_or_name
-
     @cached_property
     def shape(self) -> tuple[int, int]:
         y, x = map(int, self.dataset['botz'].shape)

@@ -25,7 +25,7 @@ from emsarray.plot import (
     polygons_to_collection
 )
 from emsarray.state import State
-from emsarray.types import Bounds, Pathish
+from emsarray.types import Bounds, DataArrayOrName, Pathish
 
 if TYPE_CHECKING:
     # Import these optional dependencies only during type checking
@@ -38,8 +38,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-DataArrayOrName = Union[Hashable, xarray.DataArray]
 
 #: Some type that can enumerate the different :ref:`grid types <grids>`
 #: present in a dataset.
@@ -266,19 +264,15 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 "cannot assign a new convention.")
         state.bind_convention(self)
 
-    @abc.abstractmethod
+    @utils.deprecated(
+        (
+            "Convention._get_data_array() has been deprecated. "
+            "Use emsarray.utils.name_to_data_array() instead."
+        ),
+        DeprecationWarning,
+    )
     def _get_data_array(self, data_array: DataArrayOrName) -> xarray.DataArray:
-        """
-        Utility to help get a data array for this dataset.
-        If a string is passed in, the matching data array is fetched from the dataset.
-        If a data array is passed in,
-        it is inspected to ensure the surface dimensions align
-        before being returned as-is.
-
-        This is useful for methods that support being passed either
-        the name of a data array or a data array instance.
-        """
-        pass
+        return utils.name_to_data_array(self.dataset, data_array)
 
     @cached_property
     def time_coordinate(self) -> xarray.DataArray:
@@ -902,10 +896,10 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         figure : matplotlib.figure.Figure
             The :class:`~matplotlib.figure.Figure` instance to plot this on.
-        scalar : xarray.DataArray or str
+        scalar : DataArrayOrName
             The :class:`~xarray.DataArray` to plot,
             or the name of an existing DataArray in this Dataset.
-        vector : tuple of xarray.DataArray or str
+        vector : tuple of DataArrayOrName
             A tuple of the *u* and *v* components of a vector.
             The components should be a :class:`~xarray.DataArray`,
             or the name of an existing DataArray in this Dataset.
@@ -918,10 +912,10 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :func:`.plot.plot_on_figure` : The underlying implementation
         """
         if scalar is not None:
-            kwargs['scalar'] = self._get_data_array(scalar)
+            kwargs['scalar'] = utils.name_to_data_array(self.dataset, scalar)
 
         if vector is not None:
-            kwargs['vector'] = tuple(map(self._get_data_array, vector))
+            kwargs['vector'] = tuple(utils.name_to_data_array(self.dataset, v) for v in vector)
 
         if title is not None:
             kwargs['title'] = title
@@ -977,7 +971,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         figure : matplotlib.figure.Figure
             The :class:`matplotlib.figure.Figure` to plot the animation on
-        data_array : Hashable or xarray.DataArray
+        data_array : DataArrayOrName
             The :class:`xarray.DataArray` to plot.
             If a string is passed in,
             the variable with that name is taken from :attr:`dataset`.
@@ -1006,12 +1000,9 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         if coordinate is None:
             # Assume the user wants to plot along the time axis by default.
-            coordinate = self.get_time_name()
-        if isinstance(coordinate, xarray.DataArray):
-            utils.check_data_array_dimensions_match(
-                self.dataset, coordinate, dimensions=coordinate.dims)
-
-        coordinate = self._get_data_array(coordinate)
+            coordinate = self.time_coordinate
+        else:
+            coordinate = utils.name_to_data_array(self.dataset, coordinate)
 
         if len(coordinate.dims) != 1:
             raise ValueError("Coordinate variable must be one dimensional")
@@ -1019,13 +1010,16 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         coordinate_dim = coordinate.dims[0]
 
         if scalar is not None:
-            scalar = self._get_data_array(scalar)
+            scalar = utils.name_to_data_array(self.dataset, scalar)
             if coordinate_dim not in scalar.dims:
                 raise ValueError("Scalar dimensions do not match coordinate axis to animate along")
             kwargs['scalar'] = scalar
 
         if vector is not None:
-            vector = (self._get_data_array(vector[0]), self._get_data_array(vector[1]))
+            vector = (
+                utils.name_to_data_array(self.dataset, vector[0]),
+                utils.name_to_data_array(self.dataset, vector[1]),
+            )
             if not all(coordinate_dim in component.dims for component in vector):
                 raise ValueError("Vector dimensions do not match coordinate axis to animate along")
             kwargs['vector'] = vector
@@ -1119,7 +1113,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                     "Can not pass both `data_array` and `array` to make_poly_collection"
                 )
 
-            data_array = self._get_data_array(data_array)
+            data_array = utils.name_to_data_array(self.dataset, data_array)
 
             data_array = self.ravel(data_array)
             if len(data_array.dims) > 1:
@@ -1189,7 +1183,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         values = numpy.nan, numpy.nan
 
         if u is not None and v is not None:
-            u, v = self._get_data_array(u), self._get_data_array(v)
+            u = utils.name_to_data_array(self.dataset, u)
+            v = utils.name_to_data_array(self.dataset, v)
 
             if u.dims != v.dims:
                 raise ValueError(
@@ -1539,15 +1534,15 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         return self.dataset.drop_vars(self.get_all_geometry_names())
 
-    def select_variables(self, variables: Iterable[Hashable]) -> xarray.Dataset:
+    def select_variables(self, variables: Iterable[DataArrayOrName]) -> xarray.Dataset:
         """Select only a subset of the variables in this dataset, dropping all others.
 
         This will keep all coordinate variables and all geometry variables.
 
         Parameters
         ----------
-        variables : iterable of Hashable
-            The names of all data variables to select.
+        variables : iterable of DataArrayOrName
+            The data variables to select.
 
         Returns
         -------
@@ -1570,6 +1565,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             keep_vars.add(self.get_time_name())
         except NoSuchCoordinateError:
             pass
+        keep_vars = {utils.data_array_to_name(self.dataset, v) for v in keep_vars}
         return self.dataset.drop_vars(all_vars - keep_vars)
 
     @abc.abstractmethod
@@ -1701,7 +1697,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """An alias for :func:`emsarray.operations.depth.ocean_floor`"""
         return depth.ocean_floor(
             self.dataset, self.get_all_depth_names(),
-            non_spatial_variables=[self.get_time_name()])
+            non_spatial_variables=[self.time_coordinate])
 
     def normalize_depth_variables(
         self,
@@ -1785,23 +1781,6 @@ class DimensionConvention(Convention[GridKind, Index]):
             if actual_dimensions.issuperset(dimensions):
                 return kind
         raise ValueError("Unknown grid kind")
-
-    def _get_data_array(self, data_array: DataArrayOrName) -> xarray.DataArray:
-        if isinstance(data_array, xarray.DataArray):
-            grid_kind = self.get_grid_kind(data_array)
-            grid_dimensions = self.grid_dimensions[grid_kind]
-            for dimension in grid_dimensions:
-                # The data array already has matching dimension names
-                # as we found the grid kind using `Convention.get_grid_kind()`.
-                if self.dataset.sizes[dimension] != data_array.sizes[dimension]:
-                    raise ValueError(
-                        f"Mismatched dimension {dimension!r}, "
-                        "dataset has size {self.dataset.sizes[dimension]} but "
-                        "data array has size {data_array.sizes[dimension]}!"
-                    )
-            return data_array
-        else:
-            return self.dataset[data_array]
 
     @abc.abstractmethod
     def unpack_index(self, index: Index) -> tuple[GridKind, Sequence[int]]:
