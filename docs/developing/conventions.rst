@@ -143,13 +143,12 @@ Users can install your plugin and ``emsarray`` will automatically find the inclu
 
 If you have created a convention subclass called ``Grass``
 in the module ``grass.convention``
-include the following entry point in your ``setup.cfg``:
+include the following entry point in your ``pyproject.toml``:
 
 .. code-block:: ini
 
-    [entry_points]
-    emsarray.conventions =
-        Grass = grass.convention:Grass
+    [project.entry-points."emsarray.conventions"]
+    Grass = "grass.convention:Grass"
 
 The ``name`` portion before the ``=`` is not used,
 however we suggest using the same class name as your new convention implementation.
@@ -159,9 +158,8 @@ If your package contains multiple convention implementations, add one per line.
 
 As a real world example, ``emsarray`` defines the following entry points:
 
-.. literalinclude:: /../setup.cfg
-   :prepend: [entry_points]
-   :language: ini
-   :start-at: emsarray.conventions =
+.. literalinclude:: /../pyproject.toml
+   :language: toml
+   :start-at: [project.entry-points."emsarray.conventions"]
    :end-before: # emsarray.conventions end
    :tab-width: 4
