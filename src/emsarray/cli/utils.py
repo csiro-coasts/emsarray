@@ -9,10 +9,10 @@ import logging.config
 import re
 import sys
 import textwrap
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Optional, Protocol
+from typing import Protocol
 
 from shapely.geometry import box, shape
 from shapely.geometry.base import BaseGeometry
@@ -30,7 +30,7 @@ command_exception_logger = error_logger.getChild('command')
 class MainCallable(Protocol):
     def __call__(
         self,
-        argv: Optional[list[str]] = None,
+        argv: list[str] | None = None,
         handle_errors: bool = True,
     ) -> None:
         ...
@@ -112,7 +112,7 @@ def console_entrypoint(
     ) -> MainCallable:
         @wraps(fn)
         def wrapper(
-            argv: Optional[list[str]] = None,
+            argv: list[str] | None = None,
             handle_errors: bool = True,
         ) -> None:
             parser = argparse.ArgumentParser(
@@ -172,7 +172,7 @@ def nice_console_errors() -> Iterator:
 
 class DoubleNewlineDescriptionFormatter(argparse.HelpFormatter):
     def _fill_text(self, text: str, width: int, indent: str) -> str:
-        fill_text = super(DoubleNewlineDescriptionFormatter, self)._fill_text
+        fill_text = super()._fill_text
 
         return '\n\n'.join(
             fill_text(paragraph, width, indent)

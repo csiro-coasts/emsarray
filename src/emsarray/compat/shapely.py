@@ -1,6 +1,6 @@
 import warnings
 from collections.abc import Iterable
-from typing import Generic, TypeVar, Union, cast
+from typing import Generic, TypeVar, cast
 
 import numpy
 import shapely
@@ -31,7 +31,7 @@ class SpatialIndex(Generic[T]):
 
     def __init__(
         self,
-        items: Union[numpy.ndarray, Iterable[tuple[BaseGeometry, T]]],
+        items: numpy.ndarray | Iterable[tuple[BaseGeometry, T]],
     ):
         self.items = numpy.array(items, dtype=self.dtype)
 

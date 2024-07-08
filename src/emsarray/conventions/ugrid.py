@@ -14,7 +14,7 @@ from collections.abc import Hashable, Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import numpy
 import shapely
@@ -353,7 +353,7 @@ class Mesh2DTopology:
     #: The name of the mesh topology variable. Optional. If not provided, the
     #: mesh topology dummy variable will be found by checking the ``cf_role``
     #: attribute.
-    topology_key: Optional[Hashable] = None
+    topology_key: Hashable | None = None
 
     #: The default dtype to use for index data arrays. Hard coded to ``int32``,
     #: which should be sufficient for all datasets. ``int16`` is too small for
@@ -444,7 +444,7 @@ class Mesh2DTopology:
         return self.dataset.data_vars[self._node_coordinates[1]]
 
     @property
-    def edge_x(self) -> Optional[xarray.DataArray]:
+    def edge_x(self) -> xarray.DataArray | None:
         """Data array of characteristic edge X / longitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._edge_coordinates[0]]
@@ -452,7 +452,7 @@ class Mesh2DTopology:
             return None
 
     @property
-    def edge_y(self) -> Optional[xarray.DataArray]:
+    def edge_y(self) -> xarray.DataArray | None:
         """Data array of characteristic edge y / latitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._edge_coordinates[1]]
@@ -460,7 +460,7 @@ class Mesh2DTopology:
             return None
 
     @property
-    def face_x(self) -> Optional[xarray.DataArray]:
+    def face_x(self) -> xarray.DataArray | None:
         """Data array of characteristic face x / longitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._face_coordinates[0]]
@@ -468,7 +468,7 @@ class Mesh2DTopology:
             return None
 
     @property
-    def face_y(self) -> Optional[xarray.DataArray]:
+    def face_y(self) -> xarray.DataArray | None:
         """Data array of characteristic face y / latitude coordinates. Optional."""
         try:
             return self.dataset.data_vars[self._face_coordinates[1]]
@@ -1024,7 +1024,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
     default_grid_kind = UGridKind.face
 
     @classmethod
-    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> int | None:
         """
         A UGrid dataset needs a global attribute of Conventions = 'UGRID/...',
         and a variable with attribute cf_role = 'mesh_topology'

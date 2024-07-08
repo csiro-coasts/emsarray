@@ -1,7 +1,7 @@
 import argparse
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import xarray
 

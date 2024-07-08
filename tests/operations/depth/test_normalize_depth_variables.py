@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numpy
 import pytest
 import xarray
@@ -35,8 +33,8 @@ def test_normalize_depth_variable(
     input_positive: str,
     input_deep_to_shallow: bool,
     set_positive: bool,
-    positive_down: Optional[bool],
-    deep_to_shallow: Optional[bool],
+    positive_down: bool | None,
+    deep_to_shallow: bool | None,
     recwarn,
 ):
     # Some datasets have a coordinate with the same dimension name

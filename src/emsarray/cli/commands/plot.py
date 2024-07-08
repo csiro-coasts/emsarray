@@ -1,8 +1,9 @@
 import argparse
 import functools
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 import emsarray
 from emsarray.cli import BaseCommand, CommandException
@@ -28,7 +29,7 @@ class UpdateDict(argparse.Action):
         dest: str,
         *,
         value_type: Callable = str,
-        default: Optional[dict[str, Any]] = None,
+        default: dict[str, Any] | None = None,
         **kwargs: Any,
     ):
         if default is None:
@@ -42,7 +43,7 @@ class UpdateDict(argparse.Action):
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
         values: Any,
-        option_string: Optional[str] = None,
+        option_string: str | None = None,
     ) -> None:
         super().__call__
         holder = getattr(namespace, self.dest, {})

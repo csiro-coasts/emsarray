@@ -4,8 +4,8 @@ such as the output from ocean models.
 """
 import warnings
 from collections import defaultdict
-from collections.abc import Hashable
-from typing import Iterable, Optional, cast
+from collections.abc import Hashable, Iterable
+from typing import cast
 
 import numpy
 import xarray
@@ -18,7 +18,7 @@ def ocean_floor(
     dataset: xarray.Dataset,
     depth_coordinates: Iterable[DataArrayOrName],
     *,
-    non_spatial_variables: Optional[Iterable[DataArrayOrName]] = None,
+    non_spatial_variables: Iterable[DataArrayOrName] | None = None,
 ) -> xarray.Dataset:
     """Make a new :class:`xarray.Dataset` reduced along the given depth
     coordinates to only contain values along the ocean floor.
@@ -200,8 +200,8 @@ def normalize_depth_variables(
     dataset: xarray.Dataset,
     depth_coordinates: Iterable[DataArrayOrName],
     *,
-    positive_down: Optional[bool] = None,
-    deep_to_shallow: Optional[bool] = None,
+    positive_down: bool | None = None,
+    deep_to_shallow: bool | None = None,
 ) -> xarray.Dataset:
     """
     Some datasets represent depth as a positive variable, some as negative.

@@ -6,7 +6,6 @@ import re
 import shlex
 import subprocess
 import sys
-from typing import Optional
 
 PROJECT = pathlib.Path(__file__).parent.parent
 
@@ -29,7 +28,7 @@ Next release (in development)
 
 
 def main(
-    args: Optional[list[str]] = None,
+    args: list[str] | None = None,
 ) -> None:
     parser = argparse.ArgumentParser()
     add_options(parser)
@@ -222,7 +221,7 @@ def output(*args: str) -> bytes:
 
 def yn(
     prompt: str,
-    default: Optional[bool] = None,
+    default: bool | None = None,
 ) -> bool:
     examples = {True: '[Yn]', False: '[yN]', None: '[yn]'}[default]
     prompt = f'{prompt.strip()} {examples} '

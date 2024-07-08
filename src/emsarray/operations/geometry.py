@@ -7,7 +7,7 @@ import os
 import pathlib
 from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
-from typing import IO, Any, Optional, TypeVar, Union
+from typing import IO, Any, TypeVar
 
 import geojson
 import shapefile
@@ -108,7 +108,7 @@ def write_geojson(
 
 
 @contextmanager
-def _maybe_open(path_or_file: Union[Pathish, IO], mode: str) -> Generator[IO, None, None]:
+def _maybe_open(path_or_file: Pathish | IO, mode: str) -> Generator[IO, None, None]:
     """
     Given either a path to a file or an open file handle,
     return an open file handle wrapped in a context manager.
@@ -128,12 +128,12 @@ def _maybe_open(path_or_file: Union[Pathish, IO], mode: str) -> Generator[IO, No
 
 def write_shapefile(
     dataset: xarray.Dataset,
-    target: Optional[Pathish] = None,
+    target: Pathish | None = None,
     *,
-    shp: Optional[Union[Pathish, IO]] = None,
-    shx: Optional[Union[Pathish, IO]] = None,
-    dbf: Optional[Union[Pathish, IO]] = None,
-    prj: Optional[Union[Pathish, IO]] = None,
+    shp: Pathish | IO | None = None,
+    shx: Pathish | IO | None = None,
+    dbf: Pathish | IO | None = None,
+    prj: Pathish | IO | None = None,
     **kwargs: Any,
 ) -> None:
     """

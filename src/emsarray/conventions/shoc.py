@@ -17,7 +17,6 @@ See Also
 import logging
 from collections.abc import Hashable
 from functools import cached_property
-from typing import Optional
 
 import xarray
 
@@ -108,7 +107,7 @@ class ShocSimple(CFGrid2D):
         return CFGrid2DTopology(self.dataset, latitude=latitude, longitude=longitude)
 
     @classmethod
-    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> int | None:
         if 'ems_version' not in dataset.attrs:
             return None
         if not set(dataset.dims).issuperset(cls._dimensions):

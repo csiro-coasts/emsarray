@@ -55,7 +55,7 @@ def parse_requirements(
 
     Yield (package name, major version, minor version, patch version)
     """
-    for line_number, line in enumerate(open(fname, 'r'), start=1):
+    for line_number, line in enumerate(open(fname), start=1):
         if '#' in line:
             line = line[:line.index('#')]
         line = line.strip()

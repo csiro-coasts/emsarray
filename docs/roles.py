@@ -1,6 +1,6 @@
 import re
-from collections.abc import Iterable
-from typing import Callable, cast
+from collections.abc import Callable, Iterable
+from typing import cast
 
 import yaml
 from docutils import nodes, utils
@@ -81,7 +81,7 @@ class Citation(Directive):
 
     def load_citation_file(self) -> dict:
         citation_file = self.options['citation_file']
-        with open(citation_file, 'r') as f:
+        with open(citation_file) as f:
             return cast(dict, yaml.load(f, yaml.Loader))
 
     def run(self) -> list[nodes.Node]:
