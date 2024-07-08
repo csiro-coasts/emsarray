@@ -33,3 +33,4 @@ Next release (in development)
 * Add :func:`emsarray.utils.name_to_data_array()` and :func:`~emsarray.utils.data_array_to_name()` functions.
   Allow more functions to interchangeably take either a data array or the name of a data array
   (:pr:`142`).
+* Add :attr:`.Convention.depth_coordinates` and :meth:`.Convention.get_depth_coordinate_for_data_array()`. Deprecate functions :meth:`.Convention.get_depth_name()`, :meth:`.Convention.get_all_depth_names()`, and :meth:`Convention.get_time_name()`. Remove deprecated functions ``Convention.get_depths()`` and ``Convention.get_times()`` (:pr:`143`).
