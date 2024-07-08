@@ -1,6 +1,5 @@
 import abc
 import argparse
-from typing import Optional
 
 from emsarray.cli import utils
 
@@ -24,11 +23,11 @@ class BaseCommand(abc.ABC):
 
     #: A short description of what this subcommand does,
     #: shown as part of the usage message for the base command.
-    help: Optional[str] = None
+    help: str | None = None
 
     #: A longer description of what this subcommand does,
     #: shown as part of the usage message for this subcommand.
-    description: Optional[str] = None
+    description: str | None = None
 
     def add_parser(self, subparsers: argparse._SubParsersAction) -> None:
         parser = subparsers.add_parser(

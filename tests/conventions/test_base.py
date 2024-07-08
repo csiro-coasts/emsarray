@@ -3,7 +3,6 @@ import enum
 import pathlib
 from collections.abc import Hashable
 from functools import cached_property
-from typing import Optional
 
 import numpy
 import pandas
@@ -40,7 +39,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     default_grid_kind = SimpleGridKind.face
 
     @classmethod
-    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> int | None:
         return None
 
     @cached_property
@@ -64,7 +63,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         self,
         index: int,
         *,
-        grid_kind: Optional[SimpleGridKind] = None,
+        grid_kind: SimpleGridKind | None = None,
     ) -> SimpleGridIndex:
         y, x = map(int, numpy.unravel_index(index, self.shape))
         return SimpleGridIndex(y, x)
@@ -79,7 +78,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         self,
         data_array: xarray.DataArray,
         *,
-        linear_dimension: Optional[Hashable] = None,
+        linear_dimension: Hashable | None = None,
     ) -> xarray.DataArray:
         self.get_grid_kind(data_array)
         return utils.ravel_dimensions(
@@ -90,9 +89,9 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         self,
         data_array: xarray.DataArray,
         *,
-        grid_kind: Optional[SimpleGridKind] = None,
-        axis: Optional[int] = None,
-        linear_dimension: Optional[Hashable] = None,
+        grid_kind: SimpleGridKind | None = None,
+        axis: int | None = None,
+        linear_dimension: Hashable | None = None,
     ) -> xarray.DataArray:
         if axis is not None:
             linear_dimension = data_array.dims[axis]
@@ -312,9 +311,9 @@ def test_strtree():
     convention = SimpleConvention(dataset)
 
     line = LineString([(-1, -1), (1.5, 1.5), (1.5, 2.5), (3.9, 3.9)])
-    expected_intersections = set(convention.ravel_index(index) for index in [
+    expected_intersections = {convention.ravel_index(index) for index in [
         SimpleGridIndex(1, 1), SimpleGridIndex(2, 1), SimpleGridIndex(2, 2),
-        SimpleGridIndex(3, 2), SimpleGridIndex(3, 3)])
+        SimpleGridIndex(3, 2), SimpleGridIndex(3, 3)]}
 
     # Query the spatial index
     items = convention.strtree.query(line, predicate='intersects')

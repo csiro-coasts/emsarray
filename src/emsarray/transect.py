@@ -1,7 +1,7 @@
 import dataclasses
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from functools import cached_property
-from typing import Any, Callable, Generic, Optional, Union, cast
+from typing import Any, Generic, cast
 
 import cfunits
 import numpy
@@ -117,7 +117,7 @@ class Transect:
         self,
         dataset: xarray.Dataset,
         line: shapely.LineString,
-        depth: Optional[DataArrayOrName] = None,
+        depth: DataArrayOrName | None = None,
     ):
         self.dataset = dataset
         self.convention = dataset.ems
@@ -223,7 +223,7 @@ class Transect:
 
     def _set_up_axis(self, variable: xarray.DataArray) -> tuple[str, Formatter]:
         title = str(variable.attrs.get('long_name'))
-        units: Optional[str] = variable.attrs.get('units')
+        units: str | None = variable.attrs.get('units')
 
         if units is not None:
             # Use cfunits to normalize the units to their short symbol form.
@@ -237,7 +237,7 @@ class Transect:
     def _crs_for_point(
         self,
         point: shapely.Point,
-        globe: Optional[crs.Globe] = None,
+        globe: crs.Globe | None = None,
     ) -> crs.Projection:
         return crs.AzimuthalEquidistant(
             central_longitude=point.x, central_latitude=point.y, globe=globe)
@@ -557,13 +557,13 @@ class Transect:
         figure: Figure,
         data_array: xarray.DataArray,
         *,
-        title: Optional[str] = None,
+        title: str | None = None,
         trim_nans: bool = True,
         clamp_to_surface: bool = True,
-        bathymetry: Optional[xarray.DataArray] = None,
-        cmap: Union[str, Colormap] = 'jet',
+        bathymetry: xarray.DataArray | None = None,
+        cmap: str | Colormap = 'jet',
         ocean_floor_colour: str = 'black',
-        landmarks: Optional[list[Landmark]] = None,
+        landmarks: list[Landmark] | None = None,
     ) -> None:
         """
         Plot the data array along this transect.
@@ -617,14 +617,14 @@ class Transect:
         figure: Figure,
         data_array: xarray.DataArray,
         *,
-        title: Optional[Union[str, Callable[[Any], str]]] = None,
+        title: str | Callable[[Any], str] | None = None,
         trim_nans: bool = True,
         clamp_to_surface: bool = True,
-        bathymetry: Optional[xarray.DataArray] = None,
-        cmap: Union[str, Colormap] = 'jet',
+        bathymetry: xarray.DataArray | None = None,
+        cmap: str | Colormap = 'jet',
         ocean_floor_colour: str = 'black',
-        landmarks: Optional[list[Landmark]] = None,
-        coordinate: Optional[xarray.DataArray] = None,
+        landmarks: list[Landmark] | None = None,
+        coordinate: xarray.DataArray | None = None,
         interval: int = 200,
     ) -> animation.FuncAnimation:
         """
@@ -706,13 +706,13 @@ class Transect:
         figure: Figure,
         data_array: xarray.DataArray,
         *,
-        title: Optional[str] = None,
+        title: str | None = None,
         trim_nans: bool = True,
         clamp_to_surface: bool = True,
-        bathymetry: Optional[xarray.DataArray] = None,
-        cmap: Union[str, Colormap] = 'jet',
+        bathymetry: xarray.DataArray | None = None,
+        cmap: str | Colormap = 'jet',
         ocean_floor_colour: str = 'black',
-        landmarks: Optional[list[Landmark]] = None,
+        landmarks: list[Landmark] | None = None,
     ) -> tuple[Axes, PolyCollection, xarray.DataArray]:
         """
         Construct the axes and PolyCollections on a plot,

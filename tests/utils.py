@@ -5,7 +5,7 @@ import itertools
 import warnings
 from collections.abc import Hashable
 from functools import cached_property
-from typing import Any, Optional
+from typing import Any
 
 import numpy
 import pytest
@@ -42,7 +42,7 @@ def box(minx, miny, maxx, maxy) -> shapely.Polygon:
     ])
 
 
-def reduce_axes(arr: numpy.ndarray, axes: Optional[tuple[bool, ...]] = None) -> numpy.ndarray:
+def reduce_axes(arr: numpy.ndarray, axes: tuple[bool, ...] | None = None) -> numpy.ndarray:
     """
     Reduce the size of an array by one on an axis-by-axis basis. If an axis is
     reduced, neigbouring values are averaged together
@@ -138,7 +138,7 @@ class ShocGridGenerator(abc.ABC):
         self, *,
         j: int,
         i: int,
-        face_mask: Optional[numpy.ndarray] = None,
+        face_mask: numpy.ndarray | None = None,
         include_bounds: bool = False,
     ):
         self.j_size = j

@@ -1,6 +1,6 @@
 import importlib.metadata
-from collections.abc import Iterable
-from typing import Any, Callable, Literal, Optional, Union
+from collections.abc import Callable, Iterable
+from typing import Any, Literal
 
 import numpy
 import packaging.version
@@ -224,7 +224,7 @@ def polygons_to_collection(
 def make_plot_title(
     dataset: xarray.Dataset,
     data_array: xarray.DataArray,
-) -> Optional[str]:
+) -> str | None:
     """
     Make a suitable plot title for a variable.
     This will attempt to find a name for the variable by looking through the attributes.
@@ -268,11 +268,11 @@ def plot_on_figure(
     figure: Figure,
     convention: 'conventions.Convention',
     *,
-    scalar: Optional[xarray.DataArray] = None,
-    vector: Optional[tuple[xarray.DataArray, xarray.DataArray]] = None,
-    title: Optional[str] = None,
-    projection: Optional[cartopy.crs.Projection] = None,
-    landmarks: Optional[Iterable[Landmark]] = None,
+    scalar: xarray.DataArray | None = None,
+    vector: tuple[xarray.DataArray, xarray.DataArray] | None = None,
+    title: str | None = None,
+    projection: cartopy.crs.Projection | None = None,
+    landmarks: Iterable[Landmark] | None = None,
     gridlines: bool = True,
     coast: bool = True,
 ) -> None:
@@ -360,15 +360,15 @@ def animate_on_figure(
     convention: 'conventions.Convention',
     *,
     coordinate: xarray.DataArray,
-    scalar: Optional[xarray.DataArray] = None,
-    vector: Optional[tuple[xarray.DataArray, xarray.DataArray]] = None,
-    title: Optional[Union[str, Callable[[Any], str]]] = None,
-    projection: Optional[cartopy.crs.Projection] = None,
-    landmarks: Optional[Iterable[Landmark]] = None,
+    scalar: xarray.DataArray | None = None,
+    vector: tuple[xarray.DataArray, xarray.DataArray] | None = None,
+    title: str | Callable[[Any], str] | None = None,
+    projection: cartopy.crs.Projection | None = None,
+    landmarks: Iterable[Landmark] | None = None,
     gridlines: bool = True,
     coast: bool = True,
     interval: int = 1000,
-    repeat: Union[bool, Literal['cycle', 'bounce']] = True,
+    repeat: bool | Literal['cycle', 'bounce'] = True,
 ) -> animation.FuncAnimation:
     """
     Plot a :class:`xarray.DataArray`

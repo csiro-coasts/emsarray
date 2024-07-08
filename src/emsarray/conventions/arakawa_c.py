@@ -10,7 +10,7 @@ import enum
 import logging
 from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import Optional, cast
+from typing import cast
 
 import numpy
 import xarray
@@ -168,7 +168,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         self,
         dataset: xarray.Dataset,
         *,
-        coordinate_names: Optional[dict[Hashable, tuple[Hashable, Hashable]]] = None,
+        coordinate_names: dict[Hashable, tuple[Hashable, Hashable]] | None = None,
     ):
         super().__init__(dataset)
 
@@ -192,7 +192,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
             )
 
     @classmethod
-    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> int | None:
         if not hasattr(cls, 'coordinate_names'):
             return None
 
@@ -330,7 +330,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
 def c_mask_from_centres(
     face_mask: numpy.ndarray,
     dimensions: ArakawaCDimensions,
-    coords: Optional[DatasetCoordinates] = None,
+    coords: DatasetCoordinates | None = None,
 ) -> xarray.Dataset:
     """
     Create a mask for a SHOC standard file given a mask array for the cell

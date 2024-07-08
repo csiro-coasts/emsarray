@@ -7,7 +7,7 @@ datasets are meaningless.
 import datetime
 import functools
 import pathlib
-from typing import Callable
+from collections.abc import Callable
 
 import netCDF4
 import numpy
@@ -186,12 +186,12 @@ def make_ugrid_mesh2d(out: pathlib.Path) -> None:
     faces = [polygon.intersection(envelope) for polygon in voronoi.geoms]
 
     # Get the unique vertices of the faces
-    nodes = numpy.array(list(set(
+    nodes = numpy.array(list({
         p for polygon in faces
         for p in polygon.exterior.coords
-    )))
+    }))
     # A map between {point: index}
-    node_indices = dict((tuple(p), i) for i, p in enumerate(nodes))
+    node_indices = {tuple(p): i for i, p in enumerate(nodes)}
     # Number of vertices
     nnodes = len(node_indices)
     # Maximum vertex count for any face

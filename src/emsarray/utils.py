@@ -15,10 +15,10 @@ import textwrap
 import time
 import warnings
 from collections.abc import (
-    Hashable, Iterable, Mapping, MutableMapping, Sequence
+    Callable, Hashable, Iterable, Mapping, MutableMapping, Sequence
 )
 from types import TracebackType
-from typing import Any, Callable, Literal, Optional, TypeVar, Union, cast
+from typing import Any, Literal, TypeVar, cast
 
 import cftime
 import netCDF4
@@ -58,10 +58,10 @@ class PerfTimer:
 
     def __exit__(
         self,
-        exc_type: Optional[type[_Exception]],
-        exc_value: Optional[_Exception],
+        exc_type: type[_Exception] | None,
+        exc_value: _Exception | None,
         traceback: TracebackType
-    ) -> Optional[bool]:
+    ) -> bool | None:
         self._stop = time.perf_counter()
         self.running = False
         return None
@@ -113,7 +113,7 @@ def timed_func(fn: Callable[..., _T]) -> Callable[..., _T]:
 def to_netcdf_with_fixes(
     dataset: xarray.Dataset,
     path: Pathish,
-    time_variable: Optional[DataArrayOrName] = None,
+    time_variable: DataArrayOrName | None = None,
     **kwargs: Any,
 ) -> None:
     """Saves a :class:`xarray.Dataset` to a netCDF4 file,
@@ -151,7 +151,7 @@ def to_netcdf_with_fixes(
         fix_time_units_for_ems(path, data_array_to_name(dataset, time_variable))
 
 
-def format_time_units_for_ems(units: str, calendar: Optional[str] = DEFAULT_CALENDAR) -> str:
+def format_time_units_for_ems(units: str, calendar: str | None = DEFAULT_CALENDAR) -> str:
     """
     Reformat a given time unit string to an EMS-compatible string. ``xarray``
     will always format time unit strings using ISO8601 strings with
@@ -238,14 +238,14 @@ def fix_time_units_for_ems(
         dataset.sync()
 
 
-def _get_variables(dataset_or_array: Union[xarray.Dataset, xarray.DataArray]) -> list[xarray.Variable]:
+def _get_variables(dataset_or_array: xarray.Dataset | xarray.DataArray) -> list[xarray.Variable]:
     if isinstance(dataset_or_array, xarray.Dataset):
         return list(dataset_or_array.variables.values())
     else:
         return [dataset_or_array.variable]
 
 
-def disable_default_fill_value(dataset_or_array: Union[xarray.Dataset, xarray.DataArray]) -> None:
+def disable_default_fill_value(dataset_or_array: xarray.Dataset | xarray.DataArray) -> None:
     """
     Update all variables on this dataset or data array and disable the
     automatic ``_FillValue`` :mod:`xarray` sets. An automatic fill value can spoil
@@ -428,7 +428,7 @@ def check_data_array_dimensions_match(
     dataset: xarray.Dataset,
     data_array: xarray.DataArray,
     *,
-    dimensions: Optional[Sequence[Hashable]] = None,
+    dimensions: Sequence[Hashable] | None = None,
 ) -> None:
     """
     Check that the dimensions of a :class:`xarray.DataArray`
@@ -522,7 +522,7 @@ def move_dimensions_to_end(
 def ravel_dimensions(
     data_array: xarray.DataArray,
     dimensions: list[Hashable],
-    linear_dimension: Optional[Hashable] = None,
+    linear_dimension: Hashable | None = None,
 ) -> xarray.DataArray:
     """
     Flatten the given dimensions of a :class:`~xarray.DataArray`.
@@ -688,7 +688,7 @@ class RequiresExtraException(Exception):
 
 def requires_extra(
     extra: str,
-    import_error: Optional[ImportError],
+    import_error: ImportError | None,
     exception_class: type[RequiresExtraException] = RequiresExtraException,
 ) -> Callable[[_T], _T]:
     if import_error is None:
@@ -705,7 +705,7 @@ def requires_extra(
 def make_polygons_with_holes(
     points: numpy.ndarray,
     *,
-    out: Optional[numpy.ndarray] = None,
+    out: numpy.ndarray | None = None,
 ) -> numpy.ndarray:
     """
     Make a :class:`numpy.ndarray` of :class:`shapely.Polygon` from an array of (n, m, 2) points.

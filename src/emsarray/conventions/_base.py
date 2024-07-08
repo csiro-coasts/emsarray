@@ -3,11 +3,9 @@ import dataclasses
 import enum
 import logging
 import warnings
-from collections.abc import Hashable, Iterable, Sequence
+from collections.abc import Callable, Hashable, Iterable, Sequence
 from functools import cached_property
-from typing import (
-    TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, Union, cast
-)
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 import numpy
 import xarray
@@ -166,7 +164,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     @classmethod
     @abc.abstractmethod
-    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> int | None:
         """
         Check if a dataset uses this convention.
 
@@ -582,7 +580,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         self,
         linear_index: int,
         *,
-        grid_kind: Optional[GridKind] = None,
+        grid_kind: GridKind | None = None,
     ) -> Index:
         """Convert a linear index to a conventnion native index.
 
@@ -635,7 +633,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def unravel_index(
         self,
         linear_index: int,
-        grid_kind: Optional[GridKind] = None,
+        grid_kind: GridKind | None = None,
     ) -> Index:
         """An alias for :meth:`Convention.wind_index()`.
 
@@ -772,7 +770,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         self,
         data_array: xarray.DataArray,
         *,
-        linear_dimension: Optional[Hashable] = None,
+        linear_dimension: Hashable | None = None,
     ) -> xarray.DataArray:
         """
         Flatten the surface dimensions of a :class:`~xarray.DataArray`,
@@ -815,9 +813,9 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         self,
         data_array: xarray.DataArray,
         *,
-        grid_kind: Optional[GridKind] = None,
-        axis: Optional[int] = None,
-        linear_dimension: Optional[Hashable] = None,
+        grid_kind: GridKind | None = None,
+        axis: int | None = None,
+        linear_dimension: Hashable | None = None,
     ) -> xarray.DataArray:
         """
         Wind a flattened :class:`~xarray.DataArray`
@@ -935,9 +933,9 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def plot_on_figure(
         self,
         figure: 'Figure',
-        scalar: Optional[DataArrayOrName] = None,
-        vector: Optional[tuple[DataArrayOrName, DataArrayOrName]] = None,
-        title: Optional[str] = None,
+        scalar: DataArrayOrName | None = None,
+        vector: tuple[DataArrayOrName, DataArrayOrName] | None = None,
+        title: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Plot values for a :class:`~xarray.DataArray`
@@ -1015,10 +1013,10 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def animate_on_figure(
         self,
         figure: 'Figure',
-        scalar: Optional[DataArrayOrName] = None,
-        vector: Optional[tuple[DataArrayOrName, DataArrayOrName]] = None,
-        coordinate: Optional[DataArrayOrName] = None,
-        title: Optional[Union[str, Callable[[Any], str]]] = None,
+        scalar: DataArrayOrName | None = None,
+        vector: tuple[DataArrayOrName, DataArrayOrName] | None = None,
+        coordinate: DataArrayOrName | None = None,
+        title: str | Callable[[Any], str] | None = None,
         **kwargs: Any,
     ) -> 'FuncAnimation':
         """
@@ -1115,7 +1113,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     @utils.timed_func
     def make_poly_collection(
         self,
-        data_array: Optional[DataArrayOrName] = None,
+        data_array: DataArrayOrName | None = None,
         **kwargs: Any,
     ) -> 'PolyCollection':
         """
@@ -1192,7 +1190,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
     def make_patch_collection(
         self,
-        data_array: Optional[DataArrayOrName] = None,
+        data_array: DataArrayOrName | None = None,
         **kwargs: Any,
     ) -> 'PolyCollection':
         warnings.warn(
@@ -1206,8 +1204,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def make_quiver(
         self,
         axes: 'Axes',
-        u: Optional[DataArrayOrName] = None,
-        v: Optional[DataArrayOrName] = None,
+        u: DataArrayOrName | None = None,
+        v: DataArrayOrName | None = None,
         **kwargs: Any,
     ) -> 'Quiver':
         """
@@ -1238,7 +1236,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         # sometimes preferring to fill them in later,
         # so `u` and `v` are optional.
         # If they are not provided, we set default quiver values of `numpy.nan`.
-        values: Union[tuple[numpy.ndarray, numpy.ndarray], tuple[float, float]]
+        values: tuple[numpy.ndarray, numpy.ndarray] | tuple[float, float]
         values = numpy.nan, numpy.nan
 
         if u is not None and v is not None:
@@ -1331,7 +1329,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return cast(numpy.ndarray, mask)
 
     @cached_property
-    def geometry(self) -> Union[Polygon, MultiPolygon]:
+    def geometry(self) -> Polygon | MultiPolygon:
         """
         A :class:`shapely.Polygon` or :class:`shapely.MultiPolygon` that represents
         the geometry of the entire dataset.
@@ -1438,7 +1436,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def get_index_for_point(
         self,
         point: Point,
-    ) -> Optional[SpatialIndexItem[Index]]:
+    ) -> SpatialIndexItem[Index] | None:
         """
         Find the index for a :class:`~shapely.Point` in the dataset.
 
@@ -1761,8 +1759,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def normalize_depth_variables(
         self,
         *,
-        positive_down: Optional[bool] = None,
-        deep_to_shallow: Optional[bool] = None,
+        positive_down: bool | None = None,
+        deep_to_shallow: bool | None = None,
     ) -> xarray.Dataset:
         """An alias for :func:`emsarray.operations.depth.normalize_depth_variables`"""
         return depth.normalize_depth_variables(
@@ -1895,7 +1893,7 @@ class DimensionConvention(Convention[GridKind, Index]):
         self,
         linear_index: int,
         *,
-        grid_kind: Optional[GridKind] = None,
+        grid_kind: GridKind | None = None,
     ) -> Index:
         if grid_kind is None:
             grid_kind = self.default_grid_kind
@@ -1907,7 +1905,7 @@ class DimensionConvention(Convention[GridKind, Index]):
         self,
         data_array: xarray.DataArray,
         *,
-        linear_dimension: Optional[Hashable] = None,
+        linear_dimension: Hashable | None = None,
     ) -> xarray.DataArray:
         kind = self.get_grid_kind(data_array)
         dimensions = self.grid_dimensions[kind]
@@ -1919,9 +1917,9 @@ class DimensionConvention(Convention[GridKind, Index]):
         self,
         data_array: xarray.DataArray,
         *,
-        grid_kind: Optional[GridKind] = None,
-        axis: Optional[int] = None,
-        linear_dimension: Optional[Hashable] = None,
+        grid_kind: GridKind | None = None,
+        axis: int | None = None,
+        linear_dimension: Hashable | None = None,
     ) -> xarray.DataArray:
         if axis is not None:
             linear_dimension = data_array.dims[axis]

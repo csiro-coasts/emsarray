@@ -9,7 +9,7 @@ import warnings
 from collections.abc import Hashable, Sequence
 from contextlib import suppress
 from functools import cached_property
-from typing import Generic, Optional, TypeVar, cast
+from typing import Generic, TypeVar, cast
 
 import numpy
 import xarray
@@ -51,8 +51,8 @@ class CFGridTopology(abc.ABC):
     def __init__(
         self,
         dataset: xarray.Dataset,
-        longitude: Optional[Hashable] = None,
-        latitude: Optional[Hashable] = None,
+        longitude: Hashable | None = None,
+        latitude: Hashable | None = None,
     ):
         """
         Construct a new :class:`CFGridTopology` instance for a dataset.
@@ -200,9 +200,9 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
         self,
         dataset: xarray.Dataset,
         *,
-        latitude: Optional[Hashable] = None,
-        longitude: Optional[Hashable] = None,
-        topology: Optional[Topology] = None,
+        latitude: Hashable | None = None,
+        longitude: Hashable | None = None,
+        topology: Topology | None = None,
     ) -> None:
         """
         Construct a new :class:`CFGrid` instance.
@@ -270,7 +270,7 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
             self.topology.latitude_name,
         ]
 
-        bounds_names: list[Optional[Hashable]] = [
+        bounds_names: list[Hashable | None] = [
             self.topology.longitude.attrs.get('bounds', None),
             self.topology.latitude.attrs.get('bounds', None),
         ]
@@ -387,7 +387,7 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
     topology_class = CFGrid1DTopology
 
     @classmethod
-    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> int | None:
         """
         A dataset is a 1D CF grid if it has one dimensional
         latitude and longitude coordinate variables.
@@ -543,7 +543,7 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
     topology_class = CFGrid2DTopology
 
     @classmethod
-    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> int | None:
         """
         A dataset is a 2D CF grid if it has two dimensional
         latitude and longitude coordinate variables.

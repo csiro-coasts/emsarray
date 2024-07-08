@@ -2,7 +2,6 @@
 import enum
 from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import Optional
 
 import numpy
 import xarray
@@ -33,7 +32,7 @@ class Grass(DimensionConvention[GrassGridKind, GrassIndex]):
     default_grid_kind = GrassGridKind.field
 
     @classmethod
-    def check_dataset(cls, dataset: xarray.Dataset) -> Optional[int]:
+    def check_dataset(cls, dataset: xarray.Dataset) -> int | None:
         # A Grass dataset is recognised by the 'Conventions' global attribute
         if dataset.attrs['Conventions'] == 'Grass 1.0':
             return Specificity.HIGH

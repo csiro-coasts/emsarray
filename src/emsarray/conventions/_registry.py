@@ -1,12 +1,10 @@
 import logging
-import sys
 import warnings
 from collections.abc import Iterable
 from contextlib import suppress
 from functools import cached_property
 from importlib import metadata
 from itertools import chain
-from typing import Optional
 
 import xarray
 
@@ -94,7 +92,7 @@ class ConventionRegistry:
                 matches.append((convention, match))
         return sorted(matches, key=lambda m: m[1], reverse=True)
 
-    def guess_convention(self, dataset: xarray.Dataset) -> Optional[type[Convention]]:
+    def guess_convention(self, dataset: xarray.Dataset) -> type[Convention] | None:
         """
         Guess the correct :class:`.Convention` implementation for a dataset.
         """
@@ -109,7 +107,7 @@ class ConventionRegistry:
 registry = ConventionRegistry()
 
 
-def get_dataset_convention(dataset: xarray.Dataset) -> Optional[type[Convention]]:
+def get_dataset_convention(dataset: xarray.Dataset) -> type[Convention] | None:
     """Find the most appropriate Convention subclass for this dataset.
 
     Parameters
@@ -146,10 +144,7 @@ def entry_point_conventions() -> Iterable[type[Convention]]:
         ('emsarray.formats', True),
     ]
     for group, deprecated in groups:
-        if sys.version_info >= (3, 10):
-            entry_points = metadata.entry_points(group=group)
-        else:
-            entry_points = metadata.entry_points().get(group, [])
+        entry_points = metadata.entry_points(group=group)
 
         for entry_point in entry_points:
             if deprecated:

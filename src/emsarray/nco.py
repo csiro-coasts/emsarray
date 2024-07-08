@@ -11,9 +11,9 @@ All these functions take paths to datasets as arguments, not
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
-Pathish = Union[Path, str]
+from emsarray.types import Pathish
 
 
 def _check_call(cmd: Sequence[str], stdin: Any = subprocess.DEVNULL, **kwargs: Any) -> None:
@@ -23,7 +23,7 @@ def _check_call(cmd: Sequence[str], stdin: Any = subprocess.DEVNULL, **kwargs: A
 def ncrcat(
     input_files: Sequence[Pathish],
     output_file: Pathish,
-    flags: Optional[str] = None,
+    flags: str | None = None,
     history: bool = False,
 ) -> None:
     """Concatenates a set of netCDF files together using `ncrcat`."""
