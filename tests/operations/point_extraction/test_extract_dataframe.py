@@ -87,7 +87,7 @@ def test_extract_points_missing_point_error(
     with pytest.raises(point_extraction.NonIntersectingPoints) as exc_info:
         point_extraction.extract_dataframe(in_dataset, points_df, ('lon', 'lat'))
     exc: point_extraction.NonIntersectingPoints = exc_info.value
-    assert_equal(exc.indices, [1, 3])
+    assert_equal(exc.indexes, [1, 3])
 
 
 def test_extract_points_missing_point_drop(

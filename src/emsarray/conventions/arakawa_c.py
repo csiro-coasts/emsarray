@@ -257,8 +257,8 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
     def unpack_index(self, index: ArakawaCIndex) -> tuple[ArakawaCGridKind, Sequence[int]]:
         return index[0], index[1:]
 
-    def pack_index(self, grid_kind: ArakawaCGridKind, indices: Sequence[int]) -> ArakawaCIndex:
-        return cast(ArakawaCIndex, (grid_kind, *indices))
+    def pack_index(self, grid_kind: ArakawaCGridKind, indexes: Sequence[int]) -> ArakawaCIndex:
+        return cast(ArakawaCIndex, (grid_kind, *indexes))
 
     @cached_property
     @utils.timed_func
@@ -309,9 +309,9 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         logger.info("Finding intersecting cells for centre mask")
 
         # A cell is included if it intersects the clip polygon
-        intersecting_indices = self.strtree.query(clip_geometry, predicate='intersects')
+        intersecting_indexes = self.strtree.query(clip_geometry, predicate='intersects')
         face_mask = numpy.full(self.face.shape, fill_value=False)
-        face_mask.ravel()[intersecting_indices] = True
+        face_mask.ravel()[intersecting_indexes] = True
 
         # Expand the mask by one cell around the clipped region, as a buffer
         if buffer > 0:

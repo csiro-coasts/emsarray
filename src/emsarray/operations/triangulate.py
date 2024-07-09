@@ -27,16 +27,16 @@ def triangulate_dataset(
 
     Returns
     -------
-    tuple of vertices, triangles, and cell indices.
+    tuple of vertices, triangles, and cell indexes.
         A tuple of three lists is returned,
-        containing vertices, triangles, and cell indices respectively.
+        containing vertices, triangles, and cell indexes respectively.
 
         Each vertex is a tuple of (x, y) or (lon, lat) coordinates.
 
         Each triangle is a tuple of three integers,
         indicating which vertices make up the triangle.
 
-        The cell indices tie the triangles to the original cell polygon,
+        The cell indexes tie the triangles to the original cell polygon,
         allowing you to plot data on the triangle mesh.
 
     Examples
@@ -54,7 +54,7 @@ def triangulate_dataset(
 
         # Triangulate the dataset
         dataset = emsarray.tuorial.open_dataset("austen")
-        vertices, triangles, cell_indices = triangulate_dataset(dataset)
+        vertices, triangles, cell_indexes = triangulate_dataset(dataset)
 
         # This takes a while to render
         mesh = hv.TriMesh((triangles, vertices))
@@ -70,7 +70,7 @@ def triangulate_dataset(
         from emsarray.operations import triangulate_dataset
 
         dataset = emsarray.tutorial.open_dataset("gbr4")
-        vertices, triangles, cell_indices = triangulate_dataset(dataset)
+        vertices, triangles, cell_indexes = triangulate_dataset(dataset)
         # Trimesh expects 3D vertices.
         vertices = numpy.c_[vertices, numpy.zeros(len(vertices))]
         mesh = trimesh.Trimesh(vertices=vertices, faces=triangles)
@@ -78,7 +78,7 @@ def triangulate_dataset(
 
         depth = 1 - (dataset.data_vars["Mesh2_depth"].values / -200)
         depth_colour = numpy.c_[depth, depth, depth, numpy.ones_like(depth)] * 255
-        mesh.visual.face_colors = depth_colour[cell_indices]
+        mesh.visual.face_colors = depth_colour[cell_indexes]
         mesh.show()
 
     .. _holoviews: https://holoviews.org/reference/elements/bokeh/TriMesh.html
@@ -100,7 +100,7 @@ def triangulate_dataset(
     # Vertex positions are (probably) floats. For grid datasets, where cells
     # are implicitly defined by their centres, be careful to compute cell
     # vertices in consistent ways. Float equality is tricky!
-    vertex_indices = {vertex: index for index, vertex in enumerate(vertices)}
+    vertex_indexes = {vertex: index for index, vertex in enumerate(vertices)}
 
     # Each cell polygon needs to be triangulated,
     # while also recording the convention native index of the cell,
@@ -110,14 +110,14 @@ def triangulate_dataset(
         for index, polygon in enumerate(polygons)
         if polygon is not None]
     triangles_with_index = list(
-        (tuple(vertex_indices[vertex] for vertex in triangle_coords), dataset_index)
+        (tuple(vertex_indexes[vertex] for vertex in triangle_coords), dataset_index)
         for polygon, dataset_index in polygons_with_index
         for triangle_coords in _triangulate_polygon(polygon)
     )
     triangles: list[Triangle] = [tri for tri, index in triangles_with_index]  # type: ignore
-    indices = [index for tri, index in triangles_with_index]
+    indexes = [index for tri, index in triangles_with_index]
 
-    return (vertices, triangles, indices)
+    return (vertices, triangles, indexes)
 
 
 def _triangulate_polygon(polygon: Polygon) -> list[tuple[Vertex, Vertex, Vertex]]:

@@ -83,7 +83,7 @@ def test_mask_dataset(tmp_path: pathlib.Path):
     # * Different coordinate sets are masked using the appropriate mask
 
     # The input dataset is a 6x5 grid, and the mask defines a 4x3 area in the
-    # centre with the (2,2), (3,1), and (3,2) indices not included. The input
+    # centre with the (2,2), (3,1), and (3,2) indexes not included. The input
     # dataset is nominally a SHOC standard dataset.
     centres = mask_from_strings(["00000", "01110", "01110", "01100", "01000", "00000"])
     mask = c_mask_from_centres(centres, {

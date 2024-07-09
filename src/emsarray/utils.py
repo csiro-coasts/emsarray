@@ -730,10 +730,10 @@ def make_polygons_with_holes(
     if out is None:
         out = numpy.full(points.shape[0], None, dtype=numpy.object_)
 
-    complete_row_indices = numpy.flatnonzero(numpy.isfinite(points).all(axis=(1, 2)))
+    complete_row_indexes = numpy.flatnonzero(numpy.isfinite(points).all(axis=(1, 2)))
     shapely.polygons(
-        points[complete_row_indices],
-        indices=complete_row_indices,
+        points[complete_row_indexes],
+        indices=complete_row_indexes,
         out=out)
     return out
 

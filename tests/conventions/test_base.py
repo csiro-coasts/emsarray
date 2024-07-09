@@ -68,8 +68,8 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         y, x = map(int, numpy.unravel_index(index, self.shape))
         return SimpleGridIndex(y, x)
 
-    def ravel_index(self, indices: SimpleGridIndex) -> int:
-        return int(numpy.ravel_multi_index((indices.y, indices.x), self.shape))
+    def ravel_index(self, indexes: SimpleGridIndex) -> int:
+        return int(numpy.ravel_multi_index((indexes.y, indexes.x), self.shape))
 
     def selector_for_index(self, index: SimpleGridIndex) -> dict[Hashable, int]:
         return {'x': index.x, 'y': index.y}

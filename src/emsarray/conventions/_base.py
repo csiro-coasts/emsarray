@@ -100,7 +100,7 @@ class SpatialIndexItem(Generic[Index]):
             return NotImplemented
 
         # SpatialIndexItems are only for cells / polygons, so we only need to
-        # compare the linear indices. The polygon attribute is not orderable,
+        # compare the linear indexes. The polygon attribute is not orderable,
         # so comparing on that is going to be unpleasant.
         return self.linear_index < other.linear_index
 
@@ -560,7 +560,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             >>> dataset.ems.ravel_index((3, 4))
             124
 
-        Cell polygons are indexed in the same order as the linear indices for cells.
+        Cell polygons are indexed in the same order as the linear indexes for cells.
         To find the polygon for the cell with the native index ``(3, 4)``:
 
         .. code-block:: python
@@ -1272,7 +1272,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         The order of the polygons in the list
         corresponds to the linear index of this dataset.
-        Not all valid cell indices have a polygon,
+        Not all valid cell indexes have a polygon,
         these holes are represented as :data:`None` in the list.
         If you want a list of just polygons, apply the :attr:`mask <Convention.mask>`:
 
@@ -1357,7 +1357,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         This allows for fast spatial lookups, querying which cells lie at
         a point, or which cells intersect a geometry.
 
-        Querying the STRtree will return the linear indices of any matching cells.
+        Querying the STRtree will return the linear indexes of any matching cells.
         Use :attr:`polygons` to find the geometries associated with each index.
         Use :meth:`wind_index()` to transform this back to a native index,
         or :meth:`ravel` to linearise a variable.
@@ -1365,7 +1365,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         Examples
         --------
 
-        Find the indices of all cells that intersect a line:
+        Find the indexes of all cells that intersect a line:
 
         .. code-block:: python
 
@@ -1841,7 +1841,7 @@ class DimensionConvention(Convention[GridKind, Index]):
 
     @abc.abstractmethod
     def unpack_index(self, index: Index) -> tuple[GridKind, Sequence[int]]:
-        """Convert a native index in to a grid kind and dimension indices.
+        """Convert a native index in to a grid kind and dimension indexes.
 
         Parameters
         ----------
@@ -1852,8 +1852,8 @@ class DimensionConvention(Convention[GridKind, Index]):
         -------
         grid_kind : GridKind
             The grid kind
-        indices : sequence of int
-            The dimension indices
+        indexes : sequence of int
+            The dimension indexes
 
         See Also
         --------
@@ -1863,15 +1863,15 @@ class DimensionConvention(Convention[GridKind, Index]):
         pass
 
     @abc.abstractmethod
-    def pack_index(self, grid_kind: GridKind, indices: Sequence[int]) -> Index:
-        """Convert a grid kind and dimension indices in to a native index.
+    def pack_index(self, grid_kind: GridKind, indexes: Sequence[int]) -> Index:
+        """Convert a grid kind and dimension indexes in to a native index.
 
         Parameters
         ----------
         grid_kind : GridKind
             The grid kind
-        indices : sequence of int
-            The dimension indices
+        indexes : sequence of int
+            The dimension indexes
 
         Returns
         -------
@@ -1885,9 +1885,9 @@ class DimensionConvention(Convention[GridKind, Index]):
         pass
 
     def ravel_index(self, index: Index) -> int:
-        grid_kind, indices = self.unpack_index(index)
+        grid_kind, indexes = self.unpack_index(index)
         shape = self.grid_shape[grid_kind]
-        return int(numpy.ravel_multi_index(indices, shape))
+        return int(numpy.ravel_multi_index(indexes, shape))
 
     def wind_index(
         self,
@@ -1898,8 +1898,8 @@ class DimensionConvention(Convention[GridKind, Index]):
         if grid_kind is None:
             grid_kind = self.default_grid_kind
         shape = self.grid_shape[grid_kind]
-        indices = tuple(map(int, numpy.unravel_index(linear_index, shape)))
-        return self.pack_index(grid_kind, indices)
+        indexes = tuple(map(int, numpy.unravel_index(linear_index, shape)))
+        return self.pack_index(grid_kind, indexes)
 
     def ravel(
         self,
@@ -1937,6 +1937,6 @@ class DimensionConvention(Convention[GridKind, Index]):
             linear_dimension=linear_dimension)
 
     def selector_for_index(self, index: Index) -> dict[Hashable, int]:
-        grid_kind, indices = self.unpack_index(index)
+        grid_kind, indexes = self.unpack_index(index)
         dimensions = self.grid_dimensions[grid_kind]
-        return dict(zip(dimensions, indices))
+        return dict(zip(dimensions, indexes))

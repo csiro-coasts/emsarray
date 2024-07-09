@@ -38,71 +38,71 @@ def _split_coord(attr: str) -> tuple[str, str]:
 
 
 def buffer_faces(
-    face_indices: numpy.ndarray,
+    face_indexes: numpy.ndarray,
     topology: 'Mesh2DTopology',
 ) -> numpy.ndarray:
     """
     When clipping a dataset to a region, including a buffer of extra faces
-    around the included faces is desired. Given an array of face indices,
+    around the included faces is desired. Given an array of face indexes,
     :func:`buffer_faces` will find all the faces required to form this buffer
-    and return a new array of face indices that include both the input faces
+    and return a new array of face indexes that include both the input faces
     and the buffer faces
 
     Specifically, this finds all faces that share a node with one of the
     included faces.
     """
-    original_face_indices = set(face_indices.tolist())
+    original_face_indexes = set(face_indexes.tolist())
     face_node = topology.face_node_array
 
     # Find all nodes for the faces
-    included_nodes = set(numpy.unique(face_node[face_indices].compressed()))
+    included_nodes = set(numpy.unique(face_node[face_indexes].compressed()))
 
     # Find all faces that are composed of any of the nodes just found
     included_faces = (
         face_index
-        for face_index, node_indices in enumerate(face_node)
+        for face_index, node_indexes in enumerate(face_node)
         # Either one of the original faces ...
-        if face_index in original_face_indices
+        if face_index in original_face_indexes
         # ... or shares a node with one of the original faces
-        or bool(included_nodes.intersection(node_indices.compressed()))
+        or bool(included_nodes.intersection(node_indexes.compressed()))
     )
     return cast(numpy.ndarray, numpy.fromiter(included_faces, dtype=topology.sensible_dtype))
 
 
-def mask_from_face_indices(
-    face_indices: numpy.ndarray,
+def mask_from_face_indexes(
+    face_indexes: numpy.ndarray,
     topology: 'Mesh2DTopology',
 ) -> xarray.Dataset:
     """
-    Make a mask dataset from a list of face indices.
+    Make a mask dataset from a list of face indexes.
     This mask can later be applied using :meth:`~.Convention.apply_clip_mask`.
 
     A mask for a UGRID dataset indicates which nodes, edges, and faces
-    (collectively 'elements') to include, and their new indices. When
+    (collectively 'elements') to include, and their new indexes. When
     elements are dropped from the dataset, to keep the remaining data
-    contiguous, all elements gain new indices.
+    contiguous, all elements gain new indexes.
 
     The mask consists of three data arrays corresponding to nodes, edges,
     and faces. Each data array indicates the new index for that element, or
     whether that element should be dropped.
     """
-    # Generate a new index for each element. Indices are assigned in the same
+    # Generate a new index for each element. Indexes are assigned in the same
     # order as they currently exist. This means that data rows for excluded
     # elements can be dropped, and the remaining data rows will automatically
-    # have the correct indices.
+    # have the correct indexes.
     fill_value = topology.sensible_fill_value
     data_vars = {}
 
-    def new_element_indices(size: int, indices: numpy.ndarray) -> numpy.ma.MaskedArray:
-        new_indices = numpy.full(
+    def new_element_indexes(size: int, indexes: numpy.ndarray) -> numpy.ma.MaskedArray:
+        new_indexes = numpy.full(
             (size,), fill_value=fill_value, dtype=topology.sensible_dtype)
-        new_indices = numpy.ma.masked_array(new_indices, mask=True)
-        new_indices[indices] = numpy.arange(len(indices))
-        return new_indices
+        new_indexes = numpy.ma.masked_array(new_indexes, mask=True)
+        new_indexes[indexes] = numpy.arange(len(indexes))
+        return new_indexes
 
     # Record which old face index maps to which new face index
     data_vars['new_face_index'] = _masked_integer_data_array(
-        data=new_element_indices(topology.face_count, face_indices),
+        data=new_element_indexes(topology.face_count, face_indexes),
         fill_value=fill_value,
         dims=['old_face_index'],
     )
@@ -111,22 +111,22 @@ def mask_from_face_indices(
     # dataset doesn't define an edge dimension
     if topology.has_edge_dimension:
         face_edge = topology.face_edge_array
-        edge_indices = numpy.sort(numpy.unique(face_edge[face_indices].compressed()))
+        edge_indexes = numpy.sort(numpy.unique(face_edge[face_indexes].compressed()))
 
         # Record which old edge index maps to which new edge index
         data_vars['new_edge_index'] = _masked_integer_data_array(
-            data=new_element_indices(topology.edge_count, edge_indices),
+            data=new_element_indexes(topology.edge_count, edge_indexes),
             fill_value=fill_value,
             dims=['old_edge_index'],
         )
 
     # Find all nodes associated with included faces
     face_node = topology.face_node_array
-    node_indices = numpy.sort(numpy.unique(face_node[face_indices].compressed()))
+    node_indexes = numpy.sort(numpy.unique(face_node[face_indexes].compressed()))
 
     # Record which old node index maps to which new node index
     data_vars['new_node_index'] = _masked_integer_data_array(
-        data=new_element_indices(topology.node_count, node_indices),
+        data=new_element_indexes(topology.node_count, node_indexes),
         fill_value=fill_value,
         dims=['old_node_index'],
     )
@@ -174,7 +174,7 @@ def _get_start_index(connectivity: xarray.DataArray) -> int:
 def update_connectivity(
     connectivity: xarray.DataArray,
     old_array: numpy.ndarray,
-    row_indices: numpy.ndarray,
+    row_indexes: numpy.ndarray,
     column_values: numpy.ndarray,
     primary_dimension: Hashable,
     fill_value: int,
@@ -200,7 +200,7 @@ def update_connectivity(
         The old connectivity array,
         the companion to the connectivity data array.
         Each row corresponds to either an edge or a face.
-    row_indices : numpy.ndarray
+    row_indexes : numpy.ndarray
         A one dimensional numpy masked array
         indicating which rows of ``old_array`` are to be included.
         Masked items are excluded, all other items are included.
@@ -243,7 +243,7 @@ def update_connectivity(
     # By constructing the array using new_fill_value where needed,
     # setting the dtype explicitly, and adding the _FillValue attribute,
     # xarray will cooperate.
-    include_row = ~numpy.ma.getmask(row_indices)
+    include_row = ~numpy.ma.getmask(row_indexes)
     raw_values = numpy.array([
         [
             column_values[item] if item is not numpy.ma.masked else fill_value
@@ -481,7 +481,7 @@ class Mesh2DTopology:
         primary_dimension: Hashable,
     ) -> numpy.ndarray:
         """
-        Convert a data array of node, edge, or face indices
+        Convert a data array of node, edge, or face indexes
         into a masked numpy integer array.
         This takes care of casting arrays to integers
         and fixing one-based indexing where appropriate.
@@ -517,7 +517,7 @@ class Mesh2DTopology:
             values = numpy.ma.masked_array(values, mask=numpy.ma.nomask)
 
         # UGRID conventions allow for zero based or one based indexing.
-        # To be consistent we convert all indices to zero based.
+        # To be consistent we convert all indexes to zero based.
         start_index = _get_start_index(data_array)
         if start_index != 0:
             values = values - start_index
@@ -599,7 +599,7 @@ class Mesh2DTopology:
         # Each edge is composed of two nodes. Each edge may be named twice,
         # once for each face. To de-duplicate this, edges are built up using
         # this dict-of-sets, where the dict index is the node with the
-        # lower index, and the set is the node indices of the other end.
+        # lower index, and the set is the node indexes of the other end.
         low_highs: dict[int, set[int]] = defaultdict(set)
 
         for face_index, node_pairs in self._face_and_node_pair_iter():
@@ -674,8 +674,8 @@ class Mesh2DTopology:
         # The number of faces already seen for this edge
         edge_face_count = numpy.zeros(self.edge_count, dtype=self.sensible_dtype)
 
-        for face_index, edge_indices in enumerate(self.face_edge_array):
-            for edge_index in edge_indices.compressed():
+        for face_index, edge_indexes in enumerate(self.face_edge_array):
+            for edge_index in edge_indexes.compressed():
                 edge_face[edge_index, edge_face_count[edge_index]] = face_index
                 edge_face_count[edge_index] += 1
 
@@ -719,7 +719,7 @@ class Mesh2DTopology:
         """
         An integer numpy array with shape
         (:attr:`face_dimension`, :attr:`max_node_dimension`),
-        representing the node indices that make up each face.
+        representing the node indexes that make up each face.
         """
         return self._to_index_array(
             self.face_node_connectivity, self.face_dimension)
@@ -765,7 +765,7 @@ class Mesh2DTopology:
         """
         An integer numpy array with shape
         (:attr:`face_dimension`, :attr:`max_node_dimension`),
-        representing the edge indices that border each face.
+        representing the edge indexes that border each face.
         """
         if self.has_valid_face_edge_connectivity:
             return self._to_index_array(
@@ -833,7 +833,7 @@ class Mesh2DTopology:
         """
         An integer numpy array with shape
         (:attr:`face_dimension`, :attr:`max_node_dimension`),
-        representing the indices of all faces that border a given face.
+        representing the indexes of all faces that border a given face.
         """
         if self.has_valid_face_face_connectivity:
             return self._to_index_array(
@@ -848,10 +848,10 @@ class Mesh2DTopology:
         filled = numpy.full(shape, self.sensible_fill_value, dtype=self.sensible_dtype)
         face_face: numpy.ndarray = numpy.ma.masked_array(filled, mask=True)
 
-        for edge_index, face_indices in enumerate(self.edge_face_array):
-            if numpy.any(numpy.ma.getmask(face_indices)):
+        for edge_index, face_indexes in enumerate(self.edge_face_array):
+            if numpy.any(numpy.ma.getmask(face_indexes)):
                 continue
-            left, right = face_indices
+            left, right = face_indexes
             face_face[left, face_count[left]] = right
             face_face[right, face_count[right]] = left
             face_count[left] += 1
@@ -866,10 +866,10 @@ class Mesh2DTopology:
         defining the edges of the face.
         """
         face_node = self.face_node_array
-        for face_index, node_indices in enumerate(face_node):
-            node_indices = node_indices.compressed()
-            node_indices = numpy.append(node_indices, node_indices[0])
-            yield face_index, list(utils.pairwise(node_indices))
+        for face_index, node_indexes in enumerate(face_node):
+            node_indexes = node_indexes.compressed()
+            node_indexes = numpy.append(node_indexes, node_indexes[0])
+            yield face_index, list(utils.pairwise(node_indexes))
 
     @cached_property
     def dimension_for_grid_kind(self) -> dict['UGridKind', Hashable]:
@@ -1013,7 +1013,7 @@ class UGridKind(str, enum.Enum):
     node = 'node'
 
 
-#: UGRID indices are always single integers, for all index kinds.
+#: UGRID indexes are always single integers, for all index kinds.
 UGridIndex = tuple[UGridKind, int]
 
 
@@ -1065,8 +1065,8 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
     def unpack_index(self, index: UGridIndex) -> tuple[UGridKind, Sequence[int]]:
         return index[0], index[1:]
 
-    def pack_index(self, grid_kind: UGridKind, indices: Sequence[int]) -> UGridIndex:
-        return (grid_kind, indices[0])
+    def pack_index(self, grid_kind: UGridKind, indexes: Sequence[int]) -> UGridIndex:
+        return (grid_kind, indexes[0])
 
     @cached_property
     def grid_kinds(self) -> frozenset[UGridKind]:
@@ -1128,9 +1128,9 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         This mask can later be applied using :meth:`apply_clip_mask`.
 
         A mask for a UGRID dataset indicates which nodes, edges, and faces
-        (collectively 'elements') to include, and their new indices. When
+        (collectively 'elements') to include, and their new indexes. When
         elements are dropped from the dataset, to keep the remaining data
-        contiguous, all elements gain new indices.
+        contiguous, all elements gain new indexes.
 
         The mask consists of three data arrays corresponding to nodes, edges,
         and faces. Each data array indicates the new index for that element, or
@@ -1144,16 +1144,16 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         """
         # Find all faces that intersect the clip geometry
         logger.info("Making clip mask")
-        face_indices = self.strtree.query(clip_geometry, predicate='intersects')
-        logger.debug("Found %d intersecting faces, adding size %d buffer...", len(face_indices), buffer)
+        face_indexes = self.strtree.query(clip_geometry, predicate='intersects')
+        logger.debug("Found %d intersecting faces, adding size %d buffer...", len(face_indexes), buffer)
 
         # Include all the neighbours of the intersecting faces
         for _ in range(buffer):
-            face_indices = buffer_faces(face_indices, self.topology)
-        logger.debug("Total faces in mask: %d", len(face_indices))
+            face_indexes = buffer_faces(face_indexes, self.topology)
+        logger.debug("Total faces in mask: %d", len(face_indexes))
 
         # Make a mask dataset
-        return mask_from_face_indices(face_indices, self.topology)
+        return mask_from_face_indexes(face_indexes, self.topology)
 
     def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         """
@@ -1162,7 +1162,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         See Also
         --------
         :meth:`make_clip_mask`
-        :func:`mask_from_face_indices`
+        :func:`mask_from_face_indexes`
         """
         logger.info("Applying clip mask")
         dataset = self.dataset
@@ -1183,7 +1183,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         # This is the fill value used in the mask.
         new_fill_value = clip_mask.data_vars['new_node_index'].encoding['_FillValue']
 
-        def integer_indices(data_array: xarray.DataArray) -> numpy.ndarray:
+        def integer_indexes(data_array: xarray.DataArray) -> numpy.ndarray:
             masked_values = numpy.ma.masked_invalid(data_array.values)
             # numpy will emit a warning when converting an array with numpy.nan to int,
             # even if the nans are masked out.
@@ -1191,41 +1191,41 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
             masked_integers: numpy.ndarray = masked_values.astype(numpy.int_)
             return masked_integers
 
-        new_node_indices = integer_indices(clip_mask.data_vars['new_node_index'])
-        new_face_indices = integer_indices(clip_mask.data_vars['new_face_index'])
+        new_node_indexes = integer_indexes(clip_mask.data_vars['new_node_index'])
+        new_face_indexes = integer_indexes(clip_mask.data_vars['new_face_index'])
         has_edges = 'new_edge_index' in clip_mask.data_vars
         if has_edges:
-            new_edge_indices = integer_indices(clip_mask.data_vars['new_edge_index'])
+            new_edge_indexes = integer_indexes(clip_mask.data_vars['new_edge_index'])
 
         # Re-index the face_node_connectivity variable
         topology_variables.append(update_connectivity(
             topology.face_node_connectivity, topology.face_node_array,
-            new_face_indices, new_node_indices,
+            new_face_indexes, new_node_indexes,
             primary_dimension=topology.face_dimension, fill_value=new_fill_value))
 
         # Re-index each of the optional connectivity variables
         if has_edges and topology.has_valid_face_edge_connectivity:
             topology_variables.append(update_connectivity(
                 topology.face_edge_connectivity, topology.face_edge_array,
-                new_face_indices, new_edge_indices,
+                new_face_indexes, new_edge_indexes,
                 primary_dimension=topology.edge_dimension, fill_value=new_fill_value))
 
         if topology.has_valid_face_face_connectivity:
             topology_variables.append(update_connectivity(
                 topology.face_face_connectivity, topology.face_face_array,
-                new_face_indices, new_face_indices,
+                new_face_indexes, new_face_indexes,
                 primary_dimension=topology.face_dimension, fill_value=new_fill_value))
 
         if has_edges and topology.has_valid_edge_face_connectivity:
             topology_variables.append(update_connectivity(
                 topology.edge_face_connectivity, topology.edge_face_array,
-                new_edge_indices, new_face_indices,
+                new_edge_indexes, new_face_indexes,
                 primary_dimension=topology.face_dimension, fill_value=new_fill_value))
 
         if has_edges and topology.has_valid_edge_node_connectivity:
             topology_variables.append(update_connectivity(
                 topology.edge_node_connectivity, topology.edge_node_array,
-                new_edge_indices, new_node_indices,
+                new_edge_indexes, new_node_indexes,
                 primary_dimension=topology.edge_dimension, fill_value=new_fill_value))
 
         # Save all the topology variables to one combined dataset
@@ -1243,11 +1243,11 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
 
         logger.debug("Slicing data variables...")
         dimension_masks: dict[Hashable, numpy.ndarray] = {
-            topology.node_dimension: ~numpy.ma.getmask(new_node_indices),
-            topology.face_dimension: ~numpy.ma.getmask(new_face_indices),
+            topology.node_dimension: ~numpy.ma.getmask(new_node_indexes),
+            topology.face_dimension: ~numpy.ma.getmask(new_face_indexes),
         }
         if has_edges:
-            dimension_masks[topology.edge_dimension] = ~numpy.ma.getmask(new_edge_indices)
+            dimension_masks[topology.edge_dimension] = ~numpy.ma.getmask(new_edge_indexes)
         mesh_dimensions = set(dimension_masks.keys())
 
         for name, data_array in dataset.data_vars.items():

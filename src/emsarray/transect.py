@@ -169,7 +169,7 @@ class Transect:
                 f'Depth variable {depth.name!r} must have a `positive` attribute'
             ) from err
 
-        linear_indices = [segment.linear_index for segment in self.segments]
+        linear_indexes = [segment.linear_index for segment in self.segments]
         depth = xarray.DataArray(
             data=depth.values,
             dims=(depth_dimension,),
@@ -206,7 +206,7 @@ class Transect:
             },
         )
         linear_index = xarray.DataArray(
-            data=linear_indices,
+            data=linear_indexes,
             dims=('index',)
         )
 
@@ -289,9 +289,9 @@ class Transect:
         segments = []
 
         # Find all the cell polygons that intersect the line
-        intersecting_indices = self.convention.strtree.query(self.line, predicate='intersects')
+        intersecting_indexes = self.convention.strtree.query(self.line, predicate='intersects')
 
-        for linear_index in intersecting_indices:
+        for linear_index in intersecting_indexes:
             polygon = self.convention.polygons[linear_index]
             index = self.convention.wind_index(linear_index)
             for intersection in self._intersect_polygon(polygon):
@@ -470,14 +470,14 @@ class Transect:
         deepest = deepest_fn(bathymetry_values.values)
 
         distance_bounds = transect_dataset['distance_bounds'].values
-        linear_indices = transect_dataset['linear_index'].values
+        linear_indexes = transect_dataset['linear_index'].values
 
         vertices = [
             [
-                (distance_bounds[index, 0], bathymetry_values[linear_indices[index]]),
+                (distance_bounds[index, 0], bathymetry_values[linear_indexes[index]]),
                 (distance_bounds[index, 0], deepest),
                 (distance_bounds[index, 1], deepest),
-                (distance_bounds[index, 1], bathymetry_values[linear_indices[index]]),
+                (distance_bounds[index, 1], bathymetry_values[linear_indexes[index]]),
             ]
             for index in range(transect_dataset.sizes['index'])
         ]
@@ -508,8 +508,8 @@ class Transect:
         index_dimension = data_array.dims[-1]
         data_array = move_dimensions_to_end(data_array, [depth_dimension, index_dimension])
 
-        linear_indices = self.transect_dataset['linear_index'].values
-        data_array = data_array.isel({index_dimension: linear_indices})
+        linear_indexes = self.transect_dataset['linear_index'].values
+        data_array = data_array.isel({index_dimension: linear_indexes})
 
         # Restore attrs after reformatting
         data_array.attrs.update(attrs)
@@ -528,7 +528,7 @@ class Transect:
         but the dataset includes very deep layers
         the shallow regions become very small on the final plot.
 
-        This function finds the indices of the deepest and shallowest layers
+        This function finds the indexes of the deepest and shallowest layers
         where the values are not entirely nan
         along the transect path.
         The transect plot can use these to only plot depth values that have data,

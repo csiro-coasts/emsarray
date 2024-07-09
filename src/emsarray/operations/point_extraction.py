@@ -23,6 +23,7 @@ import shapely
 import xarray
 import xarray.core.dtypes as xrdtypes
 
+from emsarray import utils
 from emsarray.conventions import Convention
 
 
@@ -32,14 +33,22 @@ class NonIntersectingPoints(ValueError):
     Raised when a point to extract does not intersect the dataset geometry.
     """
 
-    #: The indices of the points that do not intersect
-    indices: numpy.ndarray
+    #: The indexes of the points that do not intersect
+    indexes: numpy.ndarray
 
     #: The non-intersecting points
     points: list[shapely.Point]
 
     def __post_init__(self) -> None:
         super().__init__(f"{self.points[0].wkt} does not intersect the dataset geometry")
+
+    @property
+    @utils.deprecated(
+        "NonIntersectingPoints.indices has been renamed to NonIntersectingPoints.indexes",
+        DeprecationWarning,
+    )
+    def indices(self) -> numpy.ndarray:
+        return self.indexes
 
 
 def _dataframe_to_dataset(
@@ -90,7 +99,7 @@ def extract_points(
         A subset of the input dataset that only contains data at the given points.
         The dataset will only contain the values, without any geometry coordinates.
         The `point_dimension` dimension will have a coordinate with the same name
-        whose values match the indices of the `points` array.
+        whose values match the indexes of the `points` array.
         This is useful when `errors` is 'drop' to find out which points were dropped.
 
     See Also
@@ -106,10 +115,11 @@ def extract_points(
         out_of_bounds = numpy.flatnonzero(numpy.equal(indexes, None))  # type: ignore
         if len(out_of_bounds):
             raise NonIntersectingPoints(
-                indices=out_of_bounds,
+                indexes=out_of_bounds,
                 points=[points[i] for i in out_of_bounds])
 
     # Make a DataFrame out of all point indexers
+    selector = convention.selector_for_indexes([i.index for i in indexes])
     selector_df = pandas.DataFrame([
         convention.selector_for_index(index.index)
         for index in indexes
