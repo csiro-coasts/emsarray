@@ -1,5 +1,4 @@
 import logging
-import warnings
 from collections.abc import Iterable
 from contextlib import suppress
 from functools import cached_property
@@ -138,35 +137,23 @@ def entry_point_conventions() -> Iterable[type[Convention]]:
     Finds conventions registered using entry points
     """
     seen = set()
+    entry_points = metadata.entry_points(group='emsarray.conventions')
+    for entry_point in entry_points:
+        try:
+            obj = entry_point.load()
+        except (AttributeError, ImportError):
+            logger.exception("Error loading entry point %s", entry_point)
+            continue
 
-    groups = [
-        ('emsarray.conventions', False),
-        ('emsarray.formats', True),
-    ]
-    for group, deprecated in groups:
-        entry_points = metadata.entry_points(group=group)
+        if not (isinstance(obj, type) and issubclass(obj, Convention)):
+            logger.error(
+                "Entry point `%s = %s` refers to %r not a Convention subclass",
+                entry_point.name, entry_point.value, obj)
+            continue
 
-        for entry_point in entry_points:
-            if deprecated:
-                warnings.warn(
-                    '`emsarray.formats` entrypoint has been renamed to `emsarray.conventions`. '
-                    f'Update `{entry_point.name} = {entry_point.value}` to use the new entrypoint name.',
-                    category=DeprecationWarning)
-            try:
-                obj = entry_point.load()
-            except (AttributeError, ImportError):
-                logger.exception("Error loading entry point %s", entry_point)
-                continue
-
-            if not (isinstance(obj, type) and issubclass(obj, Convention)):
-                logger.error(
-                    "Entry point `%s = %s` refers to %r not a Convention subclass",
-                    entry_point.name, entry_point.value, obj)
-                continue
-
-            if obj not in seen:
-                yield obj
-                seen.add(obj)
+        if obj not in seen:
+            yield obj
+            seen.add(obj)
 
 
 def register_convention(convention: type[Convention]) -> type[Convention]:

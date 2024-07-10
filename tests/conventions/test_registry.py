@@ -3,8 +3,6 @@ Test convention class registration by entry points or manual registration.
 """
 from importlib import metadata
 
-import pytest
-
 from emsarray.conventions import (
     ArakawaC, CFGrid1D, CFGrid2D, ShocSimple, ShocStandard, UGrid, _registry
 )
@@ -81,23 +79,6 @@ def test_mock_entry_points(caplog, monkeypatch):
         ('CFGrid1D', 'emsarray.conventions.grid:CFGrid1D'),
     ]})
     assert list(entry_point_conventions()) == [CFGrid1D]
-    assert len(caplog.records) == 0
-
-
-def test_mock_entry_points_deprecated(caplog, monkeypatch):
-    monkeypatch_entrypoint(monkeypatch, {
-        'emsarray.conventions': [
-            ('CFGrid1D', 'emsarray.conventions.grid:CFGrid1D'),
-        ],
-        'emsarray.formats': [
-            ('CFGrid2D', 'emsarray.conventions.grid:CFGrid2D'),
-        ],
-    })
-    with pytest.warns(DeprecationWarning) as captured_warnings:
-        assert list(entry_point_conventions()) == [CFGrid1D, CFGrid2D]
-    assert str(captured_warnings[0].message) == (
-        '`emsarray.formats` entrypoint has been renamed to `emsarray.conventions`. '
-        'Update `CFGrid2D = emsarray.conventions.grid:CFGrid2D` to use the new entrypoint name.')
     assert len(caplog.records) == 0
 
 
