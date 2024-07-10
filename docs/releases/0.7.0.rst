@@ -1,6 +1,8 @@
-=============================
-Next release (in development)
-=============================
+=====
+0.7.0
+=====
+
+Released on 2024-07-10
 
 * Fix a ``FutureWarning`` on accessing :attr:`xarray.Dataset.dims`
   with xarray >= 2023.12.0

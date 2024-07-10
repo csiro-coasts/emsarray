@@ -1,3 +1,7 @@
+# required as this module imports optional
+# dependencies that are used for type hints.
+from __future__ import annotations
+
 import importlib.metadata
 from collections.abc import Callable, Iterable
 from typing import Any, Literal
@@ -34,7 +38,10 @@ __all___ = ['CAN_PLOT', 'plot_on_figure', 'polygons_to_collection']
 
 _requires_plot = requires_extra(extra='plot', import_error=IMPORT_EXCEPTION)
 
-CARTOPY_VERSION = packaging.version.Version(importlib.metadata.version('cartopy'))
+if CAN_PLOT:
+    CARTOPY_VERSION = packaging.version.Version(importlib.metadata.version('cartopy'))
+else:
+    CARTOPY_VERSION = packaging.version.Version('0')
 CARTOPY_0_23 = CARTOPY_VERSION >= packaging.version.Version('0.23')
 
 
