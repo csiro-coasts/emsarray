@@ -5,7 +5,7 @@ import logging
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, cast
 
 import numpy
 import xarray
@@ -17,7 +17,7 @@ from shapely.strtree import STRtree
 from emsarray import utils
 from emsarray.compat.shapely import SpatialIndex
 from emsarray.exceptions import NoSuchCoordinateError
-from emsarray.operations import depth
+from emsarray.operations import depth, point_extraction
 from emsarray.plot import (
     _requires_plot, animate_on_figure, make_plot_title, plot_on_figure,
     polygons_to_collection
@@ -516,7 +516,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         candidates = [
             coordinate
             for coordinate in self.depth_coordinates
-            if coordinate.dims[0] in data_array.dims
+            if set(coordinate.dims) <= set(data_array.dims)
         ]
         if len(candidates) == 0:
             raise NoSuchCoordinateError(f"No depth coordinate found for {name}")
@@ -1471,8 +1471,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 polygon=self.polygons[linear_index])
         return None
 
-    @abc.abstractmethod
-    def selector_for_index(self, index: Index) -> dict[Hashable, int]:
+    def selector_for_index(self, index: Index) -> xarray.Dataset:
         """
         Convert a convention native index into a selector
         that can be passed to :meth:`Dataset.isel <xarray.Dataset.isel>`.
@@ -1494,11 +1493,24 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :meth:`.select_point`
         :ref:`indexing`
         """
+        index_dimension = utils.find_unused_dimension(self.dataset, 'index')
+        dataset = self.selector_for_indexes([index], index_dimension=index_dimension)
+        dataset = dataset.squeeze(dim=index_dimension, drop=False)
+        return dataset
+
+    @abc.abstractmethod
+    def selector_for_indexes(
+        self,
+        indexes: list[Index],
+        *,
+        index_dimension: Hashable | None = None,
+    ) -> xarray.Dataset:
         pass
 
     def select_index(
         self,
         index: Index,
+        drop_geometry: bool = True,
     ) -> xarray.Dataset:
         """
         Return a new dataset that contains values only from a single index.
@@ -1516,6 +1528,12 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         index : :data:`Index`
             The index to select.
             The index must be for the default grid kind for this dataset.
+        drop_geometry : bool, default True
+            Whether to drop geometry variables from the returned point dataset.
+            If the geometry data is kept
+            the associated geometry data will no longer conform to the dataset convention
+            and may not conform to any sensible convention at all.
+            The format of the geometry data left after selecting points is convention-dependent.
 
         Returns
         -------
@@ -1529,16 +1547,71 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         to be used with a particular :class:`Convention` any more.
         The ``dataset.ems`` accessor will raise an error if accessed on the new dataset.
         """
-        selector = self.selector_for_index(index)
+        index_dimension = utils.find_unused_dimension(self.dataset, 'index')
+        dataset = self.select_indexes([index], index_dimension=index_dimension, drop_geometry=drop_geometry)
+        dataset = dataset.squeeze(dim=index_dimension, drop=False)
+        return dataset
+
+    def select_indexes(
+        self,
+        indexes: list[Index],
+        *,
+        index_dimension: Hashable | None = None,
+        drop_geometry: bool = True,
+    ) -> xarray.Dataset:
+        """
+        Return a new dataset that contains values only at the selected indexes.
+        This is much like doing a :func:`xarray.Dataset.isel()` on some indexes,
+        but works with convention native index types.
+
+        An index is associated with a grid kind.
+        The returned dataset will only contain variables that were defined on this grid,
+        with the single indexed point selected.
+        For example, if the index of a face is passed in,
+        the returned dataset will not contain any variables defined on an edge.
+
+        Parameters
+        ----------
+        index : :data:`Index`
+            The index to select.
+            The index must be for the default grid kind for this dataset.
+        index_dimension : str, optional
+            The name of the new dimension added for each index to select.
+            Defaults to the :func:`first unused dimension <.utils.find_unused_dimension>` with prefix `index`.
+        drop_geometry : bool, default True
+            Whether to drop geometry variables from the returned point dataset.
+            If the geometry data is kept
+            the associated geometry data will no longer conform to the dataset convention
+            and may not conform to any sensible convention at all.
+            The format of the geometry data left after selecting points is convention-dependent.
+
+        Returns
+        -------
+        :class:`xarray.Dataset`
+            A new dataset that is subset to the one index.
+
+        Notes
+        -----
+
+        The returned dataset will most likely not have sufficient coordinate data
+        to be used with a particular :class:`Convention` any more.
+        The ``dataset.ems`` accessor will raise an error if accessed on the new dataset.
+        """
+        selector = self.selector_for_indexes(indexes, index_dimension=index_dimension)
 
         # Make a new dataset consisting of only data arrays that use at least
         # one of these dimensions.
-        dims = set(selector.keys())
+        if drop_geometry:
+            dataset = self.drop_geometry()
+        else:
+            dataset = self.dataset
+
+        dims = set(selector.variables.keys())
         names = [
-            name for name, data_array in self.dataset.items()
+            name for name, data_array in dataset.items()
             if dims.intersection(data_array.dims)
         ]
-        dataset = utils.extract_vars(self.dataset, names)
+        dataset = utils.extract_vars(dataset, names)
 
         # Select just this point
         return dataset.isel(selector)
@@ -1564,6 +1637,38 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         if index is None:
             raise ValueError("Point did not intersect dataset")
         return self.select_index(index.index)
+
+    def select_points(
+        self,
+        points: list[Point],
+        *,
+        point_dimension: Hashable | None = None,
+        missing_points: Literal['error', 'drop'] = 'error',
+    ) -> xarray.Dataset:
+        """
+        Extract values from all variables on the default grid at a sequence of points.
+
+        Parameters
+        ----------
+        points : list of shapely.Point
+            The points to extract
+        point_dimension : str, optional
+            The name of the new dimension used to index points.
+            Defaults to 'point', or 'point_0', 'point_1', etc if those dimensions already exist.
+        missing_points : {'error', 'drop'}, default 'error'
+            What to do if a point does not intersect the dataset.
+            'raise' will raise an error, while 'drop' will drop those points.
+
+        Returns
+        -------
+        xarray.Dataset
+            A dataset with values extracted from the points.
+            No variables not defined on the default grid and no geometry variables will be present.
+        """
+        if point_dimension is None:
+            point_dimension = utils.find_unused_dimension(self.dataset, 'point')
+        return point_extraction.extract_points(
+            self.dataset, points, point_dimension=point_dimension, missing_points=missing_points)
 
     @abc.abstractmethod
     def get_all_geometry_names(self) -> list[Hashable]:
@@ -1936,7 +2041,30 @@ class DimensionConvention(Convention[GridKind, Index]):
             dimensions=dimensions, sizes=sizes,
             linear_dimension=linear_dimension)
 
-    def selector_for_index(self, index: Index) -> dict[Hashable, int]:
-        grid_kind, indexes = self.unpack_index(index)
+    def selector_for_indexes(
+        self,
+        indexes: list[Index],
+        *,
+        index_dimension: Hashable | None = None,
+    ) -> xarray.Dataset:
+        if index_dimension is None:
+            index_dimension = utils.find_unused_dimension(self.dataset, 'index')
+        if len(indexes) == 0:
+            raise ValueError("Need at least one index to select")
+
+        grid_kinds, index_tuples = zip(*[self.unpack_index(index) for index in indexes])
+
+        unique_grid_kinds = set(grid_kinds)
+        if len(unique_grid_kinds) > 1:
+            raise ValueError(
+                "All indexes must be on the same grid kind, got "
+                + ", ".join(map(repr, unique_grid_kinds)))
+
+        grid_kind = grid_kinds[0]
         dimensions = self.grid_dimensions[grid_kind]
-        return dict(zip(dimensions, indexes))
+        # This array will have shape (len(indexes), len(dimensions))
+        index_array = numpy.array(index_tuples)
+        return xarray.Dataset({
+            dimension: (index_dimension, index_array[:, i])
+            for i, dimension in enumerate(dimensions)
+        })

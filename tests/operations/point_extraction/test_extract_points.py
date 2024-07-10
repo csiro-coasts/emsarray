@@ -24,7 +24,7 @@ def test_extract_points(
     assert 'point' in point_dataset.dims
     assert point_dataset.sizes['point'] == num_points
 
-    assert point_dataset.variables.keys() == {'values', 'point'}
+    assert set(point_dataset.variables.keys()) == {'values', 'point'}
 
     values = point_dataset.data_vars['values']
     assert values.dims == ('point',)

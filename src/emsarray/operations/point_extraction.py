@@ -23,8 +23,8 @@ import shapely
 import xarray
 import xarray.core.dtypes as xrdtypes
 
+import emsarray.conventions
 from emsarray import utils
-from emsarray.conventions import Convention
 
 
 @dataclasses.dataclass
@@ -67,7 +67,7 @@ def extract_points(
     dataset: xarray.Dataset,
     points: list[shapely.Point],
     *,
-    point_dimension: Hashable = 'point',
+    point_dimension: Hashable | None = None,
     missing_points: Literal['error', 'drop'] = 'error',
 ) -> xarray.Dataset:
     """
@@ -106,7 +106,10 @@ def extract_points(
     --------
     :func:`extract_dataframe`
     """
-    convention: Convention = dataset.ems
+    convention: emsarray.conventions.Convention = dataset.ems
+
+    if point_dimension is None:
+        point_dimension = utils.find_unused_dimension(dataset, 'point')
 
     # Find the indexer for each given point
     indexes = numpy.array([convention.get_index_for_point(point) for point in points])
@@ -118,21 +121,17 @@ def extract_points(
                 indexes=out_of_bounds,
                 points=[points[i] for i in out_of_bounds])
 
-    # Make a DataFrame out of all point indexers
-    selector = convention.selector_for_indexes([i.index for i in indexes])
-    selector_df = pandas.DataFrame([
-        convention.selector_for_index(index.index)
-        for index in indexes
-        if index is not None])
-    point_indexes = [i for i, index in enumerate(indexes) if index is not None]
+    point_ds = convention.select_indexes(
+        [index.index for index in indexes if index is not None],
+        index_dimension=point_dimension,
+        drop_geometry=True)
 
-    # Subset the dataset to the points
-    point_ds = convention.drop_geometry()
-    selector_ds = _dataframe_to_dataset(selector_df, dimension_name=point_dimension)
-    point_ds = point_ds.isel(selector_ds)
+    # Number the points
+    point_indexes = [i for i, index in enumerate(indexes) if index is not None]
     point_ds = point_ds.assign_coords({
         point_dimension: ([point_dimension], point_indexes),
     })
+
     return point_ds
 
 
