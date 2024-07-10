@@ -519,6 +519,36 @@ def move_dimensions_to_end(
         return data_array.transpose(*new_order)
 
 
+def find_unused_dimension(
+    dataset_or_data_array: xarray.Dataset | xarray.DataArray,
+    prefix: str = 'index',
+) -> str:
+    """
+    Find an unused dimension name in a :class:`xarray.Dataset` or :class:`xarray.DataArray`.
+    Useful when transforming datasets in a way that creates a new dimension.
+
+    Parameters
+    ----------
+    dataset_or_data_array : xarray.Dataset or xarray.DataArray
+        A dataset or data array
+    prefix : str, optional
+        The name of the new dimension. If this dimension already exists,
+        `prefix_0` is checked, then `prefix_1`, `prefix_2`, etc.
+
+    Returns
+    -------
+    str
+        A dimension name that does not exist in the dataset or data array passed in.
+    """
+    existing_dims = set(dataset_or_data_array.dims)
+    if prefix not in existing_dims:
+        return prefix
+    candidates = (f'{prefix}_{suffix}' for suffix in itertools.count(start=0))
+    return next(
+        candidate for candidate in candidates
+        if candidate not in existing_dims)
+
+
 def ravel_dimensions(
     data_array: xarray.DataArray,
     dimensions: list[Hashable],
@@ -573,11 +603,7 @@ def ravel_dimensions(
     existing_dims = data_array.dims[:-len(dimensions)]
 
     if linear_dimension is None:
-        suffix = 0
-        linear_dimension = 'index'
-        while linear_dimension in existing_dims:
-            linear_dimension = f'index_{suffix}'
-            suffix += 1
+        linear_dimension = find_unused_dimension(data_array, 'index')
     new_dims = existing_dims + (linear_dimension,)
 
     coords = {
@@ -730,10 +756,10 @@ def make_polygons_with_holes(
     if out is None:
         out = numpy.full(points.shape[0], None, dtype=numpy.object_)
 
-    complete_row_indices = numpy.flatnonzero(numpy.isfinite(points).all(axis=(1, 2)))
+    complete_row_indexes = numpy.flatnonzero(numpy.isfinite(points).all(axis=(1, 2)))
     shapely.polygons(
-        points[complete_row_indices],
-        indices=complete_row_indices,
+        points[complete_row_indexes],
+        indices=complete_row_indexes,
         out=out)
     return out
 

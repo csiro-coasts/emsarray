@@ -5,7 +5,7 @@ import logging
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, cast
 
 import numpy
 import xarray
@@ -17,7 +17,7 @@ from shapely.strtree import STRtree
 from emsarray import utils
 from emsarray.compat.shapely import SpatialIndex
 from emsarray.exceptions import NoSuchCoordinateError
-from emsarray.operations import depth
+from emsarray.operations import depth, point_extraction
 from emsarray.plot import (
     _requires_plot, animate_on_figure, make_plot_title, plot_on_figure,
     polygons_to_collection
@@ -100,7 +100,7 @@ class SpatialIndexItem(Generic[Index]):
             return NotImplemented
 
         # SpatialIndexItems are only for cells / polygons, so we only need to
-        # compare the linear indices. The polygon attribute is not orderable,
+        # compare the linear indexes. The polygon attribute is not orderable,
         # so comparing on that is going to be unpleasant.
         return self.linear_index < other.linear_index
 
@@ -516,7 +516,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         candidates = [
             coordinate
             for coordinate in self.depth_coordinates
-            if coordinate.dims[0] in data_array.dims
+            if set(coordinate.dims) <= set(data_array.dims)
         ]
         if len(candidates) == 0:
             raise NoSuchCoordinateError(f"No depth coordinate found for {name}")
@@ -560,7 +560,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             >>> dataset.ems.ravel_index((3, 4))
             124
 
-        Cell polygons are indexed in the same order as the linear indices for cells.
+        Cell polygons are indexed in the same order as the linear indexes for cells.
         To find the polygon for the cell with the native index ``(3, 4)``:
 
         .. code-block:: python
@@ -1272,7 +1272,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         The order of the polygons in the list
         corresponds to the linear index of this dataset.
-        Not all valid cell indices have a polygon,
+        Not all valid cell indexes have a polygon,
         these holes are represented as :data:`None` in the list.
         If you want a list of just polygons, apply the :attr:`mask <Convention.mask>`:
 
@@ -1357,7 +1357,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         This allows for fast spatial lookups, querying which cells lie at
         a point, or which cells intersect a geometry.
 
-        Querying the STRtree will return the linear indices of any matching cells.
+        Querying the STRtree will return the linear indexes of any matching cells.
         Use :attr:`polygons` to find the geometries associated with each index.
         Use :meth:`wind_index()` to transform this back to a native index,
         or :meth:`ravel` to linearise a variable.
@@ -1365,7 +1365,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         Examples
         --------
 
-        Find the indices of all cells that intersect a line:
+        Find the indexes of all cells that intersect a line:
 
         .. code-block:: python
 
@@ -1471,8 +1471,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 polygon=self.polygons[linear_index])
         return None
 
-    @abc.abstractmethod
-    def selector_for_index(self, index: Index) -> dict[Hashable, int]:
+    def selector_for_index(self, index: Index) -> xarray.Dataset:
         """
         Convert a convention native index into a selector
         that can be passed to :meth:`Dataset.isel <xarray.Dataset.isel>`.
@@ -1484,21 +1483,75 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Returns
         -------
-        selector
-            A dict suitable for passing to :meth:`xarray.Dataset.isel`
+        selector : xarray.Dataset
+            A selector suitable for passing to :meth:`xarray.Dataset.isel`
             that will select values at this index.
 
         See Also
         --------
         :meth:`.select_index`
         :meth:`.select_point`
+        :meth:`.selector_for_indexes`
         :ref:`indexing`
+
+        Notes
+        -----
+
+        The returned selector is an :class:`xarray.Dataset`,
+        but the contents of the dataset are dependent on the specific convention
+        and may change between versions of emsarray.
+        The selector should be treated as an opaque value
+        that is only useful when passed to :meth:`xarray.Dataset.isel()`.
+        """
+        index_dimension = utils.find_unused_dimension(self.dataset, 'index')
+        dataset = self.selector_for_indexes([index], index_dimension=index_dimension)
+        dataset = dataset.squeeze(dim=index_dimension, drop=False)
+        return dataset
+
+    @abc.abstractmethod
+    def selector_for_indexes(
+        self,
+        indexes: list[Index],
+        *,
+        index_dimension: Hashable | None = None,
+    ) -> xarray.Dataset:
+        """
+        Convert a list of convention native indexes into a selector
+        that can be passed to :meth:`Dataset.isel <xarray.Dataset.isel>`.
+
+        Parameters
+        ----------
+        indexes : list of :data:`Index`
+            A list of convention native indexes
+
+        Returns
+        -------
+        selector : xarray.Dataset
+            A selector suitable for passing to :meth:`xarray.Dataset.isel`
+            that will select values at this index.
+
+        See Also
+        --------
+        :meth:`.select_indexes`
+        :meth:`.select_points`
+        :meth:`.selector_for_index`
+        :ref:`indexing`
+
+        Notes
+        -----
+
+        The returned selector is an :class:`xarray.Dataset`,
+        but the contents of the dataset are dependent on the specific convention
+        and may change between versions of emsarray.
+        The selector should be treated as an opaque value
+        that is only useful when passed to :meth:`xarray.Dataset.isel()`.
         """
         pass
 
     def select_index(
         self,
         index: Index,
+        drop_geometry: bool = True,
     ) -> xarray.Dataset:
         """
         Return a new dataset that contains values only from a single index.
@@ -1515,12 +1568,22 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         index : :data:`Index`
             The index to select.
-            The index must be for the default grid kind for this dataset.
+        drop_geometry : bool, default True
+            Whether to drop geometry variables from the returned point dataset.
+            If the geometry data is kept
+            the associated geometry data will no longer conform to the dataset convention
+            and may not conform to any sensible convention at all.
+            The format of the geometry data left after selecting points is convention-dependent.
 
         Returns
         -------
         :class:`xarray.Dataset`
             A new dataset that is subset to the one index.
+
+        See also
+        --------
+        :meth:`.select_point`
+        :meth:`.select_indexes`
 
         Notes
         -----
@@ -1529,16 +1592,76 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         to be used with a particular :class:`Convention` any more.
         The ``dataset.ems`` accessor will raise an error if accessed on the new dataset.
         """
-        selector = self.selector_for_index(index)
+        index_dimension = utils.find_unused_dimension(self.dataset, 'index')
+        dataset = self.select_indexes([index], index_dimension=index_dimension, drop_geometry=drop_geometry)
+        dataset = dataset.squeeze(dim=index_dimension, drop=False)
+        return dataset
+
+    def select_indexes(
+        self,
+        indexes: list[Index],
+        *,
+        index_dimension: Hashable | None = None,
+        drop_geometry: bool = True,
+    ) -> xarray.Dataset:
+        """
+        Return a new dataset that contains values only at the selected indexes.
+        This is much like doing a :func:`xarray.Dataset.isel()` on some indexes,
+        but works with convention native index types.
+
+        An index is associated with a grid kind.
+        The returned dataset will only contain variables that were defined on this grid,
+        with the indexed points selected.
+        For example, if the index of a face is passed in,
+        the returned dataset will not contain any variables defined on an edge.
+
+        Parameters
+        ----------
+        indexes : list of :data:`Index`
+            The indexes to select.
+            The indexes must all be for the same grid kind.
+        index_dimension : str, optional
+            The name of the new dimension added for each index to select.
+            Defaults to the :func:`first unused dimension <.utils.find_unused_dimension>` with prefix `index`.
+        drop_geometry : bool, default True
+            Whether to drop geometry variables from the returned point dataset.
+            If the geometry data is kept
+            the associated geometry data will no longer conform to the dataset convention
+            and may not conform to any sensible convention at all.
+            The format of the geometry data left after selecting points is convention-dependent.
+
+        Returns
+        -------
+        :class:`xarray.Dataset`
+            A new dataset that is subset to the indexes.
+
+        See also
+        --------
+        :meth:`.select_points`
+        :meth:`.select_index`
+
+        Notes
+        -----
+
+        The returned dataset will most likely not have sufficient coordinate data
+        to be used with a particular :class:`Convention` any more.
+        The ``dataset.ems`` accessor will raise an error if accessed on the new dataset.
+        """
+        selector = self.selector_for_indexes(indexes, index_dimension=index_dimension)
 
         # Make a new dataset consisting of only data arrays that use at least
         # one of these dimensions.
-        dims = set(selector.keys())
+        if drop_geometry:
+            dataset = self.drop_geometry()
+        else:
+            dataset = self.dataset
+
+        dims = set(selector.variables.keys())
         names = [
-            name for name, data_array in self.dataset.items()
+            name for name, data_array in dataset.items()
             if dims.intersection(data_array.dims)
         ]
-        dataset = utils.extract_vars(self.dataset, names)
+        dataset = utils.extract_vars(dataset, names)
 
         # Select just this point
         return dataset.isel(selector)
@@ -1559,11 +1682,53 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         -------
         xarray.Dataset
             A dataset of values at the point
+
+        See also
+        --------
+        :meth:`.select_index`
+        :meth:`.select_points`
         """
         index = self.get_index_for_point(point)
         if index is None:
             raise ValueError("Point did not intersect dataset")
         return self.select_index(index.index)
+
+    def select_points(
+        self,
+        points: list[Point],
+        *,
+        point_dimension: Hashable | None = None,
+        missing_points: Literal['error', 'drop'] = 'error',
+    ) -> xarray.Dataset:
+        """
+        Extract values from all variables on the default grid at a sequence of points.
+
+        Parameters
+        ----------
+        points : list of shapely.Point
+            The points to extract
+        point_dimension : str, optional
+            The name of the new dimension used to index points.
+            Defaults to 'point', or 'point_0', 'point_1', etc if those dimensions already exist.
+        missing_points : {'error', 'drop'}, default 'error'
+            What to do if a point does not intersect the dataset.
+            'raise' will raise an error, while 'drop' will drop those points.
+
+        Returns
+        -------
+        xarray.Dataset
+            A dataset with values extracted from the points.
+            No variables not defined on the default grid and no geometry variables will be present.
+
+        See also
+        --------
+        :meth:`.select_indexes`
+        :meth:`.select_point`
+        """
+        if point_dimension is None:
+            point_dimension = utils.find_unused_dimension(self.dataset, 'point')
+        return point_extraction.extract_points(
+            self.dataset, points, point_dimension=point_dimension, missing_points=missing_points)
 
     @abc.abstractmethod
     def get_all_geometry_names(self) -> list[Hashable]:
@@ -1841,7 +2006,7 @@ class DimensionConvention(Convention[GridKind, Index]):
 
     @abc.abstractmethod
     def unpack_index(self, index: Index) -> tuple[GridKind, Sequence[int]]:
-        """Convert a native index in to a grid kind and dimension indices.
+        """Convert a native index in to a grid kind and dimension indexes.
 
         Parameters
         ----------
@@ -1852,8 +2017,8 @@ class DimensionConvention(Convention[GridKind, Index]):
         -------
         grid_kind : GridKind
             The grid kind
-        indices : sequence of int
-            The dimension indices
+        indexes : sequence of int
+            The dimension indexes
 
         See Also
         --------
@@ -1863,15 +2028,15 @@ class DimensionConvention(Convention[GridKind, Index]):
         pass
 
     @abc.abstractmethod
-    def pack_index(self, grid_kind: GridKind, indices: Sequence[int]) -> Index:
-        """Convert a grid kind and dimension indices in to a native index.
+    def pack_index(self, grid_kind: GridKind, indexes: Sequence[int]) -> Index:
+        """Convert a grid kind and dimension indexes in to a native index.
 
         Parameters
         ----------
         grid_kind : GridKind
             The grid kind
-        indices : sequence of int
-            The dimension indices
+        indexes : sequence of int
+            The dimension indexes
 
         Returns
         -------
@@ -1885,9 +2050,9 @@ class DimensionConvention(Convention[GridKind, Index]):
         pass
 
     def ravel_index(self, index: Index) -> int:
-        grid_kind, indices = self.unpack_index(index)
+        grid_kind, indexes = self.unpack_index(index)
         shape = self.grid_shape[grid_kind]
-        return int(numpy.ravel_multi_index(indices, shape))
+        return int(numpy.ravel_multi_index(indexes, shape))
 
     def wind_index(
         self,
@@ -1898,8 +2063,8 @@ class DimensionConvention(Convention[GridKind, Index]):
         if grid_kind is None:
             grid_kind = self.default_grid_kind
         shape = self.grid_shape[grid_kind]
-        indices = tuple(map(int, numpy.unravel_index(linear_index, shape)))
-        return self.pack_index(grid_kind, indices)
+        indexes = tuple(map(int, numpy.unravel_index(linear_index, shape)))
+        return self.pack_index(grid_kind, indexes)
 
     def ravel(
         self,
@@ -1936,7 +2101,30 @@ class DimensionConvention(Convention[GridKind, Index]):
             dimensions=dimensions, sizes=sizes,
             linear_dimension=linear_dimension)
 
-    def selector_for_index(self, index: Index) -> dict[Hashable, int]:
-        grid_kind, indices = self.unpack_index(index)
+    def selector_for_indexes(
+        self,
+        indexes: list[Index],
+        *,
+        index_dimension: Hashable | None = None,
+    ) -> xarray.Dataset:
+        if index_dimension is None:
+            index_dimension = utils.find_unused_dimension(self.dataset, 'index')
+        if len(indexes) == 0:
+            raise ValueError("Need at least one index to select")
+
+        grid_kinds, index_tuples = zip(*[self.unpack_index(index) for index in indexes])
+
+        unique_grid_kinds = set(grid_kinds)
+        if len(unique_grid_kinds) > 1:
+            raise ValueError(
+                "All indexes must be on the same grid kind, got "
+                + ", ".join(map(repr, unique_grid_kinds)))
+
+        grid_kind = grid_kinds[0]
         dimensions = self.grid_dimensions[grid_kind]
-        return dict(zip(dimensions, indices))
+        # This array will have shape (len(indexes), len(dimensions))
+        index_array = numpy.array(index_tuples)
+        return xarray.Dataset({
+            dimension: (index_dimension, index_array[:, i])
+            for i, dimension in enumerate(dimensions)
+        })

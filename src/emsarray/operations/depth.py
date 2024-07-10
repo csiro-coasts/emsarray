@@ -144,8 +144,8 @@ def ocean_floor(
             data_array = dataset.data_vars[variable_names[0]].isel(
                 {name: 0 for name in non_spatial_dimensions},
                 drop=True, missing_dims='ignore')
-            # Then find the ocean floor indices.
-            ocean_floor_indices = _find_ocean_floor_indices(
+            # Then find the ocean floor indexes.
+            ocean_floor_indexes = _find_ocean_floor_indexes(
                 data_array, depth_dimension)
 
             # Extract just the variables with these spatial coordinates
@@ -159,9 +159,9 @@ def ocean_floor(
                 if coordinate.dims == (depth_dimension,)
             ])
 
-            # Find the ocean floor using the ocean_floor_indices
+            # Find the ocean floor using the ocean_floor_indexes
             dataset_subset = dataset_subset.isel(
-                {depth_dimension: ocean_floor_indices},
+                {depth_dimension: ocean_floor_indexes},
                 drop=True, missing_dims='ignore')
 
             # Merge these floored variables back in to the dataset
@@ -176,7 +176,7 @@ def ocean_floor(
     return dataset
 
 
-def _find_ocean_floor_indices(
+def _find_ocean_floor_indexes(
     data_array: xarray.DataArray,
     depth_dimension: Hashable,
 ) -> xarray.DataArray:
@@ -191,9 +191,9 @@ def _find_ocean_floor_indices(
     #
     # Columns of all nans will have an argmax index of 0.
     # Item 0 in the column will be nan, resulting in nan in the output as desired.
-    depth_indices = (data_array * 0 + 1).cumsum(str(depth_dimension))
-    max_depth_indices = depth_indices.argmax(str(depth_dimension))
-    return cast(xarray.DataArray, max_depth_indices)
+    depth_indexes = (data_array * 0 + 1).cumsum(str(depth_dimension))
+    max_depth_indexes = depth_indexes.argmax(str(depth_dimension))
+    return cast(xarray.DataArray, max_depth_indexes)
 
 
 def normalize_depth_variables(
@@ -225,8 +225,8 @@ def normalize_depth_variables(
         If False, negative values indicate depth below the surface.
         If None, this attribute of the depth coordinate is left unmodified.
     deep_to_shallow : bool, optional
-        If True, the layers are ordered such that deeper layers have lower indices.
-        If False, the layers are ordered such that deeper layers have higher indices.
+        If True, the layers are ordered such that deeper layers have lower indexes.
+        If False, the layers are ordered such that deeper layers have higher indexes.
         If None, this attribute of the depth coordinate is left unmodified.
 
     Returns

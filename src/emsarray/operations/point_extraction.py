@@ -23,7 +23,8 @@ import shapely
 import xarray
 import xarray.core.dtypes as xrdtypes
 
-from emsarray.conventions import Convention
+import emsarray.conventions
+from emsarray import utils
 
 
 @dataclasses.dataclass
@@ -32,14 +33,22 @@ class NonIntersectingPoints(ValueError):
     Raised when a point to extract does not intersect the dataset geometry.
     """
 
-    #: The indices of the points that do not intersect
-    indices: numpy.ndarray
+    #: The indexes of the points that do not intersect
+    indexes: numpy.ndarray
 
     #: The non-intersecting points
     points: list[shapely.Point]
 
     def __post_init__(self) -> None:
         super().__init__(f"{self.points[0].wkt} does not intersect the dataset geometry")
+
+    @property
+    @utils.deprecated(
+        "NonIntersectingPoints.indices has been renamed to NonIntersectingPoints.indexes",
+        DeprecationWarning,
+    )
+    def indices(self) -> numpy.ndarray:
+        return self.indexes
 
 
 def _dataframe_to_dataset(
@@ -58,7 +67,7 @@ def extract_points(
     dataset: xarray.Dataset,
     points: list[shapely.Point],
     *,
-    point_dimension: Hashable = 'point',
+    point_dimension: Hashable | None = None,
     missing_points: Literal['error', 'drop'] = 'error',
 ) -> xarray.Dataset:
     """
@@ -90,14 +99,17 @@ def extract_points(
         A subset of the input dataset that only contains data at the given points.
         The dataset will only contain the values, without any geometry coordinates.
         The `point_dimension` dimension will have a coordinate with the same name
-        whose values match the indices of the `points` array.
+        whose values match the indexes of the `points` array.
         This is useful when `errors` is 'drop' to find out which points were dropped.
 
     See Also
     --------
     :func:`extract_dataframe`
     """
-    convention: Convention = dataset.ems
+    convention: emsarray.conventions.Convention = dataset.ems
+
+    if point_dimension is None:
+        point_dimension = utils.find_unused_dimension(dataset, 'point')
 
     # Find the indexer for each given point
     indexes = numpy.array([convention.get_index_for_point(point) for point in points])
@@ -106,23 +118,20 @@ def extract_points(
         out_of_bounds = numpy.flatnonzero(numpy.equal(indexes, None))  # type: ignore
         if len(out_of_bounds):
             raise NonIntersectingPoints(
-                indices=out_of_bounds,
+                indexes=out_of_bounds,
                 points=[points[i] for i in out_of_bounds])
 
-    # Make a DataFrame out of all point indexers
-    selector_df = pandas.DataFrame([
-        convention.selector_for_index(index.index)
-        for index in indexes
-        if index is not None])
-    point_indexes = [i for i, index in enumerate(indexes) if index is not None]
+    point_ds = convention.select_indexes(
+        [index.index for index in indexes if index is not None],
+        index_dimension=point_dimension,
+        drop_geometry=True)
 
-    # Subset the dataset to the points
-    point_ds = convention.drop_geometry()
-    selector_ds = _dataframe_to_dataset(selector_df, dimension_name=point_dimension)
-    point_ds = point_ds.isel(selector_ds)
+    # Number the points
+    point_indexes = [i for i, index in enumerate(indexes) if index is not None]
     point_ds = point_ds.assign_coords({
         point_dimension: ([point_dimension], point_indexes),
     })
+
     return point_ds
 
 

@@ -259,8 +259,8 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
     def unpack_index(self, index: CFGridIndex) -> tuple[CFGridKind, Sequence[int]]:
         return CFGridKind.face, index
 
-    def pack_index(self, grid_kind: CFGridKind, indices: Sequence[int]) -> CFGridIndex:
-        return cast(CFGridIndex, indices)
+    def pack_index(self, grid_kind: CFGridKind, indexes: Sequence[int]) -> CFGridIndex:
+        return cast(CFGridIndex, indexes)
 
     def get_all_geometry_names(self) -> list[Hashable]:
         # Grid datasets contain latitude and longitude variables
@@ -292,9 +292,9 @@ class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
     ) -> xarray.Dataset:
         topology = self.topology
 
-        intersecting_indices = self.strtree.query(clip_geometry, predicate='intersects')
+        intersecting_indexes = self.strtree.query(clip_geometry, predicate='intersects')
         mask = numpy.full(topology.shape, fill_value=False)
-        mask.ravel()[intersecting_indices] = True
+        mask.ravel()[intersecting_indexes] = True
 
         if buffer > 0:
             mask = masking.blur_mask(mask, size=buffer)

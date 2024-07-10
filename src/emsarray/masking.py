@@ -307,7 +307,7 @@ def smear_mask(arr: numpy.ndarray, pad_axes: list[bool]) -> numpy.ndarray:
 
 def blur_mask(arr: numpy.ndarray, size: int = 1) -> numpy.ndarray:
     """
-    Take a boolean numpy array and blur it, such that all indices neighbouring
+    Take a boolean numpy array and blur it, such that all indexes neighbouring
     a True value in the input array are True in the output array. The output
     array will have the same shape as the input array.
 
@@ -352,10 +352,10 @@ def blur_mask(arr: numpy.ndarray, size: int = 1) -> numpy.ndarray:
     # the blurred mask is true if the original mask was true,
     # or any cells in a `size` sized slice around the original cell.
     arr_iter = numpy.nditer(arr, ['multi_index'])
-    indices = (arr_iter.multi_index for _ in arr_iter)
+    indexes = (arr_iter.multi_index for _ in arr_iter)
     values = (
         arr[index] or numpy.any(padded[tuple(slice(i, i + size * 2 + 1) for i in index)])
-        for index in indices
+        for index in indexes
     )
 
     arr = numpy.fromiter(values, count=arr.size, dtype=arr.dtype).reshape(arr.shape)

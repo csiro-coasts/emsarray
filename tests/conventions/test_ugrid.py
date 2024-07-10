@@ -14,7 +14,7 @@ from shapely.geometry import Polygon, box
 from emsarray.conventions import get_dataset_convention
 from emsarray.conventions.ugrid import (
     Mesh2DTopology, NoEdgeDimensionException, UGrid, UGridKind,
-    _get_start_index, buffer_faces, mask_from_face_indices
+    _get_start_index, buffer_faces, mask_from_face_indexes
 )
 from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
@@ -590,7 +590,7 @@ def test_plot_on_figure():
 
 
 @pytest.mark.parametrize(
-    ["face_indices", "expected"],
+    ["face_indexes", "expected"],
     # It really helps to draw a picture and number the faces to understand
     # what is going on here.
     # There are 25 triangles in a stack, and 50 squares in a grid.
@@ -619,43 +619,43 @@ def test_plot_on_figure():
         (numpy.arange(75), numpy.arange(75))
     ],
 )
-def test_buffer_faces(face_indices, expected):
+def test_buffer_faces(face_indexes, expected):
     dataset = make_dataset(width=5)
     topology = Mesh2DTopology(dataset)
-    assert_equal(buffer_faces(numpy.array(face_indices, dtype=int), topology), expected)
+    assert_equal(buffer_faces(numpy.array(face_indexes, dtype=int), topology), expected)
 
 
-def test_mask_from_face_indices_without_edges():
+def test_mask_from_face_indexes_without_edges():
     dataset = make_dataset(width=5, make_edges=False)
     topology = Mesh2DTopology(dataset)
 
-    face_indices = [20, 21, 22, 23, 24, 27, 28, 29]
-    node_indices = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
+    face_indexes = [20, 21, 22, 23, 24, 27, 28, 29]
+    node_indexes = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
 
-    mask = mask_from_face_indices(numpy.array(face_indices), topology)
+    mask = mask_from_face_indexes(numpy.array(face_indexes), topology)
     assert mask.sizes == {
         'old_node_index': topology.node_count,
         'old_face_index': topology.face_count,
     }
 
     expected_face = numpy.full(topology.face_count, fill_value=numpy.nan)
-    expected_face[face_indices] = numpy.arange(len(face_indices))
+    expected_face[face_indexes] = numpy.arange(len(face_indexes))
     assert_equal(expected_face, mask.data_vars['new_face_index'].values)
 
     expected_node = numpy.full(topology.node_count, fill_value=numpy.nan)
-    expected_node[node_indices] = numpy.arange(len(node_indices))
+    expected_node[node_indexes] = numpy.arange(len(node_indexes))
     assert_equal(expected_node, mask.data_vars['new_node_index'].values)
 
 
-def test_mask_from_face_indices_with_edges():
+def test_mask_from_face_indexes_with_edges():
     dataset = make_dataset(width=5, make_edges=True)
     topology = Mesh2DTopology(dataset)
 
-    face_indices = [20, 21, 22, 23, 24, 27, 28, 29]
-    edge_indices = [25, 28, 36, 37, 38, 39, 40, 41, 42, 43, 44, 49, 50, 51, 52, 53, 54, 55]
-    node_indices = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
+    face_indexes = [20, 21, 22, 23, 24, 27, 28, 29]
+    edge_indexes = [25, 28, 36, 37, 38, 39, 40, 41, 42, 43, 44, 49, 50, 51, 52, 53, 54, 55]
+    node_indexes = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
 
-    mask = mask_from_face_indices(numpy.array(face_indices), topology)
+    mask = mask_from_face_indexes(numpy.array(face_indexes), topology)
     assert mask.sizes == {
         'old_node_index': topology.node_count,
         'old_edge_index': topology.edge_count,
@@ -663,15 +663,15 @@ def test_mask_from_face_indices_with_edges():
     }
 
     expected_face = numpy.full(topology.face_count, fill_value=numpy.nan)
-    expected_face[face_indices] = numpy.arange(len(face_indices))
+    expected_face[face_indexes] = numpy.arange(len(face_indexes))
     assert_equal(expected_face, mask.data_vars['new_face_index'].values)
 
     expected_edge = numpy.full(topology.edge_count, fill_value=numpy.nan)
-    expected_edge[edge_indices] = numpy.arange(len(edge_indices))
+    expected_edge[edge_indexes] = numpy.arange(len(edge_indexes))
     assert_equal(expected_edge, mask.data_vars['new_edge_index'].values)
 
     expected_node = numpy.full(topology.node_count, fill_value=numpy.nan)
-    expected_node[node_indices] = numpy.arange(len(node_indices))
+    expected_node[node_indexes] = numpy.arange(len(node_indexes))
     assert_equal(expected_node, mask.data_vars['new_node_index'].values)
 
 
@@ -680,12 +680,12 @@ def test_apply_clip_mask(tmp_path):
     topology = Mesh2DTopology(dataset)
 
     # Sketch this out and number the faces, edges, and nodes, if you want to verify
-    face_indices = [20, 21, 22, 23, 24, 27, 28, 29]
-    edge_indices = [25, 28, 36, 37, 38, 39, 40, 41, 42, 43, 44, 49, 50, 51, 52, 53, 54, 55]
-    node_indices = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
+    face_indexes = [20, 21, 22, 23, 24, 27, 28, 29]
+    edge_indexes = [25, 28, 36, 37, 38, 39, 40, 41, 42, 43, 44, 49, 50, 51, 52, 53, 54, 55]
+    node_indexes = [12, 13, 14, 17, 18, 19, 20, 23, 24, 25, 26]
 
     # Clip it!
-    mask = mask_from_face_indices(numpy.array(face_indices), topology)
+    mask = mask_from_face_indexes(numpy.array(face_indexes), topology)
     clipped = dataset.ems.apply_clip_mask(mask, tmp_path)
 
     assert isinstance(clipped.ems, UGrid)
@@ -695,19 +695,19 @@ def test_apply_clip_mask(tmp_path):
     assert set(dataset.dims) == set(clipped.dims)
 
     # Check that the new topology seems reasonable
-    assert clipped.ems.topology.face_count == len(face_indices)
-    assert clipped.ems.topology.edge_count == len(edge_indices)
-    assert clipped.ems.topology.node_count == len(node_indices)
+    assert clipped.ems.topology.face_count == len(face_indexes)
+    assert clipped.ems.topology.edge_count == len(edge_indexes)
+    assert clipped.ems.topology.node_count == len(node_indexes)
 
     # Check that the data were preserved, beyond being clipped
-    assert_equal(clipped.data_vars['Mesh2_depth'].values, dataset.data_vars['Mesh2_depth'].values[face_indices])
-    assert_equal(clipped.data_vars['eta'].values, dataset.data_vars['eta'].values[:, face_indices])
-    assert_equal(clipped.data_vars['temp'].values, dataset.data_vars['temp'].values[:, :, face_indices])
-    assert_equal(clipped.data_vars['u1'].values, dataset.data_vars['u1'].values[:, :, edge_indices])
+    assert_equal(clipped.data_vars['Mesh2_depth'].values, dataset.data_vars['Mesh2_depth'].values[face_indexes])
+    assert_equal(clipped.data_vars['eta'].values, dataset.data_vars['eta'].values[:, face_indexes])
+    assert_equal(clipped.data_vars['temp'].values, dataset.data_vars['temp'].values[:, :, face_indexes])
+    assert_equal(clipped.data_vars['u1'].values, dataset.data_vars['u1'].values[:, :, edge_indexes])
 
     # Check that the new geometry matches the relevant polygons in the old geometry
-    assert len(clipped.ems.polygons) == len(face_indices)
-    original_polys = [dataset.ems.polygons[index] for index in face_indices]
+    assert len(clipped.ems.polygons) == len(face_indexes)
+    original_polys = [dataset.ems.polygons[index] for index in face_indexes]
     for original_poly, clipped_poly in zip(original_polys, clipped.ems.polygons):
         assert original_poly.equals_exact(clipped_poly, 1e-6)
 
@@ -750,12 +750,12 @@ def test_make_and_apply_clip_mask(tmp_path):
     # Intersecting the clip polygon and the dataset geometry should have
     # selected some faces. Open the geojson files that are generated in qgis
     # and inspect the index attributes. This list is built from that.
-    face_indices = [6, 7, 8, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 27, 28, 29, 32, 33, 34]
+    face_indexes = [6, 7, 8, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 27, 28, 29, 32, 33, 34]
     fill_value = topology.sensible_fill_value
-    new_face_indices = numpy.ma.masked_array(
+    new_face_indexes = numpy.ma.masked_array(
         numpy.full(topology.face_count, fill_value, dtype=numpy.float64), mask=True)
-    new_face_indices[face_indices] = numpy.arange(len(face_indices))
-    assert_equal(clip_mask.data_vars['new_face_index'].values, new_face_indices)
+    new_face_indexes[face_indexes] = numpy.arange(len(face_indexes))
+    assert_equal(clip_mask.data_vars['new_face_index'].values, new_face_indexes)
 
     # Apply the clip mask
     work_dir = tmp_path / 'work_dir'
@@ -813,20 +813,20 @@ def test_derive_connectivity():
         (6, 9): (6, fv), (9, 10): (6, fv), (7, 10): (6, 7), (10, 11): (7, fv), (8, 11): (7, fv),
     }
     actual_edge_face = {
-        tuple(sorted(edge_node[edge_index])): tuple(sorted(face_indices))
-        for edge_index, face_indices in enumerate(edge_face)
+        tuple(sorted(edge_node[edge_index])): tuple(sorted(face_indexes))
+        for edge_index, face_indexes in enumerate(edge_face)
     }
     assert expected_edge_face == actual_edge_face
 
     # face_edge is a little tedious. It helps if we build up a mapping of
     # node_pair: edge_index
     face_edge = topology.face_edge_array
-    edge_indices = {
-        tuple(sorted(node_indices)): edge_index
-        for edge_index, node_indices in enumerate(edge_node.tolist())
+    edge_indexes = {
+        tuple(sorted(node_indexes)): edge_index
+        for edge_index, node_indexes in enumerate(edge_node.tolist())
     }
     expected_face_edge = [
-        sorted(edge_indices[pair] for pair in row)
+        sorted(edge_indexes[pair] for pair in row)
         for row in [
             [(0, 1), (1, 2), (0, 2)],
             [(1, 3), (3, 4), (1, 4)],
@@ -855,8 +855,8 @@ def test_derive_connectivity():
         [5, 6],
     ]
     actual_face_face = [
-        sorted(face_indices.compressed())
-        for face_indices in face_face
+        sorted(face_indexes.compressed())
+        for face_indexes in face_face
     ]
     assert expected_face_face == actual_face_face
 

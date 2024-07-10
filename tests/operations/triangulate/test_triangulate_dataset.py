@@ -17,7 +17,7 @@ def test_triangulate_dataset_cfgrid1d(datasets):
     dataset = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
     topology = dataset.ems.topology
     dataset.ems.polygons
-    vertices, triangles, cell_indices = triangulate_dataset(dataset)
+    vertices, triangles, cell_indexes = triangulate_dataset(dataset)
 
     # A vertex at the intersection of every cell
     assert len(vertices) == (topology.latitude.size + 1) * (topology.longitude.size + 1)
@@ -25,15 +25,15 @@ def test_triangulate_dataset_cfgrid1d(datasets):
     # Two triangles per cell.
     assert len(triangles) == 2 * topology.latitude.size * topology.longitude.size
 
-    assert min(cell_indices) == 0
-    assert max(cell_indices) == topology.latitude.size * topology.longitude.size - 1
+    assert min(cell_indexes) == 0
+    assert max(cell_indexes) == topology.latitude.size * topology.longitude.size - 1
 
-    check_triangulation(dataset, vertices, triangles, cell_indices)
+    check_triangulation(dataset, vertices, triangles, cell_indexes)
 
 
 def test_triangulate_dataset_cfgrid2d(datasets):
     dataset = emsarray.open_dataset(datasets / "cfgrid2d.nc")
-    vertices, triangles, cell_indices = triangulate_dataset(dataset)
+    vertices, triangles, cell_indexes = triangulate_dataset(dataset)
     topology = dataset.ems.topology
 
     # There is a hole in one corner, taking out 6 vertices from the expected count
@@ -46,12 +46,12 @@ def test_triangulate_dataset_cfgrid2d(datasets):
     only_polygons = dataset.ems.polygons[dataset.ems.mask]
     assert len(triangles) == 2 * len(only_polygons)
 
-    check_triangulation(dataset, vertices, triangles, cell_indices)
+    check_triangulation(dataset, vertices, triangles, cell_indexes)
 
 
 def test_triangulate_dataset_shoc_standard(datasets):
     dataset = emsarray.open_dataset(datasets / 'shoc_standard.nc')
-    vertices, triangles, cell_indices = triangulate_dataset(dataset)
+    vertices, triangles, cell_indexes = triangulate_dataset(dataset)
 
     # There is no good way of calculating the number of vertices, as the
     # geometry is quite complicated in shoc datasets with wet cells
@@ -60,13 +60,13 @@ def test_triangulate_dataset_shoc_standard(datasets):
     only_polygons = dataset.ems.polygons[dataset.ems.mask]
     assert len(triangles) == 2 * len(only_polygons)
 
-    check_triangulation(dataset, vertices, triangles, cell_indices)
+    check_triangulation(dataset, vertices, triangles, cell_indexes)
 
 
 def test_triangulate_dataset_ugrid(datasets):
     dataset = emsarray.open_dataset(datasets / "ugrid_mesh2d.nc")
     topology = dataset.ems.topology
-    vertices, triangles, cell_indices = triangulate_dataset(dataset)
+    vertices, triangles, cell_indexes = triangulate_dataset(dataset)
 
     # The vertices should be identical to the ugrid nodes
     assert len(vertices) == topology.node_count
@@ -80,28 +80,28 @@ def test_triangulate_dataset_ugrid(datasets):
     )
     assert len(triangles) == expected_triangle_count
 
-    check_triangulation(dataset, vertices, triangles, cell_indices)
+    check_triangulation(dataset, vertices, triangles, cell_indexes)
 
 
 def check_triangulation(
     dataset: xarray.Dataset,
     vertices: list[tuple[float, float]],
     triangles: list[tuple[int, int, int]],
-    cell_indices: list[int],
+    cell_indexes: list[int],
 ):
     """
     Check the triangulation of a dataset by reconstructing all polygons.
     These checks are independent of the specific convention.
     """
-    # Check that the cell indices are within bounds.
-    assert len(cell_indices) == len(triangles)
-    assert min(cell_indices) >= 0
-    assert max(cell_indices) <= len(dataset.ems.polygons)
+    # Check that the cell indexes are within bounds.
+    assert len(cell_indexes) == len(triangles)
+    assert min(cell_indexes) >= 0
+    assert max(cell_indexes) <= len(dataset.ems.polygons)
 
     # For each cell in the dataset, reconstruct its polygon from the triangles
     # and check that it matches
     cell_triangles = defaultdict(list)
-    for triangle, cell_index in zip(triangles, cell_indices):
+    for triangle, cell_index in zip(triangles, cell_indexes):
         cell_triangles[cell_index].append(triangle)
 
     for index, polygon in enumerate(dataset.ems.polygons):

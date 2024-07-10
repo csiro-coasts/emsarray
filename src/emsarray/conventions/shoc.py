@@ -58,7 +58,7 @@ class ShocStandard(ArakawaC):
 
     @cached_property
     def depth_coordinates(self) -> tuple[xarray.DataArray, ...]:
-        names = ['z_centre', 'z_grid']
+        names = ['z_centre', 'z_grid', 'z_centre_sed', 'z_grid_sed']
         return tuple(
             self.dataset[name] for name in names
             if name in self.dataset.variables)
@@ -125,7 +125,7 @@ class ShocSimple(CFGrid2D):
 
     @cached_property
     def depth_coordinates(self) -> tuple[xarray.DataArray, ...]:
-        names = ['zc']
+        names = ['zc', 'zcsed']
         return tuple(
             self.dataset[name] for name in names
             if name in self.dataset.variables)

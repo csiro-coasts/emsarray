@@ -433,7 +433,41 @@ def test_move_dimensions_to_end_missing():
     assert str(exc.value) == message
 
 
-def test_linearize_dimensions_exact_dimensions():
+def test_find_unused_dimension():
+    data_array = xarray.DataArray(
+        data=numpy.random.random((3, 5)),
+        dims=['y', 'x'],
+    )
+    assert utils.find_unused_dimension(data_array) == 'index'
+
+
+def test_find_unused_dimension_prefix():
+    data_array = xarray.DataArray(
+        data=numpy.random.random((3, 5)),
+        dims=['y', 'x'],
+    )
+    assert utils.find_unused_dimension(data_array, 'foo') == 'foo'
+
+
+@pytest.mark.parametrize(
+    ['dims', 'prefix', 'expected'],
+    [
+        (['index'], 'index', 'index_0'),
+        (['index', 'index_0'], 'index', 'index_1'),
+        (['index', 'index_0', 'index_1'], 'index', 'index_2'),
+        (['index', 'index_1'], 'index', 'index_0'),
+        (['index'], 'dim', 'dim'),
+    ],
+)
+def test_find_unused_dimension_conflict(dims: list[str], prefix: str, expected: str):
+    data_array = xarray.DataArray(
+        data=numpy.random.random([2] * len(dims)),
+        dims=dims,
+    )
+    assert utils.find_unused_dimension(data_array, prefix) == expected
+
+
+def test_ravel_dimensions_exact_dimensions():
     data_array = xarray.DataArray(
         data=numpy.random.random((3, 5)),
         dims=['y', 'x'],
@@ -442,11 +476,11 @@ def test_linearize_dimensions_exact_dimensions():
         data=data_array.values.ravel(),
         dims=['index'],
     )
-    linearized = utils.ravel_dimensions(data_array, ['y', 'x'])
-    xarray.testing.assert_equal(linearized, expected)
+    ravelled = utils.ravel_dimensions(data_array, ['y', 'x'])
+    xarray.testing.assert_equal(ravelled, expected)
 
 
-def test_linearize_dimensions_extra_dimensions():
+def test_ravel_dimensions_extra_dimensions():
     data_array = xarray.DataArray(
         data=numpy.random.random((2, 7, 5, 3)),
         dims=['t', 'x', 'y', 'z'],
@@ -465,11 +499,11 @@ def test_linearize_dimensions_extra_dimensions():
             'z': data_array.coords['z'],
         },
     )
-    linearized = utils.ravel_dimensions(data_array, ['y', 'x'])
-    xarray.testing.assert_equal(linearized, expected)
+    ravelled = utils.ravel_dimensions(data_array, ['y', 'x'])
+    xarray.testing.assert_equal(ravelled, expected)
 
 
-def test_linearize_dimensions_custom_name():
+def test_ravel_dimensions_custom_name():
     data_array = xarray.DataArray(
         data=numpy.random.random((2, 7, 5, 3)),
         dims=['t', 'x', 'y', 'z'],
@@ -478,21 +512,24 @@ def test_linearize_dimensions_custom_name():
         data=numpy.reshape(numpy.transpose(data_array.values, (0, 3, 2, 1)), (2, 3, -1)),
         dims=['t', 'z', 'i'],
     )
-    linearized = utils.ravel_dimensions(data_array, ['y', 'x'], linear_dimension='i')
-    xarray.testing.assert_equal(linearized, expected)
+    ravelled = utils.ravel_dimensions(data_array, ['y', 'x'], linear_dimension='i')
+    xarray.testing.assert_equal(ravelled, expected)
 
 
-def test_linearize_dimensions_auto_name_conflict():
+def test_ravel_dimensions_auto_name_conflict():
     data_array = xarray.DataArray(
         data=numpy.random.random((2, 7, 5, 3)),
         dims=['index', 'index_0', 'index_1', 'index_2'],
     )
+    # The new dimension will be index_3, as it is the first unused dimension found.
+    # The returned array will not have index_1 or index_2 after they have been ravelled.
+    # This does leave a gap in the numbering.
     expected = xarray.DataArray(
         data=numpy.reshape(numpy.transpose(data_array.values, (0, 1, 3, 2)), (2, 7, -1)),
-        dims=['index', 'index_0', 'index_1'],
+        dims=['index', 'index_0', 'index_3'],
     )
-    linearized = utils.ravel_dimensions(data_array, ['index_2', 'index_1'])
-    xarray.testing.assert_equal(linearized, expected)
+    ravelled = utils.ravel_dimensions(data_array, ['index_2', 'index_1'])
+    xarray.testing.assert_equal(ravelled, expected)
 
 
 def test_wind_dimension():

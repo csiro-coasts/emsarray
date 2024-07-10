@@ -24,7 +24,7 @@ def test_extract_points(
     assert 'point' in point_dataset.dims
     assert point_dataset.sizes['point'] == num_points
 
-    assert point_dataset.variables.keys() == {'values', 'point'}
+    assert set(point_dataset.variables.keys()) == {'values', 'point'}
 
     values = point_dataset.data_vars['values']
     assert values.dims == ('point',)
@@ -57,7 +57,7 @@ def test_extract_points_missing_point_error(
     with pytest.raises(point_extraction.NonIntersectingPoints) as exc_info:
         point_extraction.extract_points(in_dataset, points)
     exc: point_extraction.NonIntersectingPoints = exc_info.value
-    assert_equal(exc.indices, [4, 5, 6, 7])
+    assert_equal(exc.indexes, [4, 5, 6, 7])
 
 
 def test_extract_points_missing_point_drop(

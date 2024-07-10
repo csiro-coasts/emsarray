@@ -49,17 +49,17 @@ class SpatialIndex(Generic[T]):
         geom: BaseGeometry,
     ) -> numpy.ndarray:
         if shapely_version >= v2:
-            indices = self.index.query(geom)
+            indexes = self.index.query(geom)
         else:
-            indices = self.index._query(geom)
-        return cast(numpy.ndarray, self.items.take(indices))
+            indexes = self.index._query(geom)
+        return cast(numpy.ndarray, self.items.take(indexes))
 
     def nearest(
         self,
         geom: BaseGeometry,
     ) -> numpy.ndarray:
         if shapely_version >= v2:
-            indices = self.index.nearest(geom)
+            indexes = self.index.nearest(geom)
         else:
-            indices = self.index._nearest(geom)
-        return cast(numpy.ndarray, self.items.take(indices))
+            indexes = self.index._nearest(geom)
+        return cast(numpy.ndarray, self.items.take(indexes))

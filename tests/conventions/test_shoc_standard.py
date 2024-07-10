@@ -11,8 +11,10 @@ from numpy.testing import assert_equal
 from shapely.geometry.polygon import Polygon, orient
 
 from emsarray.conventions import get_dataset_convention
-from emsarray.conventions.arakawa_c import c_mask_from_centres
-from emsarray.conventions.shoc import ArakawaCGridKind, ShocStandard
+from emsarray.conventions.arakawa_c import (
+    ArakawaCGridKind, ArakawaCIndex, c_mask_from_centres
+)
+from emsarray.conventions.shoc import ShocStandard
 from emsarray.operations import geometry
 from tests.utils import (
     DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator, mask_from_strings
@@ -346,13 +348,25 @@ def test_grid_kind_and_size():
 @pytest.mark.parametrize(
     ['index', 'selector'],
     (
-        [(ArakawaCGridKind.face, 3, 4), {'j_centre': 3, 'i_centre': 4}],
-        [(ArakawaCGridKind.left, 5, 6), {'j_left': 5, 'i_left': 6}],
-        [(ArakawaCGridKind.back, 7, 8), {'j_back': 7, 'i_back': 8}],
-        [(ArakawaCGridKind.node, 9, 10), {'j_node': 9, 'i_node': 10}],
+        [(ArakawaCGridKind.face, 3, 4), xarray.Dataset({
+            'j_centre': ((), 3),
+            'i_centre': ((), 4),
+        })],
+        [(ArakawaCGridKind.left, 5, 6), xarray.Dataset({
+            'j_left': ((), 5),
+            'i_left': ((), 6),
+        })],
+        [(ArakawaCGridKind.back, 7, 8), xarray.Dataset({
+            'j_back': ((), 7),
+            'i_back': ((), 8),
+        })],
+        [(ArakawaCGridKind.node, 9, 10), xarray.Dataset({
+            'j_node': ((), 9),
+            'i_node': ((), 10),
+        })],
     ),
 )
-def test_selector_for_index(index, selector):
+def test_selector_for_index(index: ArakawaCIndex, selector: dict):
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocStandard = dataset.ems
     assert selector == convention.selector_for_index(index)
@@ -360,16 +374,24 @@ def test_selector_for_index(index, selector):
 
 # These select_index tests are not specifically about SHOC,
 # they are more about how select_index behaves with multiple grid kinds.
-def test_select_index_face():
+def test_select_index_face() -> None:
     dataset = make_dataset(time_size=4, k_size=5, j_size=5, i_size=9)
     convention: ShocStandard = dataset.ems
     face = convention.select_index((ArakawaCGridKind.face, 3, 4))
 
-    assert set(face.data_vars.keys()) == {
-        # These are the data variables we expect to see
+    assert set(face.variables.keys()) == {
         'botz', 'eta', 'temp',
-        # These coordinates variables are also included in data_vars
-        # because of how xarray handles multidimensional coordinates
+    }
+    assert face.sizes == {'record': 4, 'k_centre': 5}
+
+
+def test_select_index_face_keep_geometry() -> None:
+    dataset = make_dataset(time_size=4, k_size=5, j_size=5, i_size=9)
+    convention: ShocStandard = dataset.ems
+    face = convention.select_index((ArakawaCGridKind.face, 3, 4), drop_geometry=False)
+
+    assert set(face.variables.keys()) == {
+        'botz', 'eta', 'temp',
         'x_centre', 'y_centre',
     }
     assert face.sizes == {'record': 4, 'k_centre': 5}
@@ -377,7 +399,7 @@ def test_select_index_face():
     assert face['y_centre'].values == dataset['y_centre'].values[3, 4]
 
 
-def test_select_index_edge():
+def test_select_index_edge() -> None:
     dataset = make_dataset(time_size=4, k_size=5, j_size=5, i_size=9)
     convention: ShocStandard = dataset.ems
 
@@ -386,9 +408,6 @@ def test_select_index_edge():
         # This is the only data variable we expect to see,
         # as it is the only one defined on left edges.
         'u1',
-        # These coordinates variables are also included in data_vars
-        # because of how xarray handles multidimensional coordinates
-        'x_left', 'y_left'
     }
     assert left.sizes == {'record': 4, 'k_centre': 5}
 
@@ -397,25 +416,45 @@ def test_select_index_edge():
         # This is the only data variable we expect to see,
         # as it is the only one defined on back edges.
         'u2',
-        # These coordinates variables are also included in data_vars
-        # because of how xarray handles multidimensional coordinates
-        'x_back', 'y_back'
     }
     assert back.sizes == {'record': 4, 'k_centre': 5}
 
 
-def test_select_index_grid():
+def test_select_index_edge_keep_geometry() -> None:
+    dataset = make_dataset(time_size=4, k_size=5, j_size=5, i_size=9)
+    convention: ShocStandard = dataset.ems
+
+    left = convention.select_index((ArakawaCGridKind.left, 3, 4), drop_geometry=False)
+    assert set(left.variables.keys()) == {
+        'u1', 'x_left', 'y_left'
+    }
+    assert left.sizes == {'record': 4, 'k_centre': 5}
+
+    back = convention.select_index((ArakawaCGridKind.back, 3, 4), drop_geometry=False)
+    assert set(back.variables.keys()) == {
+        'u2', 'x_back', 'y_back'
+    }
+    assert back.sizes == {'record': 4, 'k_centre': 5}
+
+
+def test_select_index_grid() -> None:
     dataset = make_dataset(time_size=4, k_size=5, j_size=5, i_size=9)
     convention: ShocStandard = dataset.ems
 
     node = convention.select_index((ArakawaCGridKind.node, 3, 4))
     assert set(node.data_vars.keys()) == {
-        # This is the only data variable we expect to see,
-        # as it is the only one defined on the node.
         'flag',
-        # These coordinates variables are also included in data_vars
-        # because of how xarray handles multidimensional coordinates
-        'x_grid', 'y_grid'
+    }
+    assert node.sizes == {'record': 4, 'k_centre': 5}
+
+
+def test_select_index_grid_keep_geometry() -> None:
+    dataset = make_dataset(time_size=4, k_size=5, j_size=5, i_size=9)
+    convention: ShocStandard = dataset.ems
+
+    node = convention.select_index((ArakawaCGridKind.node, 3, 4), drop_geometry=False)
+    assert set(node.data_vars.keys()) == {
+        'flag', 'x_grid', 'y_grid'
     }
     assert node.sizes == {'record': 4, 'k_centre': 5}
 

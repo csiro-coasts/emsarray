@@ -68,11 +68,23 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         y, x = map(int, numpy.unravel_index(index, self.shape))
         return SimpleGridIndex(y, x)
 
-    def ravel_index(self, indices: SimpleGridIndex) -> int:
-        return int(numpy.ravel_multi_index((indices.y, indices.x), self.shape))
+    def ravel_index(self, indexes: SimpleGridIndex) -> int:
+        return int(numpy.ravel_multi_index((indexes.y, indexes.x), self.shape))
 
-    def selector_for_index(self, index: SimpleGridIndex) -> dict[Hashable, int]:
-        return {'x': index.x, 'y': index.y}
+    def selector_for_indexes(
+        self,
+        indexes: list[SimpleGridIndex],
+        *,
+        index_dimension: Hashable | None = None,
+    ) -> xarray.Dataset:
+        if index_dimension is None:
+            index_dimension = utils.find_unused_dimension(self.dataset, 'index')
+        index_array = numpy.array([[index.x, index.y] for index in indexes])
+
+        return xarray.Dataset({
+            'x': (index_dimension, index_array[:, 0]),
+            'y': (index_dimension, index_array[:, 1]),
+        })
 
     def ravel(
         self,

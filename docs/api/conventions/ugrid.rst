@@ -36,5 +36,5 @@ Topology
 Masking
 =======
 
-.. autofunction:: mask_from_face_indices
+.. autofunction:: mask_from_face_indexes
 .. autofunction:: buffer_faces

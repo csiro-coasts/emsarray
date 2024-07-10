@@ -41,8 +41,8 @@ class Grass(DimensionConvention[GrassGridKind, GrassIndex]):
     def unpack_index(self, index: GrassIndex) -> tuple[GrassGridKind, Sequence[int]]:
         return index[0], list(index[1])
 
-    def pack_index(self, grid_kind: GrassGridKind, indices: Sequence[int]) -> GrassIndex:
-        return (grid_kind, list(indices))
+    def pack_index(self, grid_kind: GrassGridKind, indexes: Sequence[int]) -> GrassIndex:
+        return (grid_kind, list(indexes))
 
     @cached_property
     def grid_dimensions(self) -> dict[GrassGridKind, Sequence[Hashable]]:

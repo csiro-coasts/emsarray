@@ -73,7 +73,7 @@ class Command(BaseCommand):
                 point_dimension=options.point_dimension,
                 missing_points=options.missing_points)
         except point_extraction.NonIntersectingPoints as err:
-            rows = dataframe.iloc[err.indices]
+            rows = dataframe.iloc[err.indexes]
             raise CommandException(
                 f"Error extracting points: the points in the following rows "
                 f"did not intersect the dataset geometry:\n"

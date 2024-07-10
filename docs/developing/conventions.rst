@@ -69,9 +69,9 @@ and returns a value indicating whether this convention implementation can unders
    :pyobject: Grass.check_dataset
 
 :meth:`.DimensionConvention.unpack_index` and :meth:`.DimensionConvention.pack_index`
-transform between native index types and a grid kind and indices.
+transform between native index types and a grid kind and indexes.
 The native representation must be representable as JSON for GeoJSON export support.
-The simplest representation is a tuple of (grid_kind, indices):
+The simplest representation is a tuple of (grid_kind, indexes):
 
 .. literalinclude:: ./grass.py
    :pyobject: Grass.unpack_index

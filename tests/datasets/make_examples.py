@@ -191,9 +191,9 @@ def make_ugrid_mesh2d(out: pathlib.Path) -> None:
         for p in polygon.exterior.coords
     }))
     # A map between {point: index}
-    node_indices = {tuple(p): i for i, p in enumerate(nodes)}
+    node_indexes = {tuple(p): i for i, p in enumerate(nodes)}
     # Number of vertices
-    nnodes = len(node_indices)
+    nnodes = len(node_indexes)
     # Maximum vertex count for any face
     max_vertex_count = max(len(polygon.exterior.coords) for polygon in faces) - 1
     # A sensible fill value of all nines
@@ -221,7 +221,7 @@ def make_ugrid_mesh2d(out: pathlib.Path) -> None:
         fill_value=fill_value)
     for iface, polygon in enumerate(faces):
         coords = polygon.exterior.coords
-        face_node = [node_indices[p] for p in coords[:-1]]
+        face_node = [node_indexes[p] for p in coords[:-1]]
         face_node_connectivity[iface, :len(face_node)] = face_node
 
     values = dataset.createVariable("values", "i4", ["face"])
