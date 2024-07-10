@@ -1,18 +1,18 @@
 import argparse
-import configparser
 import datetime
 import pathlib
 import re
 import shlex
 import subprocess
 import sys
+import tomllib
 
 PROJECT = pathlib.Path(__file__).parent.parent
 
 # These files contain the version string that needs to be updated
 citation_file = pathlib.Path('CITATION.cff')
 version_files = [
-    pathlib.Path('setup.cfg'),
+    pathlib.Path('pyproject.toml'),
     citation_file,
 ]
 
@@ -201,10 +201,9 @@ def maybe_push(
 
 
 def get_current_version() -> str:
-    parser = configparser.ConfigParser()
-    with open(PROJECT / 'setup.cfg') as f:
-        parser.read_file(f)
-    return parser.get('metadata', 'version')
+    with open(PROJECT / 'pyproject.toml', 'rb') as f:
+        pyproject = tomllib.load(f)
+    return pyproject['project']['version']
 
 
 def call(*args: str) -> None:
