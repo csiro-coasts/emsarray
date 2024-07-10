@@ -35,3 +35,19 @@ Next release (in development)
   (:pr:`142`).
 * Add :attr:`.Convention.depth_coordinates` and :meth:`.Convention.get_depth_coordinate_for_data_array()`. Deprecate functions :meth:`.Convention.get_depth_name()`, :meth:`.Convention.get_all_depth_names()`, and :meth:`Convention.get_time_name()`. Remove deprecated functions ``Convention.get_depths()`` and ``Convention.get_times()`` (:pr:`143`).
 * Swap to using `pyproject.toml` for all project metadata (:pr:`145`).
+* Add new methods
+  :meth:`.Convention.selector_for_indexes()`,
+  :meth:`.Convention.select_indexes()`, and
+  :meth:`.Convention.select_points()`.
+  These allow for more efficient extraction of multiple points at the same time.
+  The return type of :meth:`.Convention.selector_for_index()` has been changed
+  from a `dict` to an :class:`xarray.Dataset`,
+  but this new value is also designed to be passed directly to :meth:`Dataset.isel() <xarray.Dataset.isel>`.
+  :meth:`.Convention.select_index()` and :meth:`.Convention.select_indexes()`
+  have a new `drop_geometry` flag which defaults to True.
+  Previously these methods would act as if `drop_geometry` was False,
+  but this led to convention-dependent results as to which geometry variables were returned.
+  The fragmented geometry variables from different conventions often did not contain enough data to be useful.
+  By dropping geometry the results are more consistent across all conventions
+  and do not contain potentially fragmented geometry information.
+  (:issue:`106`, :pr:`146`).
