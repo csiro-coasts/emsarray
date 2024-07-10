@@ -51,3 +51,7 @@ Next release (in development)
   By dropping geometry the results are more consistent across all conventions
   and do not contain potentially fragmented geometry information.
   (:issue:`106`, :pr:`146`).
+* Remove support for the deprecated `emsarray.formats` module,
+  the `emsarray.formats` entry point,
+  and filtered warnings for old dependencies no longer supported
+  (:pr:`146`).
