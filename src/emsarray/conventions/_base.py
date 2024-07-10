@@ -1483,15 +1483,25 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         Returns
         -------
-        selector
-            A dict suitable for passing to :meth:`xarray.Dataset.isel`
+        selector : xarray.Dataset
+            A selector suitable for passing to :meth:`xarray.Dataset.isel`
             that will select values at this index.
 
         See Also
         --------
         :meth:`.select_index`
         :meth:`.select_point`
+        :meth:`.selector_for_indexes`
         :ref:`indexing`
+
+        Notes
+        -----
+
+        The returned selector is an :class:`xarray.Dataset`,
+        but the contents of the dataset are dependent on the specific convention
+        and may change between versions of emsarray.
+        The selector should be treated as an opaque value
+        that is only useful when passed to :meth:`xarray.Dataset.isel()`.
         """
         index_dimension = utils.find_unused_dimension(self.dataset, 'index')
         dataset = self.selector_for_indexes([index], index_dimension=index_dimension)
@@ -1505,6 +1515,37 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         *,
         index_dimension: Hashable | None = None,
     ) -> xarray.Dataset:
+        """
+        Convert a list of convention native indexes into a selector
+        that can be passed to :meth:`Dataset.isel <xarray.Dataset.isel>`.
+
+        Parameters
+        ----------
+        indexes : list of :data:`Index`
+            A list of convention native indexes
+
+        Returns
+        -------
+        selector : xarray.Dataset
+            A selector suitable for passing to :meth:`xarray.Dataset.isel`
+            that will select values at this index.
+
+        See Also
+        --------
+        :meth:`.select_indexes`
+        :meth:`.select_points`
+        :meth:`.selector_for_index`
+        :ref:`indexing`
+
+        Notes
+        -----
+
+        The returned selector is an :class:`xarray.Dataset`,
+        but the contents of the dataset are dependent on the specific convention
+        and may change between versions of emsarray.
+        The selector should be treated as an opaque value
+        that is only useful when passed to :meth:`xarray.Dataset.isel()`.
+        """
         pass
 
     def select_index(
@@ -1527,7 +1568,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         index : :data:`Index`
             The index to select.
-            The index must be for the default grid kind for this dataset.
         drop_geometry : bool, default True
             Whether to drop geometry variables from the returned point dataset.
             If the geometry data is kept
@@ -1539,6 +1579,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         -------
         :class:`xarray.Dataset`
             A new dataset that is subset to the one index.
+
+        See also
+        --------
+        :meth:`.select_point`
+        :meth:`.select_indexes`
 
         Notes
         -----
@@ -1566,15 +1611,15 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         An index is associated with a grid kind.
         The returned dataset will only contain variables that were defined on this grid,
-        with the single indexed point selected.
+        with the indexed points selected.
         For example, if the index of a face is passed in,
         the returned dataset will not contain any variables defined on an edge.
 
         Parameters
         ----------
-        index : :data:`Index`
-            The index to select.
-            The index must be for the default grid kind for this dataset.
+        indexes : list of :data:`Index`
+            The indexes to select.
+            The indexes must all be for the same grid kind.
         index_dimension : str, optional
             The name of the new dimension added for each index to select.
             Defaults to the :func:`first unused dimension <.utils.find_unused_dimension>` with prefix `index`.
@@ -1588,7 +1633,12 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         Returns
         -------
         :class:`xarray.Dataset`
-            A new dataset that is subset to the one index.
+            A new dataset that is subset to the indexes.
+
+        See also
+        --------
+        :meth:`.select_points`
+        :meth:`.select_index`
 
         Notes
         -----
@@ -1632,6 +1682,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         -------
         xarray.Dataset
             A dataset of values at the point
+
+        See also
+        --------
+        :meth:`.select_index`
+        :meth:`.select_points`
         """
         index = self.get_index_for_point(point)
         if index is None:
@@ -1664,6 +1719,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         xarray.Dataset
             A dataset with values extracted from the points.
             No variables not defined on the default grid and no geometry variables will be present.
+
+        See also
+        --------
+        :meth:`.select_indexes`
+        :meth:`.select_point`
         """
         if point_dimension is None:
             point_dimension = utils.find_unused_dimension(self.dataset, 'point')
