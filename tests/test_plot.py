@@ -48,8 +48,9 @@ def test_add_landmarks():
 
     assert len(landmarks) == len(axes.texts)
     for landmark, text in zip(landmarks, axes.texts):
-        assert text.get_text() == landmark[0]
-        assert text.xy == landmark[1].coords.xy
+        title, point = landmark
+        assert text.get_text() == title
+        assert text.xy == (point.x, point.y)
 
 
 @pytest.mark.mpl_image_compare
