@@ -3,6 +3,7 @@ Operations for making a triangular mesh out of the polygons of a dataset.
 """
 from typing import cast
 
+import numpy
 import xarray
 from shapely.geometry import LineString, MultiPoint, Polygon
 
@@ -148,6 +149,19 @@ def _triangulate_polygon(polygon: Polygon) -> list[tuple[Vertex, Vertex, Vertex]
     """
     if not polygon.is_simple:
         raise ValueError("_triangulate_polygon only supports simple polygons")
+
+    # The 'ear clipping' method used below is correct for all polygons, but not
+    # performant. If the polygon is convex we can use a shortcut method.
+    if polygon.equals(polygon.convex_hull):
+        # Make a fan triangulation. For a polygon with n vertices the triangles
+        # will have vertices:
+        #   (1, 2, 3), (1, 3, 4), (1, 4, 5), ... (1, n-1, n)
+        exterior_vertices = numpy.array(polygon.exterior.coords)[:-1]
+        num_triangles = len(exterior_vertices) - 2
+        v0 = numpy.broadcast_to(exterior_vertices[0], (num_triangles, 2))
+        v1 = exterior_vertices[1:-1]
+        v2 = exterior_vertices[2:]
+        return list(zip(map(tuple, v0), map(tuple, v1), map(tuple, v2)))
 
     # This is the 'ear clipping' method of polygon triangulation.
     # In any simple polygon, there is guaranteed to be at least two 'ears'
