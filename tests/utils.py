@@ -7,15 +7,18 @@ from collections.abc import Hashable
 from functools import cached_property
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy
 import pytest
 import shapely
 import xarray
+from cartopy.mpl.geoaxes import GeoAxes
 from packaging.requirements import Requirement
 
 from emsarray.conventions.arakawa_c import (
     ArakawaCGridKind, c_mask_from_centres
 )
+from emsarray.types import Bounds, Pathish
 
 
 @contextlib.contextmanager
@@ -349,6 +352,14 @@ class ShocGridGenerator(abc.ABC):
         return reduce_axes(self.y_grid, (False, True))
 
 
+class AxisAlignedShocGrid(ShocGridGenerator):
+    def make_x_grid(self, j: numpy.ndarray, i: numpy.ndarray) -> numpy.ndarray:
+        return 0.1 * i  # type: ignore
+
+    def make_y_grid(self, j: numpy.ndarray, i: numpy.ndarray) -> numpy.ndarray:
+        return 0.1 * j  # type: ignore
+
+
 class DiagonalShocGrid(ShocGridGenerator):
     def make_x_grid(self, j: numpy.ndarray, i: numpy.ndarray) -> numpy.ndarray:
         return 0.1 * (i + j)  # type: ignore
@@ -426,3 +437,28 @@ def only_versions(*requirements: str):
                 f'{requirement.name}=={version} does not satisfy {requirement}')
 
     return pytest.mark.skipif(len(invalid_versions) > 0, reason='\n'.join(invalid_versions))
+
+
+def plot_geometry(
+    dataset: xarray.Dataset,
+    out: Pathish,
+    *,
+    figsize: tuple[float, float] = (10, 10),
+    extent: Bounds | None = None,
+    title: str | None = None
+) -> None:
+    figure = plt.figure(layout='constrained', figsize=figsize)
+    axes: GeoAxes = figure.add_subplot(projection=dataset.ems.data_crs)
+    axes.set_aspect(aspect='equal', adjustable='datalim')
+    axes.gridlines(draw_labels=['left', 'bottom'], linestyle='dashed')
+
+    axes.add_collection(dataset.ems.make_poly_collection(
+        edgecolors='black', linewidth=0.5, facecolors='lightcyan'))
+    axes.scatter(dataset.ems.face_centres[:, 0], dataset.ems.face_centres[:, 1], c='red')
+
+    if title is not None:
+        axes.set_title(title)
+    if extent is not None:
+        axes.set_extent(extent)
+
+    figure.savefig(out)
