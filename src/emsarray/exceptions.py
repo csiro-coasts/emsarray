@@ -10,13 +10,19 @@ class EmsarrayError(Exception):
     """
 
 
+class EmsarrayWarning(Warning):
+    """
+    Base class for all emsarray-specific warning classes.
+    """
+
+
 class ConventionViolationError(EmsarrayError):
     """
     A dataset violates its conventions in a way that is not recoverable.
     """
 
 
-class ConventionViolationWarning(UserWarning):
+class ConventionViolationWarning(EmsarrayWarning):
     """
     A dataset violates its conventions in a way that we can handle.
     For example, an attribute has an invalid type,
@@ -29,4 +35,10 @@ class NoSuchCoordinateError(KeyError, EmsarrayError):
     Raised when a dataset does not have a particular coordinate,
     such as in :attr:`.Convention.time_coordinate` and
     :attr:`.Convention.depth_coordinate`.
+    """
+
+
+class InvalidPolygonWarning(EmsarrayWarning):
+    """
+    A polygon in a dataset was invalid or not simple.
     """

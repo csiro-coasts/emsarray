@@ -1076,9 +1076,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
             items.append(UGridKind.edge)
         return frozenset(items)
 
-    @cached_property
-    @utils.timed_func
-    def polygons(self) -> numpy.ndarray:
+    def _make_polygons(self) -> numpy.ndarray:
         """Generate list of Polygons"""
         # X,Y coords of each node
         topology = self.topology
