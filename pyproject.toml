@@ -21,7 +21,7 @@ dependencies = [
 	"packaging >=23.1",
 	"shapely >=2.0",
 	"pyshp >=2.3",
-	"xarray[parallel] >=2023.5",
+	"xarray[parallel] >=2023.8",
 ]
 
 dynamic = ["readme"]
@@ -33,8 +33,8 @@ Source = "https://github.com/csiro-coasts/emsarray/"
 
 [project.optional-dependencies]
 plot = [
-	"cartopy >=0.21",
-	"matplotlib >=3.7",
+	"cartopy >=0.22",
+	"matplotlib >=3.8",
 	"pykdtree >=1.3",
 	"cfunits >= 3.3",
 ]
