@@ -497,6 +497,17 @@ class CFGrid2DTopology(CFGridTopology):
         # On the edges where there are fewer 'surrounding' cells, the cell centres are used.
         # Edge and corner cells will be smaller than the surrounding cells because of this.
 
+        # Discard cell coordinates where the cell is bound by nan on both sides.
+        # This can occur when the grid tracks a river which might be only one cell wide.
+        coordinate_values = coordinate.values.copy()
+        nan_coordinates = numpy.isnan(coordinate_values)
+        j_pad = numpy.pad(nan_coordinates, ((1, 1), (0, 0)), constant_values=False)
+        j_bound_by_nan = j_pad[:-2, :] & j_pad[2:, :]
+        i_pad = numpy.pad(nan_coordinates, ((0, 0), (1, 1)), constant_values=False)
+        i_bound_by_nan = i_pad[:, :-2] & i_pad[:, 2:]
+        bound_by_nan = j_bound_by_nan | i_bound_by_nan
+        coordinate_values[bound_by_nan] = numpy.nan
+
         # numpy.nanmean will return nan for an all-nan column.
         # This is the exact behaviour that we want.
         # numpy emits a warning that can not be silenced when this happens,
@@ -505,7 +516,7 @@ class CFGrid2DTopology(CFGridTopology):
             warnings.filterwarnings(
                 "ignore", "Mean of empty slice", category=RuntimeWarning)
             grid = numpy.nanmean([
-                numpy.pad(coordinate.values, pad, constant_values=numpy.nan)
+                numpy.pad(coordinate_values, pad, constant_values=numpy.nan)
                 for pad in itertools.product([(1, 0), (0, 1)], [(1, 0), (0, 1)])
             ], axis=0)
 
@@ -517,7 +528,8 @@ class CFGrid2DTopology(CFGridTopology):
             ]
             for y in range(y_size)
         ])
-        # Any cell that has a `nan` in its bounds will be set to all nan
+
+        # Set nan bounds for all cells that have any `nan` in its bounds.
         cells_with_nans = numpy.isnan(bounds).any(axis=2)
         bounds[cells_with_nans] = numpy.nan
 

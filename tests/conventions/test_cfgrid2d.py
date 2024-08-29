@@ -24,8 +24,8 @@ from emsarray.conventions.shoc import ShocSimple
 from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.operations import geometry
 from tests.utils import (
-    DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator,
-    assert_property_not_cached
+    AxisAlignedShocGrid, DiagonalShocGrid, ShocGridGenerator,
+    ShocLayerGenerator, assert_property_not_cached, plot_geometry
 )
 
 
@@ -266,7 +266,7 @@ def test_polygons_no_bounds():
     assert polygons[20 * 9 + 3] is not None
 
 
-def test_polygons_with_bounds():
+def test_polygons_with_bounds() -> None:
     dataset = make_dataset(
         j_size=10, i_size=20,
         include_bounds=True, corner_size=3)
@@ -289,7 +289,7 @@ def test_polygons_with_bounds():
     assert polygons[20 * 9 + 3] is not None
 
 
-def test_holes():
+def test_holes() -> None:
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
     only_polygons = dataset.ems.polygons[dataset.ems.mask]
 
@@ -313,7 +313,7 @@ def test_holes():
     assert poly.equals_exact(Polygon([(0.3, 1.9), (0.4, 1.8), (0.5, 1.9), (0.4, 2.0), (0.3, 1.9)]), 1e-6)
 
 
-def test_bounds():
+def test_bounds() -> None:
     dataset = make_dataset(
         j_size=10, i_size=20, corner_size=5, include_bounds=True)
     # The corner cuts out some of the upper bounds
@@ -321,7 +321,49 @@ def test_bounds():
     assert_property_not_cached(dataset.ems, 'geometry')
 
 
-def test_face_centres():
+@pytest.mark.parametrize("include_bounds", [True, False], ids=["with-bounds", "without-bounds"])
+def test_bounds_river(
+    include_bounds: bool,
+    tmp_path: pathlib.Path,
+) -> None:
+    # Test calculated bounds for grids with one cell wide 'rivers'.
+    # The river cells have cell centres but insufficient information to
+    # construct any bounds for those cells.
+    dataset = make_dataset(
+        j_size=7, i_size=7, include_bounds=include_bounds, grid_type=AxisAlignedShocGrid)
+    # Clear out a corner on both sides, leaving a one cell wide river.
+    dataset['longitude'].values[:3, :3] = numpy.nan
+    dataset['latitude'].values[:3, :3] = numpy.nan
+    dataset['longitude'].values[-3:, :3] = numpy.nan
+    dataset['latitude'].values[-3:, :3] = numpy.nan
+    if include_bounds:
+        dataset['longitude_bounds'].values[:3, :3] = numpy.nan
+        dataset['latitude_bounds'].values[:3, :3] = numpy.nan
+        dataset['longitude_bounds'].values[-3:, :3] = numpy.nan
+        dataset['latitude_bounds'].values[-3:, :3] = numpy.nan
+
+    # Useful to see what the geometry looks like, not part of the test.
+    plot_geometry(dataset, tmp_path / 'river.png', extent=(-0.05, 0.75, -0.05, 0.75))
+
+    convention: ShocSimple = dataset.ems
+    polygons = convention.wind(xarray.DataArray(convention.polygons)).values
+    assert numpy.all(polygons[:, 3:] != None)  # noqa: E711
+    assert numpy.all(polygons[:3, :3] == None)  # noqa: E711
+    assert numpy.all(polygons[-3:, :3] == None)  # noqa: E711
+    river_polygons = polygons[3, :3]
+    if include_bounds:
+        assert numpy.all(river_polygons != None)  # noqa: E711
+    else:
+        assert numpy.all(river_polygons == None)  # noqa: E711
+
+    if not include_bounds:
+        # All the 'coast' cells should have the same minimum x coordinate,
+        # even the one next to the river.
+        min_x = [min(p.exterior.coords.xy[0]) for p in polygons[:, 3]]
+        numpy.testing.assert_allclose(min_x, 0.35)
+
+
+def test_face_centres() -> None:
     # SHOC simple face centres are taken directly from the coordinates,
     # not calculated from polygon centres.
     dataset = make_dataset(j_size=10, i_size=20, corner_size=3)
@@ -338,7 +380,7 @@ def test_face_centres():
             numpy.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
 
-def test_selector_for_index():
+def test_selector_for_index() -> None:
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocSimple = dataset.ems
 
@@ -348,13 +390,13 @@ def test_selector_for_index():
     assert selector == convention.selector_for_index(index)
 
 
-def test_make_geojson_geometry():
+def test_make_geojson_geometry() -> None:
     dataset = make_dataset(j_size=10, i_size=10, corner_size=3)
     out = json.dumps(geometry.to_geojson(dataset))
     assert isinstance(out, str)
 
 
-def test_ravel_index():
+def test_ravel_index() -> None:
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocSimple = dataset.ems
 
@@ -365,7 +407,7 @@ def test_ravel_index():
         assert convention.wind_index(linear_index, grid_kind=CFGridKind.face) == index
 
 
-def test_grid_kinds():
+def test_grid_kinds() -> None:
     dataset = make_dataset(j_size=3, i_size=5)
     convention: ShocSimple = dataset.ems
 
@@ -373,7 +415,7 @@ def test_grid_kinds():
     assert convention.default_grid_kind == CFGridKind.face
 
 
-def test_grid_kind_and_size():
+def test_grid_kind_and_size() -> None:
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocSimple = dataset.ems
 
@@ -382,7 +424,7 @@ def test_grid_kind_and_size():
     assert size == 5 * 7
 
 
-def test_ravel():
+def test_ravel() -> None:
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocSimple = dataset.ems
 
@@ -394,7 +436,7 @@ def test_ravel():
         temp.values.reshape(temp.shape[:2] + (-1,)))
 
 
-def test_wind():
+def test_wind() -> None:
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocSimple = dataset.ems
 
@@ -413,7 +455,7 @@ def test_wind():
         values.reshape(time_size, 5, 7))
 
 
-def test_drop_geometry(datasets: pathlib.Path):
+def test_drop_geometry(datasets: pathlib.Path) -> None:
     dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
 
     dropped = dataset.ems.drop_geometry()
@@ -426,7 +468,7 @@ def test_drop_geometry(datasets: pathlib.Path):
     assert topology.longitude_name not in dropped.variables
 
 
-def test_values():
+def test_values() -> None:
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
     eta = dataset.data_vars["eta"].isel(time=0)
     values = dataset.ems.ravel(eta)
@@ -439,7 +481,7 @@ def test_values():
 
 
 @pytest.mark.matplotlib
-def test_plot_on_figure():
+def test_plot_on_figure() -> None:
     # Not much to test here, mostly that it doesn't throw an error
     dataset = make_dataset(j_size=10, i_size=20)
     surface_temp = dataset.data_vars["temp"].isel(k=-1, time=0)
