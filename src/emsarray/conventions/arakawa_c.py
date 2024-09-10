@@ -260,9 +260,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
     def pack_index(self, grid_kind: ArakawaCGridKind, indexes: Sequence[int]) -> ArakawaCIndex:
         return cast(ArakawaCIndex, (grid_kind, *indexes))
 
-    @cached_property
-    @utils.timed_func
-    def polygons(self) -> numpy.ndarray:
+    def _make_polygons(self) -> numpy.ndarray:
         # Make an array of shape (j, i, 2) of all the nodes
         grid = numpy.stack([self.node.longitude.values, self.node.latitude.values], axis=-1)
 

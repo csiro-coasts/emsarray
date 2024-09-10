@@ -147,9 +147,6 @@ def _triangulate_polygon(polygon: Polygon) -> list[tuple[Vertex, Vertex, Vertex]
     :func:`triangulate_dataset`,
     `Polygon triangulation <https://en.wikipedia.org/wiki/Polygon_triangulation>`_
     """
-    if not polygon.is_simple:
-        raise ValueError("_triangulate_polygon only supports simple polygons")
-
     # The 'ear clipping' method used below is correct for all polygons, but not
     # performant. If the polygon is convex we can use a shortcut method.
     if polygon.equals(polygon.convex_hull):
@@ -173,9 +170,6 @@ def _triangulate_polygon(polygon: Polygon) -> list[tuple[Vertex, Vertex, Vertex]
     # but for small convex polygons it is approximately linear in time.
     # Most polygons will be either squares, convex quadrilaterals, or convex
     # polygons.
-
-    # Maintain a consistent winding order
-    polygon = polygon.normalize()
 
     triangles: list[tuple[Vertex, Vertex, Vertex]] = []
     # Note that shapely polygons with n vertices will be closed, and thus have

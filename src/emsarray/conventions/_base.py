@@ -8,15 +8,15 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, cast
 
 import numpy
+import shapely
 import xarray
-from shapely import unary_union
 from shapely.geometry import MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 from shapely.strtree import STRtree
 
 from emsarray import utils
 from emsarray.compat.shapely import SpatialIndex
-from emsarray.exceptions import NoSuchCoordinateError
+from emsarray.exceptions import InvalidPolygonWarning, NoSuchCoordinateError
 from emsarray.operations import depth, point_extraction
 from emsarray.plot import (
     _requires_plot, animate_on_figure, make_plot_title, plot_on_figure,
@@ -1264,8 +1264,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         return Quiver(axes, x, y, *values, **kwargs)
 
-    @property
-    @abc.abstractmethod
+    @cached_property
+    @utils.timed_func
     def polygons(self) -> numpy.ndarray:
         """A :class:`numpy.ndarray` of :class:`shapely.Polygon` instances
         representing the cells in this dataset.
@@ -1286,6 +1286,24 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :meth:`ravel_index`
         :attr:`mask`
         """
+        polygons = self._make_polygons()
+
+        not_none = (polygons != None)  # noqa: E711
+        invalid_polygon_indices = numpy.flatnonzero(not_none & ~shapely.is_valid(polygons))
+        if len(invalid_polygon_indices):
+            indices_str = numpy.array2string(
+                invalid_polygon_indices, max_line_width=None, threshold=5)
+            warnings.warn(
+                f"Dropping invalid polygons at indices {indices_str}",
+                category=InvalidPolygonWarning)
+            polygons[invalid_polygon_indices] = None
+            not_none[invalid_polygon_indices] = False
+
+        polygons.flags.writeable = False
+        return polygons
+
+    @abc.abstractmethod
+    def _make_polygons(self) -> numpy.ndarray:
         pass
 
     @cached_property
@@ -1337,7 +1355,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         This is equivalent to the union of all polygons in the dataset,
         although specific conventions may have a simpler way of constructing this.
         """
-        return unary_union(self.polygons[self.mask])
+        return shapely.unary_union(self.polygons[self.mask])
 
     @cached_property
     def bounds(self) -> Bounds:
