@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import hashlib
 import pickle
+from typing import Any
 
 import xarray
 
 
-def hash_attributes(hash: hashlib._Hash, attribute_dict: dict) -> None:
+def hash_attributes(hash: hashlib._Hash, attribute_dict: xarray.Variable) -> None:
     """
     Update the provided hash with with a pickle serialised byte representation of the given attribute dictionary.
 
@@ -26,7 +27,7 @@ def hash_attributes(hash: hashlib._Hash, attribute_dict: dict) -> None:
     hash.update(attribute_dict_bytes)
 
 
-def make_cache_key(dataset: xarray.Dataset, hash_type: type[hashlib._Hash] = hashlib.sha1) -> str:
+def make_cache_key(dataset: xarray.Dataset, hash_type: type[hashlib._Hash] | Any = hashlib.sha1) -> str:
     """
     Generate a key suitable for caching data derived from the geometry of a dataset.
 

@@ -1967,7 +1967,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         geometry_names = self.get_all_geometry_names()
         for geometry_name in geometry_names:
-            hash.update(geometry_name.encode('utf-8'))
+            hash.update(str(geometry_name).encode('utf-8'))
             hash.update(self.dataset.variables[geometry_name].to_numpy().tobytes())
 
 
