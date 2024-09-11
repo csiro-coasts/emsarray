@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import abc
 import dataclasses
 import enum
+import hashlib
 import logging
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Sequence
@@ -1949,6 +1952,23 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return depth.normalize_depth_variables(
             self.dataset, self.depth_coordinates,
             positive_down=positive_down, deep_to_shallow=deep_to_shallow)
+
+    def hash_geometry(self, hash: hashlib._Hash) -> None:
+        """
+        Updates the provided hash with all of the relevant geometry data for this dataset.
+        Note this excludes the attribute data contained within each geometry.
+        See the 'hash_attributes' for hashing of geometry attributes.
+
+        Parameters
+        ----------
+        hash : hashlib-style hash instance
+            The hash instance to update with geometry data.
+            This must follow the interface defined in :mod:`hashlib`.
+        """
+        geometry_names = self.get_all_geometry_names()
+        for geometry_name in geometry_names:
+            hash.update(geometry_name.encode('utf-8'))
+            hash.update(self.dataset.variables[geometry_name].to_numpy().tobytes())
 
 
 class DimensionConvention(Convention[GridKind, Index]):
