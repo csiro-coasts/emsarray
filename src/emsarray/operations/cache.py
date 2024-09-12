@@ -4,6 +4,7 @@ Operations for making a triangular mesh out of the polygons of a dataset.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import pickle
 from typing import Any
 
@@ -27,7 +28,7 @@ def hash_attributes(hash: hashlib._Hash, attribute_dict: xarray.Variable) -> Non
     hash.update(attribute_dict_bytes)
 
 
-def make_cache_key(dataset: xarray.Dataset, hash_type: type[hashlib._Hash] | Any = hashlib.sha1) -> str:
+def make_cache_key(dataset: xarray.Dataset, hash_type: type[hashlib._Hash] | Any = hashlib.blake2b) -> str:
     """
     Generate a key suitable for caching data derived from the geometry of a dataset.
 
@@ -54,7 +55,12 @@ def make_cache_key(dataset: xarray.Dataset, hash_type: type[hashlib._Hash] | Any
     The specific structure of the cache key may change between emsarray versions
     and should not be relied upon.
     """
-    m = hash_type()
+    hash_sig = inspect.signature(hash_type.__init__)
+
+    if ('digest_size' in hash_sig.parameters):
+        m = hash_type(digest_size=32)
+    else:
+        m = hash_type()
 
     dataset.ems.hash_geometry(m)
 
