@@ -19,7 +19,7 @@ from emsarray import utils
 from emsarray.compat.shapely import SpatialIndex
 from emsarray.exceptions import InvalidPolygonWarning, NoSuchCoordinateError
 from emsarray.operations import depth, point_extraction
-from emsarray.operations.cache import hash_attributes
+from emsarray.operations.cache import hash_attributes, hash_int, hash_string
 from emsarray.plot import (
     _requires_plot, animate_on_figure, make_plot_title, plot_on_figure,
     polygons_to_collection
@@ -1970,19 +1970,19 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
             # Include the variable name in the digest.
             # Prepend the length of strings to prevent unnoticed overlaps with neighbouring data
-            hash.update(numpy.int32(len(geometry_name)).tobytes('C'))
-            hash.update(geometry_name.encode('utf-8'))
+            hash_int(hash, len(str(geometry_name)))
+            hash_string(hash, str(geometry_name))
 
             # Include the dtype of the data array.
             # A float array and an int array mean very different things,
             # but could have identical byte patterns.
-            hash.update(numpy.int32(len(data_array.encoding['dtype'].name)).tobytes('C'))
-            hash.update(data_array.encoding['dtype'].name.encode('utf-8'))
+            hash_int(hash, len(data_array.encoding['dtype'].name))
+            hash_string(hash, data_array.encoding['dtype'].name)
 
             # Include the size and shape of the data.
             # 1D coordinate arrays are very different to 2D coordinate arrays,
             # but could have identical byte patterns.
-            hash.update(numpy.int32(data_array.size).tobytes('C'))
+            hash_int(hash, data_array.size)
             hash.update(numpy.array(data_array.shape, dtype='int32').tobytes('C'))
             hash.update(data_array.to_numpy().tobytes('C'))
 
