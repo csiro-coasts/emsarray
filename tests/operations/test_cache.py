@@ -8,16 +8,18 @@ import emsarray.operations.cache
 
 # Sha1
 empty_sha1_hash = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-attr_hash_lon = "4151c4ac3e0e913dd2c5520c0b2c33e6f20eb004"
-attr_hash_lat = "2cb433979fc2d9c3884eea8569dd6a44406950f3"
-cache_key_hash_cf1d_sha1 = "e8642ca2ef921d066be127f518bcb65c84cba650"
+attr_hash_lon = "86508f0e34ae9311b4dd4643e5afbf275eaf0052"
+str_hash = 'd79c41b2fb9cbfa7e81c951747609057691cb686'
+int_hash = '604b8984b112bf57de911f48a75ec769dd63411f'
+attr_hash_lat = "08d7bc76818a474e80847c26ed78d588374bfbc4"
+cache_key_hash_cf1d_sha1 = "414050a852498ee4b57154ead45b048756004cb5"
 
 # Blake2b
-cache_key_hash_cf1d = "affbdeee76e1a7f0530a2847b567e5b16d3d6152f753e5cbbbf68b099e32eff6"
-cache_key_hash_cf2d = "79ff732a7ce0c6461032a8b30022057640977a99333ec08e632dd00e4ec2c278"
-cache_key_hash_shoc_standard = "f94917756d084db26b032feef3124b6a61af9e8bc4521600462d7f7f94a3e367"
-cache_key_hash_ugrid_mesh2d = "b00260280514beba8332a3dda4ec133eda03354d5a55d13828045e2527041399"
-cache_key_hash_ugrid_mesh2d_one_indexed = "2bbdcb0aa3d55d7fbf4bc962d387898a37cff36100e1a2b60624a908ebb352e9"
+cache_key_hash_cf1d = "bf5d43b5a378ebfbd4c1204d6e088d8445b9d2fea75a8d8cf2d610f05a72f282"
+cache_key_hash_cf2d = "93b2546b28b544792db65b4709a760ca3145a22329072a24d59f714ff5694c30"
+cache_key_hash_shoc_standard = "d88fe0470c7e38c38b04e9e5028f3d671e855cf31ec242af8bd656cccbe373bf"
+cache_key_hash_ugrid_mesh2d = "e541bf3bbe4a3ed3a64ce48efb493bef0271ff45431036168be08376a89cea57"
+cache_key_hash_ugrid_mesh2d_one_indexed = "f0ebdfdff229659f81037d4ed90aa629433b0a1843ae6d8d9f0c7c732f1a9754"
 
 
 def test_hash_attributes(datasets: pathlib.Path):
@@ -36,6 +38,38 @@ def test_hash_attributes(datasets: pathlib.Path):
     assert result_hash_lon != empty_sha1_hash
 
     assert result_hash_lon == attr_hash_lon
+
+
+def test_hash_string():
+    hash = hashlib.sha1()
+
+    assert hash.hexdigest() == empty_sha1_hash
+
+    emsarray.operations.cache.hash_string(hash, "1234")
+
+    result_hash = hash.hexdigest()
+
+    assert result_hash is not None
+
+    assert result_hash != empty_sha1_hash
+
+    assert result_hash == str_hash
+
+
+def test_hash_int():
+    hash = hashlib.sha1()
+
+    assert hash.hexdigest() == empty_sha1_hash
+
+    emsarray.operations.cache.hash_int(hash, 1234)
+
+    result_hash = hash.hexdigest()
+
+    assert result_hash is not None
+
+    assert result_hash != empty_sha1_hash
+
+    assert result_hash == int_hash
 
 
 def test_cache_key_cfgrid1d(datasets: pathlib.Path):
