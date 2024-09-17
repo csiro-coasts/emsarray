@@ -53,7 +53,7 @@ def hash_string(hash: "hashlib._Hash", value: str) -> None:
 
 def hash_int(hash: "hashlib._Hash", value: int) -> None:
     """
-    Updates the provided hash with with a encoded byte representation of the provided int.
+    Updates the provided hash with an encoded byte representation of the provided int.
 
     Parameters
     ----------
