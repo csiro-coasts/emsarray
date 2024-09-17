@@ -24,14 +24,48 @@ def hash_attributes(hash: "hashlib._Hash", attributes: dict) -> None:
     """
     # Prepend the marshal encoding version
     marshal_version = 4
-    hash.update(numpy.int32(marshal_version).tobytes('C'))
+    hash_int(hash, marshal_version)
     # Specify marshal encoding version when serialising
     attribute_dict_marshal_bytes = marshal.dumps(attributes, marshal_version)
     # Prepend the number of attributes
-    hash.update(numpy.int32(len(attributes)).tobytes('C'))
+    hash_int(hash, len(attributes))
     # Prepend the size of the pickled attributes
-    hash.update(numpy.int32(len(attribute_dict_marshal_bytes)).tobytes())
+    hash_int(hash, len(attribute_dict_marshal_bytes))
     hash.update(attribute_dict_marshal_bytes)
+
+
+def hash_string(hash: "hashlib._Hash", value: str) -> None:
+    """
+    Updates the provided hash with with a utf-8 encoded byte representation of the provided string.
+
+    Parameters
+    ----------
+    hash : hashlib-style hash instance
+        The hash instance to update with the given attribute dict.
+        This must follow the interface defined in :mod:`hashlib`.
+    attributes: str
+        Expects a string that can be encoded in utf-8
+    """
+    # Prepend the str length
+    hash_int(hash, len(value))
+    hash.update(value.encode('utf-8'))
+
+
+def hash_int(hash: "hashlib._Hash", value: int) -> None:
+    """
+    Updates the provided hash with with a encoded byte representation of the provided int.
+
+    Parameters
+    ----------
+    hash : hashlib-style hash instance
+        The hash instance to update with the given attribute dict.
+        This must follow the interface defined in :mod:`hashlib`.
+    attributes: int
+        Expects an int that can be represented in a numpy int32
+    """
+    # Prepend the int bit length
+    hash.update(numpy.int32(value.bit_length()).tobytes())
+    hash.update(numpy.int32(value).tobytes())
 
 
 def make_cache_key(dataset: xarray.Dataset, hash: "hashlib._Hash | None" = None) -> str:
@@ -67,8 +101,8 @@ def make_cache_key(dataset: xarray.Dataset, hash: "hashlib._Hash | None" = None)
     dataset.ems.hash_geometry(hash)
 
     # Hash convention name, convention module path and emsarray version
-    hash.update(dataset.ems.__class__.__module__.encode('utf-8'))
-    hash.update(dataset.ems.__class__.__name__.encode('utf-8'))
-    hash.update(emsarray.__version__.encode('utf-8'))
+    hash_string(hash, dataset.ems.__class__.__module__)
+    hash_string(hash, dataset.ems.__class__.__name__)
+    hash_string(hash, emsarray.__version__)
 
     return hash.hexdigest()
