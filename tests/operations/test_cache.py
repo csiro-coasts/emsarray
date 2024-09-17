@@ -8,16 +8,16 @@ import emsarray.operations.cache
 
 # Sha1
 empty_sha1_hash = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-attr_hash_lon = "5a717d9e800ca6b326fcfbebef696f8deede3861"
-attr_hash_lat = "506ddefdfeab4c5ec921f3518c4e905908b5a4ed"
-cache_key_hash_cf1d_sha1 = "07b5deaa33d086c66730d6e2708ae03600226064"
+attr_hash_lon = "4151c4ac3e0e913dd2c5520c0b2c33e6f20eb004"
+attr_hash_lat = "2cb433979fc2d9c3884eea8569dd6a44406950f3"
+cache_key_hash_cf1d_sha1 = "e8642ca2ef921d066be127f518bcb65c84cba650"
 
 # Blake2b
-cache_key_hash_cf1d = "0cd2f2e230e1e2867347d7e5a8ac12de1dff7c89a30761fc7239d2468dc5a3a9013b3710b074bdb81dd2651fb44fb734638b803bb6e4ad0b611c6b3f94311656"
-cache_key_hash_cf2d = "04c28b946c000446f22331b8decea4452a5601f0629b818e100c0e318b390b8b3a671de20fc0c94ce17abbb8bb81de08bc7949bd0e6b64adf88c4d8d1a9d911f"
-cache_key_hash_shoc_standard = "738283c80dc5955db4622d5652ff7c913c523567e514d615c82e4fbd53be075d00b49c15678d16d209c4e08dc431f2f57b5f929db4d34432ccee977e1c360c74"
-cache_key_hash_ugrid_mesh2d = "3451aa234b0dcbd8c0c39e856d5cd6a3bfdf2bf02d3f0787b3d5e0499fc6819fbed8b87ca791ab0daea483975bafca9b856cb21652b5e7c5cd488486e3879292"
-cache_key_hash_ugrid_mesh2d_one_indexed = "3ef7e126218f84320ca2d4eb7ded448477fc42ee179dba5eba3c81b5d9dce4a3ba8431645675ff86d71a1092c81e05f1de02dd4dccac3d26b6c1ea4a3c93c42d"
+cache_key_hash_cf1d = "affbdeee76e1a7f0530a2847b567e5b16d3d6152f753e5cbbbf68b099e32eff6"
+cache_key_hash_cf2d = "79ff732a7ce0c6461032a8b30022057640977a99333ec08e632dd00e4ec2c278"
+cache_key_hash_shoc_standard = "f94917756d084db26b032feef3124b6a61af9e8bc4521600462d7f7f94a3e367"
+cache_key_hash_ugrid_mesh2d = "b00260280514beba8332a3dda4ec133eda03354d5a55d13828045e2527041399"
+cache_key_hash_ugrid_mesh2d_one_indexed = "2bbdcb0aa3d55d7fbf4bc962d387898a37cff36100e1a2b60624a908ebb352e9"
 
 
 def test_hash_attributes(datasets: pathlib.Path):
@@ -159,7 +159,7 @@ def test_hash_attributes_gives_unique_keys(datasets: pathlib.Path):
 def test_cache_key_cfgrid1d_sha1(datasets: pathlib.Path):
     dataset_cf = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
 
-    result_cache_key_cf = emsarray.operations.cache.make_cache_key(dataset_cf, hashlib.sha1)
+    result_cache_key_cf = emsarray.operations.cache.make_cache_key(dataset_cf, hashlib.sha1())
 
     assert result_cache_key_cf is not None
 
