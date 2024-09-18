@@ -1,5 +1,5 @@
 """
-Operations for making caching keys for given datasets and attribute dicts.
+Operations for making caching keys for a given dataset.
 """
 import hashlib
 import marshal
@@ -20,7 +20,7 @@ def hash_attributes(hash: "hashlib._Hash", attributes: dict) -> None:
         The hash instance to update with the given attribute dict.
         This must follow the interface defined in :mod:`hashlib`.
     attributes: dict
-        Expects a marshal compatible dictionary
+        Expects a marshal compatible dictionary.
     """
     # Prepend the marshal encoding version
     marshal_version = 4
@@ -44,7 +44,7 @@ def hash_string(hash: "hashlib._Hash", value: str) -> None:
         The hash instance to update with the given attribute dict.
         This must follow the interface defined in :mod:`hashlib`.
     attributes: str
-        Expects a string that can be encoded in utf-8
+        Expects a string that can be encoded in utf-8.
     """
     # Prepend the str length
     hash_int(hash, len(value))
@@ -61,10 +61,8 @@ def hash_int(hash: "hashlib._Hash", value: int) -> None:
         The hash instance to update with the given attribute dict.
         This must follow the interface defined in :mod:`hashlib`.
     attributes: int
-        Expects an int that can be represented in a numpy int32
+        Expects an int that can be represented in a numpy int32.
     """
-    # Prepend the int bit length
-    hash.update(numpy.int32(value.bit_length()).tobytes())
     hash.update(numpy.int32(value).tobytes())
 
 
@@ -75,9 +73,9 @@ def make_cache_key(dataset: xarray.Dataset, hash: "hashlib._Hash | None" = None)
     Parameters
     ----------
     dataset : xarray.Dataset
-        The dataset to generate a cache key from
-    hash : hash instance
-        An instance of a hashlib hash class
+        The dataset to generate a cache key from.
+    hash : hashlib._Hash
+        An instance of a hashlib hash class.
         Defaults to `hashlib.blake2b`, which is secure enough and fast enough for most purposes.
         The hash algorithm does not need to be cryptographically secure,
         so faster algorithms such as `xxhash` can be swapped in if desired.
@@ -86,7 +84,21 @@ def make_cache_key(dataset: xarray.Dataset, hash: "hashlib._Hash | None" = None)
     -------
     cache_key : str
         A string suitable for use as a cache key.
-        The string will be safe for use as part filename if data are to be cached to disk.
+        The string will be safe for use as part of a filename if data is to be cached to disk.
+
+    Examples
+    --------
+
+    .. code-block:: python
+
+        import emsarray
+        from emsarray.operations.cache import make_cache_key
+
+        # Make a cache key from the dataset
+        dataset = emsarray.tuorial.open_dataset("austen")
+        cache_key = make_cache_key(dataset)
+        >>> cache_key
+        '580853c44e732878937598e86d0b26cb81e18d986072c0790a122244e9d3f480'
 
     Notes
     -----
