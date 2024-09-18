@@ -1969,14 +1969,11 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             data_array = self.dataset[geometry_name]
 
             # Include the variable name in the digest.
-            # Prepend the length of strings to prevent unnoticed overlaps with neighbouring data
-            hash_int(hash, len(str(geometry_name)))
             hash_string(hash, str(geometry_name))
 
             # Include the dtype of the data array.
             # A float array and an int array mean very different things,
             # but could have identical byte patterns.
-            hash_int(hash, len(data_array.encoding['dtype'].name))
             hash_string(hash, data_array.encoding['dtype'].name)
 
             # Include the size and shape of the data.
