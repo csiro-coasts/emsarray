@@ -3,23 +3,30 @@ from __future__ import annotations
 import hashlib
 import pathlib
 
+import pytest
+
 import emsarray
 import emsarray.operations.cache
 
 # Sha1
 empty_sha1_hash = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-attr_hash_lon = "86508f0e34ae9311b4dd4643e5afbf275eaf0052"
-str_hash = 'd79c41b2fb9cbfa7e81c951747609057691cb686'
-int_hash = '604b8984b112bf57de911f48a75ec769dd63411f'
-attr_hash_lat = "08d7bc76818a474e80847c26ed78d588374bfbc4"
-cache_key_hash_cf1d_sha1 = "414050a852498ee4b57154ead45b048756004cb5"
+attr_hash_lon = "4151c4ac3e0e913dd2c5520c0b2c33e6f20eb004"
+str_hash = '67a0425c3bcb8a47ccc39615e59ab489d0c4b6a1'
+int_hash = '7b08e025e311c3dfcf5179b67c0fdc08e73de261'
+attr_hash_lat = "2cb433979fc2d9c3884eea8569dd6a44406950f3"
+cache_key_hash_cf1d_sha1 = "2b006999273225ed70d4810357b6a06e6bebe9a6"
 
 # Blake2b
-cache_key_hash_cf1d = "bf5d43b5a378ebfbd4c1204d6e088d8445b9d2fea75a8d8cf2d610f05a72f282"
-cache_key_hash_cf2d = "93b2546b28b544792db65b4709a760ca3145a22329072a24d59f714ff5694c30"
-cache_key_hash_shoc_standard = "d88fe0470c7e38c38b04e9e5028f3d671e855cf31ec242af8bd656cccbe373bf"
-cache_key_hash_ugrid_mesh2d = "e541bf3bbe4a3ed3a64ce48efb493bef0271ff45431036168be08376a89cea57"
-cache_key_hash_ugrid_mesh2d_one_indexed = "f0ebdfdff229659f81037d4ed90aa629433b0a1843ae6d8d9f0c7c732f1a9754"
+cache_key_hash_cf1d = "1a3226072f08441ee79f727b0775709209ff2965299539c898ecc401cf17e23f"
+cache_key_hash_cf2d = "c8d2671af35e96a08c6e33f616bc460ba3957bfa3ffc4529cfd84378e9de4c2f"
+cache_key_hash_shoc_standard = "18788cd57e4aff55dc5c0918513942bc6849d7b90e53a09bb77c4598fa3daf29"
+cache_key_hash_ugrid_mesh2d = "9e7c0ded2bfcc6843131e09303b8bec53e6edfbb18115e2c50e07adce29e8702"
+cache_key_hash_ugrid_mesh2d_one_indexed = "045be69d5ef70b20f26dc9a14e6cea8a11fe3cc9a3c4c4b303aed6f22206ac7a"
+
+
+@pytest.fixture
+def emsarray_version():
+    return '1.0.0'
 
 
 def test_hash_attributes(datasets: pathlib.Path):
@@ -72,7 +79,9 @@ def test_hash_int():
     assert result_hash == int_hash
 
 
-def test_cache_key_cfgrid1d(datasets: pathlib.Path):
+def test_cache_key_cfgrid1d(datasets: pathlib.Path, monkeypatch, emsarray_version):
+    monkeypatch.setattr(emsarray, "__version__", emsarray_version)
+
     dataset_cf = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
 
     result_cache_key_cf = emsarray.operations.cache.make_cache_key(dataset_cf)
@@ -82,7 +91,9 @@ def test_cache_key_cfgrid1d(datasets: pathlib.Path):
     assert result_cache_key_cf == cache_key_hash_cf1d
 
 
-def test_cache_key_cfgrid2d(datasets: pathlib.Path):
+def test_cache_key_cfgrid2d(datasets: pathlib.Path, monkeypatch, emsarray_version):
+    monkeypatch.setattr(emsarray, "__version__", emsarray_version)
+
     dataset_cf = emsarray.open_dataset(datasets / 'cfgrid2d.nc')
 
     result_cache_key_cf = emsarray.operations.cache.make_cache_key(dataset_cf)
@@ -92,7 +103,9 @@ def test_cache_key_cfgrid2d(datasets: pathlib.Path):
     assert result_cache_key_cf == cache_key_hash_cf2d
 
 
-def test_cache_key_shoc_standard(datasets: pathlib.Path):
+def test_cache_key_shoc_standard(datasets: pathlib.Path, monkeypatch, emsarray_version):
+    monkeypatch.setattr(emsarray, "__version__", emsarray_version)
+
     dataset_cf = emsarray.open_dataset(datasets / 'shoc_standard.nc')
 
     result_cache_key_cf = emsarray.operations.cache.make_cache_key(dataset_cf)
@@ -102,7 +115,9 @@ def test_cache_key_shoc_standard(datasets: pathlib.Path):
     assert result_cache_key_cf == cache_key_hash_shoc_standard
 
 
-def test_cache_key_ugrid_mesh2d(datasets: pathlib.Path):
+def test_cache_key_ugrid_mesh2d(datasets: pathlib.Path, monkeypatch, emsarray_version):
+    monkeypatch.setattr(emsarray, "__version__", emsarray_version)
+
     dataset_cf = emsarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
 
     result_cache_key_cf = emsarray.operations.cache.make_cache_key(dataset_cf)
@@ -112,7 +127,9 @@ def test_cache_key_ugrid_mesh2d(datasets: pathlib.Path):
     assert result_cache_key_cf == cache_key_hash_ugrid_mesh2d
 
 
-def test_cache_key_ugrid_mesh2d_one_indexed(datasets: pathlib.Path):
+def test_cache_key_ugrid_mesh2d_one_indexed(datasets: pathlib.Path, monkeypatch, emsarray_version):
+    monkeypatch.setattr(emsarray, "__version__", emsarray_version)
+
     dataset_cf = emsarray.open_dataset(datasets / 'ugrid_mesh2d_one_indexed.nc')
 
     result_cache_key_cf = emsarray.operations.cache.make_cache_key(dataset_cf)
@@ -122,7 +139,9 @@ def test_cache_key_ugrid_mesh2d_one_indexed(datasets: pathlib.Path):
     assert result_cache_key_cf == cache_key_hash_ugrid_mesh2d_one_indexed
 
 
-def test_cache_key_is_deterministic(datasets: pathlib.Path):
+def test_cache_key_is_deterministic(datasets: pathlib.Path, monkeypatch, emsarray_version):
+    monkeypatch.setattr(emsarray, "__version__", emsarray_version)
+
     dataset_cf = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
 
     result_cache_key_cf_1 = emsarray.operations.cache.make_cache_key(dataset_cf)
@@ -133,7 +152,9 @@ def test_cache_key_is_deterministic(datasets: pathlib.Path):
     assert result_cache_key_cf_1 == cache_key_hash_cf1d
 
 
-def test_hash_attributes_is_deterministic(datasets: pathlib.Path):
+def test_hash_attributes_is_deterministic(datasets: pathlib.Path, monkeypatch, emsarray_version):
+    monkeypatch.setattr(emsarray, "__version__", emsarray_version)
+
     dataset = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
 
     m_lon_1 = hashlib.sha1()
@@ -150,7 +171,9 @@ def test_hash_attributes_is_deterministic(datasets: pathlib.Path):
     assert result_hash_lon_1 == attr_hash_lon
 
 
-def test_cache_key_gives_unique_keys(datasets: pathlib.Path):
+def test_cache_key_gives_unique_keys(datasets: pathlib.Path, monkeypatch, emsarray_version):
+    monkeypatch.setattr(emsarray, "__version__", emsarray_version)
+
     dataset_cf = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
     dataset_ugrid = emsarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
 
@@ -166,7 +189,9 @@ def test_cache_key_gives_unique_keys(datasets: pathlib.Path):
     assert result_cache_key_ugrid == cache_key_hash_ugrid_mesh2d
 
 
-def test_hash_attributes_gives_unique_keys(datasets: pathlib.Path):
+def test_hash_attributes_gives_unique_keys(datasets: pathlib.Path, monkeypatch, emsarray_version):
+    monkeypatch.setattr(emsarray, "__version__", emsarray_version)
+
     dataset = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
 
     m_lon = hashlib.sha1()
@@ -190,7 +215,9 @@ def test_hash_attributes_gives_unique_keys(datasets: pathlib.Path):
     assert result_hash_lat == attr_hash_lat
 
 
-def test_cache_key_cfgrid1d_sha1(datasets: pathlib.Path):
+def test_cache_key_cfgrid1d_sha1(datasets: pathlib.Path, monkeypatch, emsarray_version):
+    monkeypatch.setattr(emsarray, "__version__", emsarray_version)
+
     dataset_cf = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
 
     result_cache_key_cf = emsarray.operations.cache.make_cache_key(dataset_cf, hashlib.sha1())
