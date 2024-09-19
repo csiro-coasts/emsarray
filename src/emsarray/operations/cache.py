@@ -63,7 +63,8 @@ def hash_int(hash: "hashlib._Hash", value: int) -> None:
     attributes: int
         Expects an int that can be represented in a numpy int32.
     """
-    hash.update(numpy.int32(value).tobytes())
+    with numpy.errstate(over='raise'):
+        hash.update(numpy.int32(value).tobytes())
 
 
 def make_cache_key(dataset: xarray.Dataset, hash: "hashlib._Hash | None" = None) -> str:
