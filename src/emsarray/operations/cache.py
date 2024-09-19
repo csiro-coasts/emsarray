@@ -64,7 +64,11 @@ def hash_int(hash: "hashlib._Hash", value: int) -> None:
         Expects an int that can be represented in a numpy int32.
     """
     with numpy.errstate(over='raise'):
-        hash.update(numpy.int32(value).tobytes())
+        # Manual overflow check as older numpy versions dont throw the exception
+        if numpy.iinfo("int32").min <= value <= numpy.iinfo("int32").max:
+            hash.update(numpy.int32(value).tobytes())
+        else:
+            raise OverflowError
 
 
 def make_cache_key(dataset: xarray.Dataset, hash: "hashlib._Hash | None" = None) -> str:
