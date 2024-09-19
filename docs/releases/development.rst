@@ -11,3 +11,6 @@ Next release (in development)
   but the trade off is worth the added security
   after the invalid polygons found in :pr:`154`
   (:pr:`156`).
+* Added Dataset cache key methods and associated hashing utility methods,
+  as specified in issue #153.
+  (:pr:`158`).
