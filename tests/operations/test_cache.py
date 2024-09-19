@@ -71,6 +71,14 @@ def test_hash_int():
     assert result_hash == int_hash
 
 
+def test_hash_int_overflow():
+
+    emsarray.operations.cache.hash_int(hashlib.sha1(), 2 ** 31 - 5)
+
+    with pytest.raises(OverflowError):
+        emsarray.operations.cache.hash_int(hashlib.sha1(), 2 ** 31)
+
+
 def test_cache_key_cfgrid1d(datasets: pathlib.Path):
     dataset_cf = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
 
