@@ -1,5 +1,21 @@
 """
-Operations for making caching keys for a given dataset.
+Operations for making cache keys based on dataset geometry.
+
+Some operations such as :func:`~.operations.triangulate.triangulate_dataset`
+only depend on the dataset geometry and are expensive to compute.
+For applications that need to derive data from the dataset geometry
+it would be useful if the derived data could be reused between different runs of the same application
+or between multiple time slices of the same geometry distributed across multiple files.
+This module provides :func:`.make_cache_key` to assist in this process
+by deriving a cache key from the important parts of a dataset geometry.
+Applications can use this cache key
+as part of a filename when save derived geometry data to disk
+or as a key to an in-memory cache of derived geometry.
+
+The derived cache keys will be identical between different instances of an application,
+and between different files in multi-file datasets split over an unlimited dimension.
+
+This module does not provide an actual cache implementation.
 """
 import hashlib
 import marshal
@@ -12,15 +28,21 @@ import emsarray
 
 def hash_attributes(hash: "hashlib._Hash", attributes: dict) -> None:
     """
-    Updates the provided hash with with a marshal serialised byte representation of the given attribute dictionary.
+    Adds the contents of an :attr:`attributes dictionary <xarray.DataArray.attrs>`
+    to a hash.
 
     Parameters
     ----------
     hash : hashlib-style hash instance
-        The hash instance to update with the given attribute dict.
+        The hash instance to add the attribute dictionary to.
         This must follow the interface defined in :mod:`hashlib`.
-    attributes: dict
-        Expects a marshal compatible dictionary.
+    attributes : dict
+        A dictionary of attributes from a :class:`~xarray.Dataset` or :class:`~xarray.DataArray`.
+
+    Notes
+    -----
+    The attribute dictionary is serialized to bytes using :func:`marshal.dumps`.
+    This is an implementation detail that may change in future releases.
     """
     # Prepend the marshal encoding version
     marshal_version = 4
@@ -36,32 +58,44 @@ def hash_attributes(hash: "hashlib._Hash", attributes: dict) -> None:
 
 def hash_string(hash: "hashlib._Hash", value: str) -> None:
     """
-    Updates the provided hash with with a utf-8 encoded byte representation of the provided string.
+    Adds a :class:`string <str>` to a hash.
 
     Parameters
     ----------
     hash : hashlib-style hash instance
-        The hash instance to update with the given attribute dict.
+        The hash instance to add the string to.
         This must follow the interface defined in :mod:`hashlib`.
-    attributes: str
-        Expects a string that can be encoded in utf-8.
+    value : str
+        Any unicode string.
+
+    Notes
+    -----
+    The string is UTF-8 encoded as part of being added to the hash.
+    This is an implementation detail that may change in future releases.
     """
-    # Prepend the str length
+    # Prepend the length of the string to the hash
+    # to prevent malicious datasets generating overlapping string hashes.
     hash_int(hash, len(value))
     hash.update(value.encode('utf-8'))
 
 
 def hash_int(hash: "hashlib._Hash", value: int) -> None:
     """
-    Updates the provided hash with an encoded byte representation of the provided int.
+    Adds an :class:`int` to a hash.
 
     Parameters
     ----------
     hash : hashlib-style hash instance
-        The hash instance to update with the given attribute dict.
+        The hash instance to add the integer to.
         This must follow the interface defined in :mod:`hashlib`.
-    attributes: int
-        Expects an int that can be represented in a numpy int32.
+    value : int
+        Any int representable as an :data:`numpy.int32`
+
+    Notes
+    -----
+    The int is cast to a :data:`numpy.int32` as part of being added to the hash.
+    This is an implementation detail that may change in the future
+    if larger integers are required.
     """
     with numpy.errstate(over='raise'):
         # Manual overflow check as older numpy versions dont throw the exception
@@ -73,17 +107,16 @@ def hash_int(hash: "hashlib._Hash", value: int) -> None:
 
 def make_cache_key(dataset: xarray.Dataset, hash: "hashlib._Hash | None" = None) -> str:
     """
-    Generate a key suitable for caching data derived from the geometry of a dataset.
+    Derive a cache key from the geometry of a dataset.
 
     Parameters
     ----------
     dataset : xarray.Dataset
         The dataset to generate a cache key from.
-    hash : hashlib._Hash
+    hash : :mod:`hashlib`-compatible hash instance, optional
         An instance of a hashlib hash class.
-        Defaults to `hashlib.blake2b`, which is secure enough and fast enough for most purposes.
-        The hash algorithm does not need to be cryptographically secure,
-        so faster algorithms such as `xxhash` can be swapped in if desired.
+        Defaults to :func:`hashlib.blake2b` with a digest size of 32,
+        which is secure enough and fast enough for most purposes.
 
     Returns
     -------

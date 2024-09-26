@@ -1955,7 +1955,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def hash_geometry(self, hash: "hashlib._Hash") -> None:
         """
         Updates the provided hash with all of the relevant geometry data for this dataset.
-        Note this includes the attribute data contained within each geometry.
 
         Parameters
         ----------
