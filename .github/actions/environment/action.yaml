@@ -52,9 +52,8 @@ runs:
           hashFiles('continuous-integration/environment.yaml') }}
 
     - name: Install base Conda environment
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v3
       with:
-        mamba-version: "*"
         environment-file: continuous-integration/environment.yaml
         python-version: ${{ inputs.python-version }}
         channels: conda-forge
