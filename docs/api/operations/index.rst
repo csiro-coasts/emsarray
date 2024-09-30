@@ -13,6 +13,10 @@ and behave the same across all supported conventions.
 
    ./*
 
+:doc:`cache`
+    These operations create hash keys of datasets for use
+    in caching data.
+
 :doc:`depth`
     These operations manipulate datasets with a depth axis,
     such as the output of ocean models.

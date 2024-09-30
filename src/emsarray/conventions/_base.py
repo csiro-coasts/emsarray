@@ -1,6 +1,7 @@
 import abc
 import dataclasses
 import enum
+import hashlib
 import logging
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Sequence
@@ -18,6 +19,7 @@ from emsarray import utils
 from emsarray.compat.shapely import SpatialIndex
 from emsarray.exceptions import InvalidPolygonWarning, NoSuchCoordinateError
 from emsarray.operations import depth, point_extraction
+from emsarray.operations.cache import hash_attributes, hash_int, hash_string
 from emsarray.plot import (
     _requires_plot, animate_on_figure, make_plot_title, plot_on_figure,
     polygons_to_collection
@@ -1949,6 +1951,39 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return depth.normalize_depth_variables(
             self.dataset, self.depth_coordinates,
             positive_down=positive_down, deep_to_shallow=deep_to_shallow)
+
+    def hash_geometry(self, hash: "hashlib._Hash") -> None:
+        """
+        Updates the provided hash with all of the relevant geometry data for this dataset.
+
+        Parameters
+        ----------
+        hash : hashlib-style hash instance
+            The hash instance to update with geometry data.
+            This must follow the interface defined in :mod:`hashlib`.
+        """
+        geometry_names = self.get_all_geometry_names()
+
+        for geometry_name in geometry_names:
+            data_array = self.dataset[geometry_name]
+
+            # Include the variable name in the digest.
+            hash_string(hash, str(geometry_name))
+
+            # Include the dtype of the data array.
+            # A float array and an int array mean very different things,
+            # but could have identical byte patterns.
+            hash_string(hash, data_array.encoding['dtype'].name)
+
+            # Include the size and shape of the data.
+            # 1D coordinate arrays are very different to 2D coordinate arrays,
+            # but could have identical byte patterns.
+            hash_int(hash, data_array.size)
+            hash.update(numpy.array(data_array.shape, dtype='int32').tobytes('C'))
+            hash.update(data_array.to_numpy().tobytes('C'))
+
+            # Hash dataset attributes
+            hash_attributes(hash, data_array.attrs)
 
 
 class DimensionConvention(Convention[GridKind, Index]):
