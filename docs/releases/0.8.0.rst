@@ -1,6 +1,8 @@
-=============================
-Next release (in development)
-=============================
+=====
+0.8.0
+=====
+
+Released on 2024-10-17
 
 * Fix invalid geometry being generated for 'river' cells
   in CFGrid2D datasets with no cell bounds (:pr:`154`).

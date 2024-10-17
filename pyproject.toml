@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "emsarray"
-version = "0.7.0"
+version = "0.8.0"
 description = "xarray extension that supports multiple geometry conventions"
 authors = [
 	{name = "Coastal Environmental Modelling team, Oceans and Atmosphere, CSIRO", email = "coasts@csiro.au"},
@@ -28,7 +28,7 @@ dynamic = ["readme"]
 
 [project.urls]
 Documentation = "https://emsarray.readthedocs.io/"
-"Release notes" = "https://emsarray.readthedocs.io/en/stable/releases/0.7.0/"
+"Release notes" = "https://emsarray.readthedocs.io/en/stable/releases/0.8.0/"
 Source = "https://github.com/csiro-coasts/emsarray/"
 
 [project.optional-dependencies]
