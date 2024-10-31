@@ -409,23 +409,43 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
         return Specificity.LOW
 
     def _make_polygons(self) -> numpy.ndarray:
+        y_size, x_size = self.topology.shape
         lon_bounds = self.topology.longitude_bounds.values
         lat_bounds = self.topology.latitude_bounds.values
 
         # Make a bounds array as if this dataset had 2D coordinates.
-        # 1D bounds are (min, max).
-        # 2D bounds are (j-i, i-1), (j-1, i+1), (j+1, i+1), (j+1, i-1).
+        # 1D bounds are (lon, 2) and (lat, 2).
+        # 2D bounds are (lat, lon, 4)
+        # where the 4 points are (j-i, i-1), (j-1, i+1), (j+1, i+1), (j+1, i-1).
         # The bounds values are repeated as required, are given a new dimension,
         # then repeated along that new dimension.
-        # They will come out as array with shape (lat, lon, 4)
-        y_size, x_size = self.topology.shape
-        lon_bounds_2d = numpy.tile(lon_bounds[numpy.newaxis, :, [0, 1, 1, 0]], (y_size, 1, 1))
-        lat_bounds_2d = numpy.tile(lat_bounds[:, numpy.newaxis, [0, 0, 1, 1]], (1, x_size, 1))
+        # They will come out as array with shape (y_size, x_size, 4)
+
+        lon_bounds_2d = numpy.stack([
+            lon_bounds[:, 0],
+            lon_bounds[:, 1],
+            lon_bounds[:, 1],
+            lon_bounds[:, 0],
+        ], axis=-1)
+        lon_bounds_2d = numpy.broadcast_to(numpy.expand_dims(lon_bounds_2d, 0), (y_size, x_size, 4))
+
+        lat_bounds_2d = numpy.stack([
+            lat_bounds[:, 0],
+            lat_bounds[:, 0],
+            lat_bounds[:, 1],
+            lat_bounds[:, 1],
+        ], axis=-1)
+        lat_bounds_2d = numpy.broadcast_to(numpy.expand_dims(lat_bounds_2d, 0), (x_size, y_size, 4))
+        lat_bounds_2d = numpy.transpose(lat_bounds_2d, (1, 0, 2))
+
+        assert lon_bounds_2d.shape == lat_bounds_2d.shape == (y_size, x_size, 4)
 
         # points is a (topology.size, 4, 2) array of the corners of each cell
         points = numpy.stack([lon_bounds_2d, lat_bounds_2d], axis=-1).reshape((-1, 4, 2))
 
-        return utils.make_polygons_with_holes(points)
+        polygons = utils.make_polygons_with_holes(points)
+
+        return polygons
 
     @cached_property
     def face_centres(self) -> numpy.ndarray:
