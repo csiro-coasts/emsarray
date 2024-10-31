@@ -526,6 +526,9 @@ class CFGrid2DTopology(CFGridTopology):
         bound_by_nan = j_bound_by_nan | i_bound_by_nan
         coordinate_values[bound_by_nan] = numpy.nan
 
+        # grid is a (x+1, y+1) shape array built by averaging the cell centres.
+        # Cells on the outside have been padded with `nan` neighbours.
+        #
         # numpy.nanmean will return nan for an all-nan column.
         # This is the exact behaviour that we want.
         # numpy emits a warning that can not be silenced when this happens,
@@ -539,22 +542,20 @@ class CFGrid2DTopology(CFGridTopology):
             ], axis=0)
 
         y_size, x_size = self.shape
-        bounds = numpy.array([
-            [
-                [grid[y, x], grid[y, x + 1], grid[y + 1, x + 1], grid[y + 1, x]]
-                for x in range(x_size)
-            ]
-            for y in range(y_size)
-        ])
+        bounds = numpy.stack([
+            grid[:-1, :-1], grid[:-1, 1:], grid[1:, 1:], grid[1:, :-1],
+        ], axis=-1)
 
         # Set nan bounds for all cells that have any `nan` in its bounds.
         cells_with_nans = numpy.isnan(bounds).any(axis=2)
         bounds[cells_with_nans] = numpy.nan
 
-        return xarray.DataArray(
+        data_array = xarray.DataArray(
             bounds,
             dims=[self.y_dimension, self.x_dimension, 'bounds'],
         )
+
+        return data_array
 
     @cached_property
     def longitude_bounds(self) -> xarray.DataArray:
