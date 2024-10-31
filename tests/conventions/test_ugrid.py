@@ -40,7 +40,8 @@ def make_faces(width: int, height, fill_value: int) -> tuple[numpy.ndarray, nump
 
     face_node: numpy.ndarray = numpy.ma.masked_array(
         numpy.full((total_faces, 4), fill_value, dtype=numpy.int32),
-        mask=True, fill_value=fill_value)
+        mask=numpy.full((total_faces, 4), True),
+        fill_value=fill_value)
     edge_node = numpy.zeros((total_edges, 2), dtype=numpy.int32)
 
     for row in range(1, width + 1):
