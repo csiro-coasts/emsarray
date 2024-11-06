@@ -1,19 +1,20 @@
 """
 Operations for making a triangular mesh out of the polygons of a dataset.
 """
-from typing import cast
-
 import numpy
+import pandas
+import shapely
 import xarray
 from shapely.geometry import LineString, MultiPoint, Polygon
 
 Vertex = tuple[float, float]
-Triangle = tuple[int, int, int]
+VertexTriangle = tuple[Vertex, Vertex, Vertex]
+IndexTriangle = tuple[int, int, int]
 
 
 def triangulate_dataset(
     dataset: xarray.Dataset,
-) -> tuple[list[Vertex], list[Triangle], list[int]]:
+) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """
     Triangulate the polygon cells of a dataset
 
@@ -28,17 +29,22 @@ def triangulate_dataset(
 
     Returns
     -------
-    tuple of vertices, triangles, and cell indexes.
-        A tuple of three lists is returned,
+    tuple of vertices, triangles, and `cell_indices`
+        A tuple of three numpy arrays is returned,
         containing vertices, triangles, and cell indexes respectively.
 
-        Each vertex is a tuple of (x, y) or (lon, lat) coordinates.
+        `vertices` is a numpy array of shape (V, 2)
+        where V is the number of unique vertices in the dataset.
+        The vertex coordinates are in (x, y) or (lon, lat) order.
 
-        Each triangle is a tuple of three integers,
-        indicating which vertices make up the triangle.
+        `triangles` is a numpy array of shape (T, 3)
+        where T is the number of triangles in the dataset.
+        Each triangle is a set of three vertex indices.
 
-        The cell indexes tie the triangles to the original cell polygon,
-        allowing you to plot data on the triangle mesh.
+        `cell_indices` is a numpy list of length T.
+        Each entry indicates which polygon from the dataset a triangle is a part of.
+
+
 
     Examples
     --------
@@ -87,79 +93,160 @@ def triangulate_dataset(
     """
     polygons = dataset.ems.polygons
 
-    # Getting all the vertices is easy - extract them from the polygons.
-    # By going through a set, this will deduplicate the vertices.
-    # Back to a list and we have a stable order
-    vertices: list[Vertex] = list({
-        vertex
-        for polygon in polygons
-        if polygon is not None
-        for vertex in polygon.exterior.coords
-    })
+    # Find all the unique coordinates and assign them each a unique index
+    all_coords = shapely.get_coordinates(polygons)
+    vertex_index = pandas.MultiIndex.from_arrays(all_coords.T).drop_duplicates()
+    vertex_series = pandas.Series(numpy.arange(len(vertex_index)), index=vertex_index)
+    vertex_coords = numpy.array(vertex_index.to_list())
 
-    # This maps between a vertex tuple and its index.
-    # Vertex positions are (probably) floats. For grid datasets, where cells
-    # are implicitly defined by their centres, be careful to compute cell
-    # vertices in consistent ways. Float equality is tricky!
-    vertex_indexes = {vertex: index for index, vertex in enumerate(vertices)}
+    polygon_length = shapely.get_num_coordinates(polygons)
 
-    # Each cell polygon needs to be triangulated,
-    # while also recording the convention native index of the cell,
-    # so that we can later correlate cell data with the triangles.
-    polygons_with_index = [
-        (polygon, index)
-        for index, polygon in enumerate(polygons)
-        if polygon is not None]
-    triangles_with_index = list(
-        (tuple(vertex_indexes[vertex] for vertex in triangle_coords), dataset_index)
-        for polygon, dataset_index in polygons_with_index
-        for triangle_coords in _triangulate_polygon(polygon)
-    )
-    triangles: list[Triangle] = [tri for tri, index in triangles_with_index]  # type: ignore
-    indexes = [index for tri, index in triangles_with_index]
+    # Count the total number of triangles.
+    # A polygon with n sides can be decomposed in to n-2 triangles,
+    # however polygon_length counts an extra vertex because of the closed rings.
+    total_triangles = numpy.sum(polygon_length[numpy.nonzero(polygon_length)] - 3)
 
-    return (vertices, triangles, indexes)
+    # Pre-allocate some numpy arrays that will store the triangle data.
+    # This is much faster than building up these data structures iteratively.
+    face_indices = numpy.empty(total_triangles, dtype=int)
+    triangle_coords = numpy.empty((total_triangles, 3, 2), dtype=float)
+    # This is the index of which face we will populate next in the above arrays
+    current_face = 0
+
+    def _add_triangles(face_index: int, vertex_triangles: numpy.ndarray) -> None:
+        """
+        Append some triangles to the face_indices and triangle_coords arrays.
+
+        Parameters
+        ----------
+        face_index : int
+            The face index of all the triangles
+        vertex_triangles : numpy.ndarray
+            The triangles for this face as an (n, 3, 2) array,
+            where n is the number of triangles in the face.
+        """
+        nonlocal current_face
+        current_length = len(vertex_triangles)
+        face_indices[current_face:current_face + current_length] = face_index
+        triangle_coords[current_face:current_face + current_length] = vertex_triangles
+        current_face += current_length
+
+    # Find all concave polygons by comparing each polygon to its convex hull.
+    # A convex polygon is its own convex hull,
+    # while the convex hull of a concave polygon
+    # will always have fewer vertices than the original polygon.
+    # Comparing the number of vertices is a shortcut.
+    convex_hulls = shapely.convex_hull(polygons)
+    convex_hull_length = shapely.get_num_coordinates(convex_hulls)
+    polygon_is_concave = numpy.flatnonzero(convex_hull_length != polygon_length)
+
+    # Categorize each polygon by length, skipping concave polygons.
+    # We will handle them separately.
+    polygon_length[polygon_is_concave] = 0
+    unique_lengths = numpy.unique(polygon_length)
+
+    # Triangulate polygons in batches of identical sizes.
+    # This allows the coordinates to be manipulated efficiently.
+    for unique_length in unique_lengths:
+        if unique_length == 0:
+            # Any `None` polygons will have a length of 0,
+            # and any concave polygons have been set to 0.
+            continue
+
+        same_length_face_indices = numpy.flatnonzero(polygon_length == unique_length)
+        same_length_polygons = polygons[same_length_face_indices]
+        vertex_triangles = _triangulate_polygons_by_length(same_length_polygons)
+
+        for face_index, triangles in zip(same_length_face_indices, vertex_triangles):
+            _add_triangles(face_index, triangles)
+
+    # Triangulate each concave polygon using a slower manual method.
+    # Anecdotally concave polygons are very rare,
+    # so using a slower method isn't an issue.
+    for face_index in polygon_is_concave:
+        polygon = polygons[face_index]
+        triangles = _triangulate_concave_polygon(polygon)
+        _add_triangles(face_index, triangles)
+
+    # Check that we have handled each triangle we expected.
+    assert current_face == total_triangles
+
+    # Make a DataFrame. By manually constructing Series the data in the
+    # underlying numpy arrays will be used in place.
+    face_triangle_df = pandas.DataFrame({
+        'face_indices': pandas.Series(face_indices),
+        'x0': pandas.Series(triangle_coords[:, 0, 0]),
+        'y0': pandas.Series(triangle_coords[:, 0, 1]),
+        'x1': pandas.Series(triangle_coords[:, 1, 0]),
+        'y1': pandas.Series(triangle_coords[:, 1, 1]),
+        'x2': pandas.Series(triangle_coords[:, 2, 0]),
+        'y2': pandas.Series(triangle_coords[:, 2, 1]),
+    }, copy=False)
+
+    joined_df = face_triangle_df\
+        .join(vertex_series.rename('v0'), on=['x0', 'y0'])\
+        .join(vertex_series.rename('v1'), on=['x1', 'y1'])\
+        .join(vertex_series.rename('v2'), on=['x2', 'y2'])
+
+    faces = joined_df['face_indices'].to_numpy()
+    triangles = joined_df[['v0', 'v1', 'v2']].to_numpy()
+
+    return vertex_coords, triangles, faces
 
 
-def _triangulate_polygon(polygon: Polygon) -> list[tuple[Vertex, Vertex, Vertex]]:
+def _triangulate_polygons_by_length(polygons: numpy.ndarray) -> numpy.ndarray:
     """
-    Triangulate a polygon.
+    Triangulate a list of convex polygons of equal length.
 
-    .. note::
+    Parameters
+    ----------
+    polygons : numpy.ndarray of shapely.Polygon
+        The polygons to triangulate.
+        These must all have the same number of vertices
+        and must all be convex.
 
-        This currently only supports simple polygons - polygons that do not
-        intersect themselves and do not have holes.
-
-    Examples
-    --------
-
-    .. code-block:: python
-
-        >>> polygon = Polygon([(0, 0), (2, 0), (2, 2), (1, 3), (0, 2), (0, 0)])
-        >>> for triangle in triangulate_polygon(polygon):
-        ...     print(triangle.wkt)
-        POLYGON ((0 0, 2 0, 2 2, 0 0))
-        POLYGON ((0 0, 2 2, 1 3, 0 0))
-        POLYGON ((0 0, 1 3, 0 2, 0 0))
-
-    See Also
-    --------
-    :func:`triangulate_dataset`,
-    `Polygon triangulation <https://en.wikipedia.org/wiki/Polygon_triangulation>`_
+    Returns
+    -------
+    numpy.ndarray
+        A numpy array of shape (# polygons, # triangles, 3, 2),
+        where `# polygons` is the length of `polygons`
+        and `# triangles` is the number of triangles each polygon is decomposed in to.
     """
-    # The 'ear clipping' method used below is correct for all polygons, but not
-    # performant. If the polygon is convex we can use a shortcut method.
-    if polygon.equals(polygon.convex_hull):
-        # Make a fan triangulation. For a polygon with n vertices the triangles
-        # will have vertices:
-        #   (1, 2, 3), (1, 3, 4), (1, 4, 5), ... (1, n-1, n)
-        exterior_vertices = numpy.array(polygon.exterior.coords)[:-1]
-        num_triangles = len(exterior_vertices) - 2
-        v0 = numpy.broadcast_to(exterior_vertices[0], (num_triangles, 2))
-        v1 = exterior_vertices[1:-1]
-        v2 = exterior_vertices[2:]
-        return list(zip(map(tuple, v0), map(tuple, v1), map(tuple, v2)))
+    vertex_count = len(polygons[0].exterior.coords) - 1
 
+    # An array of shape (len(polygons), vertex_count, 2)
+    coordinates = shapely.get_coordinates(shapely.get_exterior_ring(polygons))
+    coordinates = coordinates.reshape((len(polygons), vertex_count + 1, 2))
+    coordinates = coordinates[:, :-1, :]
+
+    # Arrays of shape (len(polygons), vertex_count - 2, 2)
+    v0 = numpy.repeat(
+        coordinates[:, 0, :].reshape((-1, 1, 2)),
+        repeats=vertex_count - 2,
+        axis=1)
+    v1 = coordinates[:, 1:-1]
+    v2 = coordinates[:, 2:]
+
+    # An array of shape (len(polygons), vertex_count - 2, 3, 2)
+    triangles: numpy.ndarray = numpy.stack([v0, v1, v2], axis=2)
+    return triangles
+
+
+def _triangulate_concave_polygon(polygon: Polygon) -> numpy.ndarray:
+    """
+    Triangulate a single convex polygon.
+
+    Parameters
+    ----------
+    polygon : shapely.Polygon
+        The polygon to triangulate.
+
+    Returns
+    -------
+    numpy.ndarray
+        A numpy array of shape (# triangles, 3, 2),
+        where `# triangles` is the number of triangles the polygon is decomposed in to.
+    """
     # This is the 'ear clipping' method of polygon triangulation.
     # In any simple polygon, there is guaranteed to be at least two 'ears'
     # - three neighbouring vertices whos diagonal is inside the polygon.
@@ -171,7 +258,12 @@ def _triangulate_polygon(polygon: Polygon) -> list[tuple[Vertex, Vertex, Vertex]
     # Most polygons will be either squares, convex quadrilaterals, or convex
     # polygons.
 
-    triangles: list[tuple[Vertex, Vertex, Vertex]] = []
+    # A triangle with n vertices will have n - 2 triangles.
+    # Because the exterior is a closed loop, we need to subtract 3.
+    triangle_count = len(polygon.exterior.coords) - 3
+    triangles = numpy.empty((triangle_count, 3, 2))
+    triangle_index = 0
+
     # Note that shapely polygons with n vertices will be closed, and thus have
     # n+1 coordinates. We trim that superfluous coordinate off in the next line
     while len(polygon.exterior.coords) > 4:
@@ -192,7 +284,8 @@ def _triangulate_polygon(polygon: Polygon) -> list[tuple[Vertex, Vertex, Vertex]
                 # that ear will result in two disconnected polygons.
                 and exterior.intersection(diagonal).equals(multipoint)
             ):
-                triangles.append((coords[i], coords[i + 1], coords[i + 2]))
+                triangles[triangle_index] = coords[i:i + 3]
+                triangle_index += 1
                 polygon = Polygon(coords[:i + 1] + coords[i + 2:])
                 break
         else:
@@ -201,8 +294,7 @@ def _triangulate_polygon(polygon: Polygon) -> list[tuple[Vertex, Vertex, Vertex]
                 f"Could not find interior diagonal for polygon! {polygon.wkt}")
 
     # The trimmed polygon is now a triangle. Add it to the list and we are done!
+    triangles[triangle_index] = polygon.exterior.coords[:-1]
+    assert (triangle_index + 1) == triangle_count
 
-    triangles.append(cast(
-        tuple[Vertex, Vertex, Vertex],
-        tuple(map(tuple, polygon.exterior.coords[:-1]))))
     return triangles

@@ -409,23 +409,43 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
         return Specificity.LOW
 
     def _make_polygons(self) -> numpy.ndarray:
+        y_size, x_size = self.topology.shape
         lon_bounds = self.topology.longitude_bounds.values
         lat_bounds = self.topology.latitude_bounds.values
 
         # Make a bounds array as if this dataset had 2D coordinates.
-        # 1D bounds are (min, max).
-        # 2D bounds are (j-i, i-1), (j-1, i+1), (j+1, i+1), (j+1, i-1).
+        # 1D bounds are (lon, 2) and (lat, 2).
+        # 2D bounds are (lat, lon, 4)
+        # where the 4 points are (j-i, i-1), (j-1, i+1), (j+1, i+1), (j+1, i-1).
         # The bounds values are repeated as required, are given a new dimension,
         # then repeated along that new dimension.
-        # They will come out as array with shape (lat, lon, 4)
-        y_size, x_size = self.topology.shape
-        lon_bounds_2d = numpy.tile(lon_bounds[numpy.newaxis, :, [0, 1, 1, 0]], (y_size, 1, 1))
-        lat_bounds_2d = numpy.tile(lat_bounds[:, numpy.newaxis, [0, 0, 1, 1]], (1, x_size, 1))
+        # They will come out as array with shape (y_size, x_size, 4)
+
+        lon_bounds_2d = numpy.stack([
+            lon_bounds[:, 0],
+            lon_bounds[:, 1],
+            lon_bounds[:, 1],
+            lon_bounds[:, 0],
+        ], axis=-1)
+        lon_bounds_2d = numpy.broadcast_to(numpy.expand_dims(lon_bounds_2d, 0), (y_size, x_size, 4))
+
+        lat_bounds_2d = numpy.stack([
+            lat_bounds[:, 0],
+            lat_bounds[:, 0],
+            lat_bounds[:, 1],
+            lat_bounds[:, 1],
+        ], axis=-1)
+        lat_bounds_2d = numpy.broadcast_to(numpy.expand_dims(lat_bounds_2d, 0), (x_size, y_size, 4))
+        lat_bounds_2d = numpy.transpose(lat_bounds_2d, (1, 0, 2))
+
+        assert lon_bounds_2d.shape == lat_bounds_2d.shape == (y_size, x_size, 4)
 
         # points is a (topology.size, 4, 2) array of the corners of each cell
         points = numpy.stack([lon_bounds_2d, lat_bounds_2d], axis=-1).reshape((-1, 4, 2))
 
-        return utils.make_polygons_with_holes(points)
+        polygons = utils.make_polygons_with_holes(points)
+
+        return polygons
 
     @cached_property
     def face_centres(self) -> numpy.ndarray:
@@ -506,6 +526,9 @@ class CFGrid2DTopology(CFGridTopology):
         bound_by_nan = j_bound_by_nan | i_bound_by_nan
         coordinate_values[bound_by_nan] = numpy.nan
 
+        # grid is a (x+1, y+1) shape array built by averaging the cell centres.
+        # Cells on the outside have been padded with `nan` neighbours.
+        #
         # numpy.nanmean will return nan for an all-nan column.
         # This is the exact behaviour that we want.
         # numpy emits a warning that can not be silenced when this happens,
@@ -519,22 +542,20 @@ class CFGrid2DTopology(CFGridTopology):
             ], axis=0)
 
         y_size, x_size = self.shape
-        bounds = numpy.array([
-            [
-                [grid[y, x], grid[y, x + 1], grid[y + 1, x + 1], grid[y + 1, x]]
-                for x in range(x_size)
-            ]
-            for y in range(y_size)
-        ])
+        bounds = numpy.stack([
+            grid[:-1, :-1], grid[:-1, 1:], grid[1:, 1:], grid[1:, :-1],
+        ], axis=-1)
 
         # Set nan bounds for all cells that have any `nan` in its bounds.
         cells_with_nans = numpy.isnan(bounds).any(axis=2)
         bounds[cells_with_nans] = numpy.nan
 
-        return xarray.DataArray(
+        data_array = xarray.DataArray(
             bounds,
             dims=[self.y_dimension, self.x_dimension, 'bounds'],
         )
+
+        return data_array
 
     @cached_property
     def longitude_bounds(self) -> xarray.DataArray:

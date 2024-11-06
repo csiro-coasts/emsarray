@@ -1,15 +1,14 @@
 from collections import defaultdict
-from functools import reduce
 
 import numpy
-import pytest
 import shapely
 import xarray
 from shapely.geometry import Polygon
 
 import emsarray
 from emsarray.operations.triangulate import (
-    _triangulate_polygon, triangulate_dataset
+    _triangulate_concave_polygon, _triangulate_polygons_by_length,
+    triangulate_dataset
 )
 
 
@@ -114,17 +113,35 @@ def check_triangulation(
         triangles = cell_triangles[index]
 
         # Turn them in to polygons...
-        polygons = [
-            Polygon([vertices[i] for i in triangle])
-            for triangle in triangles
-        ]
-        # Union the those together in to one large polygon
-        union = reduce(lambda a, b: a.union(b), polygons)
+        reconstructed_polygon = shapely.unary_union(shapely.polygons(vertices[triangles]))
         # Check it matches
-        assert polygon.equals(union)
+        assert polygon.equals(reconstructed_polygon)
 
 
-def test_triangulate_polygon():
+def test_triangulate_polygons_by_length():
+    hexagon_template = numpy.array([[-2, 0], [-1, -1], [1, -1], [2, 0], [1, 1], [-1, 1], [-2, 0]])
+    polygons = shapely.polygons([
+        hexagon_template + (0, 0),
+        hexagon_template + (3, 1),
+        hexagon_template + (6, 0),
+        hexagon_template + (0, 2),
+        hexagon_template + (6, 2),
+    ])
+    polygon_triangles = _triangulate_polygons_by_length(polygons)
+
+    # Shape is (# polygons, # triangles, # vertices, # coords).
+    # Each hexagon can be decomposed in to 4 triangles,
+    # each triangle has three vertices,
+    # and each vertex has two coordinates.
+    assert polygon_triangles.shape == (len(polygons), 4, 3, 2)
+
+    # Reconstruct each polygon and check it equals itself.
+    for polygon, triangles in zip(polygons, polygon_triangles):
+        reconstructed_polygon = shapely.unary_union(shapely.polygons(triangles))
+        assert polygon.equals(reconstructed_polygon)
+
+
+def test_triangulate_convex_polygon():
     # These coordinates are carefully chosen to produce a polygon that:
     # * is not convex
     # * has three non-sequential vertices in a row
@@ -135,22 +152,8 @@ def test_triangulate_polygon():
         assert polygon.is_valid
         assert polygon.is_simple
 
-        triangles = _triangulate_polygon(polygon)
+        triangles = _triangulate_concave_polygon(polygon)
         assert len(triangles) == len(coords) - 2
 
         union = shapely.union_all(shapely.polygons(numpy.array(triangles)))
         assert union.equals(polygon)
-
-
-@pytest.mark.parametrize("poly", [
-    # Polygon with a hole
-    Polygon(
-        [(0, 0), (3, 0), (3, 3), (0, 3), (0, 0)],
-        [[(1, 1), (1, 2), (2, 2), (2, 1), (1, 1)]],
-    ),
-    # Polygon that intersects itself
-    Polygon([(0, 0), (1, 0), (0, 1), (1, 1), (0, 0)]),
-])
-def test_triangulate_polygon_non_simple(poly):
-    with pytest.raises(ValueError):
-        _triangulate_polygon(poly)

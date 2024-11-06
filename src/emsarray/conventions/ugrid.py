@@ -10,7 +10,7 @@ import logging
 import pathlib
 import warnings
 from collections import defaultdict
-from collections.abc import Hashable, Iterable, Mapping, Sequence
+from collections.abc import Hashable, Iterable, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import cached_property
@@ -514,7 +514,8 @@ class Mesh2DTopology:
         else:
             # If the value is still an integer then it had no fill value.
             # Convert it to a mask array with no masked values.
-            values = numpy.ma.masked_array(values, mask=numpy.ma.nomask)
+            mask = numpy.full_like(values, fill_value=numpy.ma.nomask)
+            values = numpy.ma.masked_array(values, mask=mask)
 
         # UGRID conventions allow for zero based or one based indexing.
         # To be consistent we convert all indexes to zero based.
@@ -1078,24 +1079,31 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
 
     def _make_polygons(self) -> numpy.ndarray:
         """Generate list of Polygons"""
-        # X,Y coords of each node
         topology = self.topology
+        # X,Y coords of each node
         node_x = topology.node_x.values
         node_y = topology.node_y.values
+        # The nodes that each face is constructed from
         face_node = topology.face_node_array
+
+        # Preallocate an array to put the polygons in
         polygons = numpy.full(topology.face_count, None, dtype=numpy.object_)
 
         # `shapely.polygons` will make polygons with the same number of vertices.
         # UGRID polygons have arbitrary numbers of vertices.
         # Group polygons by how many vertices they have, then make them in bulk.
-        polygons_of_size: Mapping[int, dict[int, numpy.ndarray]] = defaultdict(dict)
-        for index, row in enumerate(face_node):
-            vertices = row.compressed()
-            polygons_of_size[vertices.size][index] = numpy.c_[node_x[vertices], node_y[vertices]]
+        # Polygon sizes can be derived by how many nodes are masked/not masked.
+        polygon_sizes = numpy.sum(~numpy.ma.getmaskarray(face_node), axis=1)
+        unique_sizes = numpy.unique(polygon_sizes)
 
-        for size, size_polygons in polygons_of_size.items():
-            coords = numpy.stack(list(size_polygons.values()))
-            shapely.polygons(coords, indices=list(size_polygons.keys()), out=polygons)
+        # Make polygons in batches
+        for unique_size in unique_sizes:
+            # Extract the face node data for every polygon of this size
+            indices = numpy.flatnonzero(polygon_sizes == unique_size)
+            nodes = numpy.ma.getdata(face_node)[indices, :unique_size]
+            coords = numpy.stack([node_x[nodes], node_y[nodes]], axis=-1)
+            # Generate the polygons directly in to their correct locations
+            shapely.polygons(coords, indices=indices, out=polygons)
 
         return polygons
 
