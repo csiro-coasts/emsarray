@@ -200,3 +200,25 @@ def test_cache_key_cfgrid1d_sha1(datasets: pathlib.Path):
     assert result_cache_key_cf is not None
 
     assert result_cache_key_cf == cache_key_hash_cf1d_sha1
+
+
+def test_cache_key_with_missing_data_array_encoding_type(datasets: pathlib.Path):
+    dataset_ugrid = emsarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
+
+    data_array = dataset_ugrid.ems.topology.face_node_connectivity
+    data_array_dtype_dropped = data_array.copy()
+    data_array_dtype_dropped.encoding.pop('dtype', None)
+
+    with_dtype_hash = hashlib.sha1()
+    without_dtype_hash = hashlib.sha1()
+
+    dataset_ugrid.ems.hash_geometry(with_dtype_hash)
+    dataset_ugrid['mesh_face_node'] = data_array_dtype_dropped
+    dataset_ugrid.ems.hash_geometry(without_dtype_hash)
+
+    with_dtype_digest = with_dtype_hash.hexdigest()
+    without_dtype_digest = without_dtype_hash.hexdigest()
+
+    assert with_dtype_digest != without_dtype_digest
+
+    assert data_array_dtype_dropped.equals(data_array)

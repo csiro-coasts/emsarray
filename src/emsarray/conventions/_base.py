@@ -1973,7 +1973,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             # Include the dtype of the data array.
             # A float array and an int array mean very different things,
             # but could have identical byte patterns.
-            hash_string(hash, data_array.encoding['dtype'].name)
+            hash_string(hash, data_array.encoding.get('dtype', data_array.values.dtype).name)
 
             # Include the size and shape of the data.
             # 1D coordinate arrays are very different to 2D coordinate arrays,
