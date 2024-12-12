@@ -207,8 +207,8 @@ def test_cache_key_cfgrid1d_sha1(datasets: pathlib.Path):
 
 def test_cache_key_with_multifile_dataset_ugrid_mesh2d(datasets: pathlib.Path):
 
-    ugrid_path1 = datasets / 'multiple_dataset/ugrid_mesh2d/ugrid_mesh2d_2024-01-01.nc'
-    ugrid_path2 = datasets / 'multiple_dataset/ugrid_mesh2d/ugrid_mesh2d_2024-01-02.nc'
+    ugrid_path1 = datasets / 'multifile_datasets/ugrid_mesh2d/ugrid_mesh2d_2024-01-01.nc'
+    ugrid_path2 = datasets / 'multifile_datasets/ugrid_mesh2d/ugrid_mesh2d_2024-01-02.nc'
 
     dataset_paths = [ugrid_path1, ugrid_path2]
 
@@ -225,8 +225,8 @@ def test_cache_key_with_multifile_dataset_ugrid_mesh2d(datasets: pathlib.Path):
 
 def test_cache_key_with_multifile_dataset_cfgrid2d(datasets: pathlib.Path):
 
-    cfgrid_path1 = datasets / 'multiple_dataset/cfgrid2d/cfgrid2d_2024-01-01.nc'
-    cfgrid_path2 = datasets / 'multiple_dataset/cfgrid2d/cfgrid2d_2024-01-02.nc'
+    cfgrid_path1 = datasets / 'multifile_datasets/cfgrid2d/cfgrid2d_2024-01-01.nc'
+    cfgrid_path2 = datasets / 'multifile_datasets/cfgrid2d/cfgrid2d_2024-01-02.nc'
 
     dataset_paths = [cfgrid_path1, cfgrid_path2]
 
