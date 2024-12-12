@@ -14,6 +14,7 @@ int_hash = '7b08e025e311c3dfcf5179b67c0fdc08e73de261'
 attr_hash_lat = "2cb433979fc2d9c3884eea8569dd6a44406950f3"
 cache_key_hash_cf1d_sha1 = "2b006999273225ed70d4810357b6a06e6bebe9a6"
 cache_key_hash_multifile_cf2d_sha1 = "ea2d2e6131f1e499f622e83ed4fc2415649def06"
+cache_key_hash_multifile_ugrid_mesh2d_sha1 = "1d72e01b159135208324ae9a643166f85aecba27"
 
 # Blake2b
 cache_key_hash_cf1d = "1a3226072f08441ee79f727b0775709209ff2965299539c898ecc401cf17e23f"
@@ -204,14 +205,12 @@ def test_cache_key_cfgrid1d_sha1(datasets: pathlib.Path):
     assert result_cache_key_cf == cache_key_hash_cf1d_sha1
 
 
-def test_cache_key_with_multifile_dataset(datasets: pathlib.Path):
+def test_cache_key_with_multifile_dataset_ugrid_mesh2d(datasets: pathlib.Path):
 
-    ugrid_path1 = datasets / 'multiple_dataset/modified_cf1.nc'
-    ugrid_path2 = datasets / 'multiple_dataset/modified_cf2.nc'
+    ugrid_path1 = datasets / 'multiple_dataset/ugrid_mesh2d/ugrid_mesh2d_2024-01-01.nc'
+    ugrid_path2 = datasets / 'multiple_dataset/ugrid_mesh2d/ugrid_mesh2d_2024-01-02.nc'
+
     dataset_paths = [ugrid_path1, ugrid_path2]
-
-    ugrid_file1 = emsarray.open_dataset(ugrid_path1)
-    ugrid_file2 = emsarray.open_dataset(ugrid_path2)
 
     multifile_dataset = xarray.open_mfdataset(dataset_paths, data_vars=['values'])
 
@@ -221,16 +220,22 @@ def test_cache_key_with_multifile_dataset(datasets: pathlib.Path):
 
     multifile_ds_digest = multifile_ds_hash.hexdigest()
 
-    ugrid_file1_dtype = ugrid_file1.ems.topology.latitude.encoding.get('dtype', None).name
+    assert multifile_ds_digest == cache_key_hash_multifile_ugrid_mesh2d_sha1
 
-    ugrid_file2_dtype = ugrid_file2.ems.topology.latitude.encoding.get('dtype', None).name
 
-    multifile_encoding = multifile_dataset.ems.topology.latitude.encoding.get('dtype', None)
+def test_cache_key_with_multifile_dataset_cfgrid2d(datasets: pathlib.Path):
 
-    assert multifile_encoding is None
+    cfgrid_path1 = datasets / 'multiple_dataset/cfgrid2d/cfgrid2d_2024-01-01.nc'
+    cfgrid_path2 = datasets / 'multiple_dataset/cfgrid2d/cfgrid2d_2024-01-02.nc'
 
-    assert ugrid_file1_dtype is not None
+    dataset_paths = [cfgrid_path1, cfgrid_path2]
 
-    assert ugrid_file2_dtype is not None
+    multifile_dataset = xarray.open_mfdataset(dataset_paths, data_vars=['values'])
+
+    multifile_ds_hash = hashlib.sha1()
+
+    multifile_dataset.ems.hash_geometry(multifile_ds_hash)
+
+    multifile_ds_digest = multifile_ds_hash.hexdigest()
 
     assert multifile_ds_digest == cache_key_hash_multifile_cf2d_sha1
