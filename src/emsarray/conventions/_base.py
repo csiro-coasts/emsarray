@@ -1973,6 +1973,8 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             # Include the dtype of the data array.
             # A float array and an int array mean very different things,
             # but could have identical byte patterns.
+            # Checking for encoding dtype and falling back to values.dtype due to
+            # xarray multifile dataset bug - https://github.com/pydata/xarray/issues/2436
             hash_string(hash, data_array.encoding.get('dtype', data_array.values.dtype).name)
 
             # Include the size and shape of the data.
