@@ -2,6 +2,7 @@ import hashlib
 import pathlib
 
 import pytest
+import xarray
 
 import emsarray
 import emsarray.operations.cache
@@ -12,6 +13,7 @@ str_hash = '67a0425c3bcb8a47ccc39615e59ab489d0c4b6a1'
 int_hash = '7b08e025e311c3dfcf5179b67c0fdc08e73de261'
 attr_hash_lat = "2cb433979fc2d9c3884eea8569dd6a44406950f3"
 cache_key_hash_cf1d_sha1 = "2b006999273225ed70d4810357b6a06e6bebe9a6"
+cache_key_hash_multifile_cf2d_sha1 = "ea2d2e6131f1e499f622e83ed4fc2415649def06"
 
 # Blake2b
 cache_key_hash_cf1d = "1a3226072f08441ee79f727b0775709209ff2965299539c898ecc401cf17e23f"
@@ -202,23 +204,33 @@ def test_cache_key_cfgrid1d_sha1(datasets: pathlib.Path):
     assert result_cache_key_cf == cache_key_hash_cf1d_sha1
 
 
-def test_cache_key_with_missing_data_array_encoding_type(datasets: pathlib.Path):
-    dataset_ugrid = emsarray.open_dataset(datasets / 'ugrid_mesh2d.nc')
+def test_cache_key_with_multifile_dataset(datasets: pathlib.Path):
 
-    data_array = dataset_ugrid.ems.topology.face_node_connectivity
-    data_array_dtype_dropped = data_array.copy()
-    data_array_dtype_dropped.encoding.pop('dtype', None)
+    ugrid_path1 = datasets / 'multiple_dataset/modified_cf1.nc'
+    ugrid_path2 = datasets / 'multiple_dataset/modified_cf2.nc'
+    dataset_paths = [ugrid_path1, ugrid_path2]
 
-    with_dtype_hash = hashlib.sha1()
-    without_dtype_hash = hashlib.sha1()
+    ugrid_file1 = emsarray.open_dataset(ugrid_path1)
+    ugrid_file2 = emsarray.open_dataset(ugrid_path2)
 
-    dataset_ugrid.ems.hash_geometry(with_dtype_hash)
-    dataset_ugrid['mesh_face_node'] = data_array_dtype_dropped
-    dataset_ugrid.ems.hash_geometry(without_dtype_hash)
+    multifile_dataset = xarray.open_mfdataset(dataset_paths, data_vars=['values'])
 
-    with_dtype_digest = with_dtype_hash.hexdigest()
-    without_dtype_digest = without_dtype_hash.hexdigest()
+    multifile_ds_hash = hashlib.sha1()
 
-    assert with_dtype_digest != without_dtype_digest
+    multifile_dataset.ems.hash_geometry(multifile_ds_hash)
 
-    assert data_array_dtype_dropped.equals(data_array)
+    multifile_ds_digest = multifile_ds_hash.hexdigest()
+
+    ugrid_file1_dtype = ugrid_file1.ems.topology.latitude.encoding.get('dtype', None).name
+
+    ugrid_file2_dtype = ugrid_file2.ems.topology.latitude.encoding.get('dtype', None).name
+
+    multifile_encoding = multifile_dataset.ems.topology.latitude.encoding.get('dtype', None)
+
+    assert multifile_encoding is None
+
+    assert ugrid_file1_dtype is not None
+
+    assert ugrid_file2_dtype is not None
+
+    assert multifile_ds_digest == cache_key_hash_multifile_cf2d_sha1
