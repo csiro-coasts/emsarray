@@ -748,6 +748,31 @@ class Mesh2DTopology:
             )
             return False
 
+        try:
+            fill_value = data_array.encoding['_FillValue']
+        except KeyError:
+            return True
+
+        lower_bound = _get_start_index(data_array)
+        theoretical_upper_bound = self.face_count * self.max_node_count
+        actual_upper_bound = numpy.nanmax(data_array)
+
+        if lower_bound < fill_value < actual_upper_bound:
+            warnings.warn(
+                f"Got a face_edge_connectivity variable {data_array.name!r} with "
+                f"a _FillValue inside the actual index range",
+                ConventionViolationWarning,
+            )
+            return False
+
+        if lower_bound < fill_value < theoretical_upper_bound:
+            warnings.warn(
+                f"Got a face_edge_connectivity variable {data_array.name!r} with "
+                f"a _FillValue inside the theoretical index range",
+                ConventionViolationWarning,
+            )
+            return False
+
         return True
 
     @cached_property
