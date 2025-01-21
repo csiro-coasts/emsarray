@@ -945,19 +945,39 @@ def test_has_valid_face_edge_connectivity():
         'Mesh2_face_edges': mesh2_face_edges,
     })
 
-    dataset_fill_value_in_actual_range = dataset.copy()
+    dataset_fill_value_below_range = dataset.copy()
 
-    dataset_fill_value_in_theoretical_range = dataset.copy()
+    dataset_fill_value_in_range_on_lower_boundary = dataset.copy()
+
+    dataset_fill_value_in_range = dataset.copy()
+
+    dataset_fill_value_in_range_on_upper_boundary = dataset.copy()
+
+    dataset_fill_value_above_range = dataset.copy()
 
     # Make sure original dataset is valid
     assert dataset.ems.topology.has_valid_face_edge_connectivity is True
 
-    dataset_fill_value_in_actual_range['Mesh2_face_edges'].encoding['_FillValue'] = 2
+    # Test valid and invalid fill values
+    dataset_fill_value_below_range['Mesh2_face_edges'].encoding['_FillValue'] = -1
+
+    assert dataset_fill_value_below_range.ems.topology.has_valid_face_edge_connectivity is True
+
+    dataset_fill_value_in_range_on_lower_boundary['Mesh2_face_edges'].encoding['_FillValue'] = 0
 
     with pytest.warns(ConventionViolationWarning):
-        assert dataset_fill_value_in_actual_range.ems.topology.has_valid_face_edge_connectivity is not True
+        assert dataset_fill_value_in_range_on_lower_boundary.ems.topology.has_valid_face_edge_connectivity is not True
 
-    dataset_fill_value_in_theoretical_range['Mesh2_face_edges'].encoding['_FillValue'] = 88
+    dataset_fill_value_in_range['Mesh2_face_edges'].encoding['_FillValue'] = 44
 
     with pytest.warns(ConventionViolationWarning):
-        assert dataset_fill_value_in_theoretical_range.ems.topology.has_valid_face_edge_connectivity is not True
+        assert dataset_fill_value_in_range.ems.topology.has_valid_face_edge_connectivity is not True
+
+    dataset_fill_value_in_range_on_upper_boundary['Mesh2_face_edges'].encoding['_FillValue'] = 88
+
+    with pytest.warns(ConventionViolationWarning):
+        assert dataset_fill_value_in_range_on_upper_boundary.ems.topology.has_valid_face_edge_connectivity is not True
+
+    dataset_fill_value_above_range['Mesh2_face_edges'].encoding['_FillValue'] = 89
+
+    assert dataset_fill_value_above_range.ems.topology.has_valid_face_edge_connectivity is True
