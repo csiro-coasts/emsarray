@@ -748,6 +748,20 @@ class Mesh2DTopology:
             )
             return False
 
+        if '_FillValue' in data_array.encoding:
+            fill_value = data_array.encoding['_FillValue']
+
+            lower_bound = _get_start_index(data_array)
+            upper_bound = self.edge_count + lower_bound
+
+            if lower_bound <= fill_value <= upper_bound:
+                warnings.warn(
+                    f"Got a face_edge_connectivity variable {data_array.name!r} with "
+                    f"a _FillValue inside the actual index range",
+                    ConventionViolationWarning,
+                )
+                return False
+
         return True
 
     @cached_property

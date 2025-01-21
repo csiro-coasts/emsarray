@@ -924,3 +924,60 @@ def test_get_start_index():
 
     with pytest.raises(ConventionViolationError):
         _get_start_index(da({'start_index': 2}))
+
+
+def test_has_valid_face_edge_connectivity():
+    # Create dataset with face_edges
+    dataset = make_dataset(width=3, make_edges=True, make_face_coordinates=True)
+    topology = dataset.ems.topology
+    topology.mesh_variable.attrs.update({
+        'face_edge_connectivity': 'Mesh2_face_edges',
+    })
+
+    mesh2_face_edges_array = topology.face_edge_array
+
+    mesh2_face_edges = xarray.DataArray(
+        mesh2_face_edges_array,
+        dims=[topology.face_dimension, topology.max_node_dimension],
+    )
+
+    dataset = dataset.assign({
+        'Mesh2_face_edges': mesh2_face_edges,
+    })
+
+    dataset_fill_value_below_range = dataset.copy()
+
+    dataset_fill_value_in_range_on_lower_boundary = dataset.copy()
+
+    dataset_fill_value_in_range = dataset.copy()
+
+    dataset_fill_value_in_range_on_upper_boundary = dataset.copy()
+
+    dataset_fill_value_above_range = dataset.copy()
+
+    # Make sure original dataset is valid
+    assert dataset.ems.topology.has_valid_face_edge_connectivity is True
+
+    # Test valid and invalid fill values
+    dataset_fill_value_below_range['Mesh2_face_edges'].encoding['_FillValue'] = -1
+
+    assert dataset_fill_value_below_range.ems.topology.has_valid_face_edge_connectivity is True
+
+    dataset_fill_value_in_range_on_lower_boundary['Mesh2_face_edges'].encoding['_FillValue'] = 0
+
+    with pytest.warns(ConventionViolationWarning):
+        assert dataset_fill_value_in_range_on_lower_boundary.ems.topology.has_valid_face_edge_connectivity is not True
+
+    dataset_fill_value_in_range['Mesh2_face_edges'].encoding['_FillValue'] = 44
+
+    with pytest.warns(ConventionViolationWarning):
+        assert dataset_fill_value_in_range.ems.topology.has_valid_face_edge_connectivity is not True
+
+    dataset_fill_value_in_range_on_upper_boundary['Mesh2_face_edges'].encoding['_FillValue'] = 88
+
+    with pytest.warns(ConventionViolationWarning):
+        assert dataset_fill_value_in_range_on_upper_boundary.ems.topology.has_valid_face_edge_connectivity is not True
+
+    dataset_fill_value_above_range['Mesh2_face_edges'].encoding['_FillValue'] = 89
+
+    assert dataset_fill_value_above_range.ems.topology.has_valid_face_edge_connectivity is True
