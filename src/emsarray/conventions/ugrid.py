@@ -1006,7 +1006,7 @@ class Mesh2DTopology:
             return self.dataset.sizes[self.edge_dimension]
 
         # By computing the edge_node array we can determine how many edges exist
-        return self.edge_node_array.shape[0]
+        return cast(int, self.edge_node_array.shape[0])
 
     @property
     def face_count(self) -> int:
