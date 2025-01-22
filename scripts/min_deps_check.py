@@ -22,7 +22,6 @@ import dataclasses
 import datetime
 import enum
 import itertools
-import shlex
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -248,44 +247,55 @@ def main() -> None:
             f"{d.status:^6} {d.policy_version!s:10} ({policy_date:10})"
         )
 
+    # These packages need upgrading
     upgrade_args = list(itertools.chain.from_iterable(
         ['--upgrade-package', f'{d.package_name}~={d.policy_version}']
         for d in dependencies
         if d.status is VersionStatus.older
     ))
+
+    # These packages should be kept where they are
     maintain_args = list(itertools.chain.from_iterable(
         ['--upgrade-package', f'{d.package_name}~={d.requirements_version}']
         for d in dependencies
         if d.status in {VersionStatus.current, VersionStatus.newer}
     ))
-    if upgrade_args:
-        ignored_args = list(itertools.chain.from_iterable(
-            ['--unsafe-package', ignored]
-            for ignored in IGNORE_DEPS
-        ))
-        cmd = [
-            'pip-compile',
-            '--quiet',
-            '--extra', 'complete',
-            '--strip-extras',
-            '--unsafe-package', 'emsarray',
-            '--no-allow-unsafe',
-            # '--no-header',
-            # '--no-annotate',
-            '--output-file', requirements_file,
-        ] + upgrade_args + maintain_args + ignored_args + [
-            'pyproject.toml',
-        ]
-        print('$', shlex.join(cmd))
-        subprocess.check_call(cmd)
-        cmd = [
-            'sed',
-            '-i',
-            's/==/~=/',
-            requirements_file,
-        ]
-        print('$', shlex.join(cmd))
-        subprocess.check_call(cmd)
+    # These packages should be installed fresh every time, so ignore them for now.
+    ignored_args = list(itertools.chain.from_iterable(
+        ['--unsafe-package', ignored]
+        for ignored in IGNORE_DEPS
+    ))
+    cmd = [
+        'pip-compile',
+        '--quiet',
+        '--extra', 'complete',
+        '--strip-extras',
+        '--unsafe-package', 'emsarray',
+        '--no-allow-unsafe',
+        # '--no-header',
+        # '--no-annotate',
+        '--output-file', requirements_file,
+    ] + upgrade_args + maintain_args + ignored_args + [
+        'pyproject.toml',
+    ]
+
+    # pip-compile always prints '==' specifiers,
+    # but we want the latest point release in the minimum policy version.
+    subprocess.check_call(cmd)
+    cmd = [
+        'sed',
+        '-i',
+        's/==/~=/',
+        requirements_file,
+    ]
+    subprocess.check_call(cmd)
+
+    # CI will install strictly the requirements present in this file and none more,
+    # so append the ignored deps at the end with no version specifiers.
+    with open(requirements_file, "a") as f:
+        for ignored in IGNORE_DEPS:
+            f.write(ignored)
+            f.write("\n")
 
     if errors:
         print("\nErrors:")

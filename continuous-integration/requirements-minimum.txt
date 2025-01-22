@@ -190,3 +190,6 @@ zipp~=3.17.0
 # emsarray
 # pytz
 # tzdata
+pytz
+certifi
+tzdata
