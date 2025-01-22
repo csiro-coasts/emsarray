@@ -19,6 +19,7 @@ This module does not provide an actual cache implementation.
 """
 import hashlib
 import marshal
+from typing import cast
 
 import numpy
 import xarray
@@ -146,7 +147,7 @@ def make_cache_key(dataset: xarray.Dataset, hash: "hashlib._Hash | None" = None)
     and should not be relied upon.
     """
     if hash is None:
-        hash = hashlib.blake2b(digest_size=32)
+        hash = cast("hashlib._Hash", hashlib.blake2b(digest_size=32))
 
     dataset.ems.hash_geometry(hash)
 

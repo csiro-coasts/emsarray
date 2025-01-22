@@ -158,7 +158,7 @@ def triangulate_dataset(
         vertex_triangles = _triangulate_polygons_by_length(same_length_polygons)
 
         for face_index, triangles in zip(same_length_face_indices, vertex_triangles):
-            _add_triangles(face_index, triangles)
+            _add_triangles(int(face_index), triangles)
 
     # Triangulate each concave polygon using a slower manual method.
     # Anecdotally concave polygons are very rare,
@@ -166,7 +166,7 @@ def triangulate_dataset(
     for face_index in polygon_is_concave:
         polygon = polygons[face_index]
         triangles = _triangulate_concave_polygon(polygon)
-        _add_triangles(face_index, triangles)
+        _add_triangles(int(face_index), triangles)
 
     # Check that we have handled each triangle we expected.
     assert current_face == total_triangles

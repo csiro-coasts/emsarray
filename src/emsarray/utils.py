@@ -228,7 +228,7 @@ def fix_time_units_for_ems(
     """
 
     with netCDF4.Dataset(dataset_path, 'r+') as dataset:
-        variable = dataset.variables[variable_name]
+        variable = dataset.variables[str(variable_name)]
 
         units = cast(str, variable.getncattr('units'))
         calendar = cast(str, variable.getncattr('calendar') or DEFAULT_CALENDAR)
@@ -668,7 +668,11 @@ def wind_dimension(
     return xarray.DataArray(data=new_data, dims=new_dims)
 
 
-def datetime_from_np_time(np_time: numpy.datetime64) -> datetime.datetime:
+def datetime_from_np_time(
+    np_time: numpy.datetime64,
+    *,
+    tz: datetime.tzinfo = datetime.timezone.utc,
+) -> datetime.datetime:
     """
     Convert a numpy :class:`~numpy.datetime64`
     to a python :class:`~datetime.datetime`.
@@ -682,8 +686,24 @@ def datetime_from_np_time(np_time: numpy.datetime64) -> datetime.datetime:
     A conversion that truncates data is not reported as an error.
     If you're using numpy datetime64 with attosecond accuracy,
     the Python datetime formatting methods are insufficient for your needs anyway.
+
+    Parameters
+    ==========
+    np_time : numpy.datetime64
+        The numpy datetime64 to convert to a Python datetime.
+    tz : datetime.tzinfo
+        The timezone that the numpy datetime is in.
+        Defaults to UTC, as xarray will convert all time variables to UTC when
+        opening files.
+
+    Returns
+    =======
+    datetime.datetime
+        A timezone aware Python datetime.datetime instance.
     """
-    return datetime.datetime.fromtimestamp(np_time.item() / 10**9)
+    epoc = numpy.datetime64('1970-01-01')
+    timestamp = (np_time - epoc).astype('timedelta64[ns]')
+    return datetime.datetime.fromtimestamp(timestamp.astype(float) / 1e9, tz=tz)
 
 
 class RequiresExtraException(Exception):

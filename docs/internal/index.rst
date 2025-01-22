@@ -8,3 +8,4 @@ Internal documentation
    :maxdepth: 1
 
    releasing
+   ci-dependencies
