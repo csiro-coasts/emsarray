@@ -1,6 +1,8 @@
-=============================
-Next release (in development)
-=============================
+=====
+0.9.0
+=====
+
+Released on 2025-01-23
 
 * Added additional validation for ugrid
   connectivity(:issue:`165`, :pr:`168`).
