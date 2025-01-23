@@ -10,3 +10,6 @@ Next release (in development)
   `SPEC-0000 <https://scientific-python.org/specs/spec-0000/>`_.
   Support for Python 3.10 was dropped, and support for Python 3.13 was added
   (:pr:`169`).
+* Improved triangulation speeds.
+  Most datasets see a speed up of between 5× and 10×
+  (:pr:`163`).
