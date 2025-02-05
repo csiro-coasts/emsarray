@@ -112,7 +112,7 @@ def test_find_fill_value_timedelta_with_missing_value(
         dataset_path, 'var',
         numpy.array([[0, 1], [2, missing_value]], dtype=numpy.float32))
 
-    with xarray.open_dataset(dataset_path) as dataset:
+    with xarray.open_dataset(dataset_path, decode_timedelta=True) as dataset:
         data_array = dataset['var']
         assert dataset['var'].dtype == numpy.dtype('timedelta64[ns]')
         fill_value = masking.find_fill_value(data_array)
