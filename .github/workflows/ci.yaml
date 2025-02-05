@@ -112,7 +112,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Code coverage for Python ${{ matrix.python-version }}
+          name: Code coverage for Python ${{ matrix.python-version }}, ${{ matrix.dependencies }} dependencies
           path: coverage-*.xml
 
   lint:
