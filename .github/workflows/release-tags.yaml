@@ -15,7 +15,7 @@ jobs:
     outputs:
       artifact-name: ${{ steps.build.outputs.artifact-name }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/build-python-package
         id: build
         with:
@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Fetch Python package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ needs.build.outputs.artifact-name }}
           path: "dist"
