@@ -94,12 +94,12 @@ class ShocSimple(CFGrid2D):
             latitude = next(
                 name for name, variable in self.dataset.variables.items()
                 if variable.dims == self._dimensions
-                and variable.attrs["standard_name"] == "latitude"
+                and variable.attrs.get("standard_name", None) == "latitude"
             )
             longitude = next(
                 name for name, variable in self.dataset.variables.items()
                 if variable.dims == self._dimensions
-                and variable.attrs["standard_name"] == "longitude"
+                and variable.attrs.get("standard_name", None) == "longitude"
             )
         except StopIteration:
             raise ValueError("Could not find the necessary coordinate variables")
