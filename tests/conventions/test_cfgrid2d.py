@@ -479,6 +479,11 @@ def test_values() -> None:
     # The values should be in a specific order
     assert numpy.allclose(values, eta.values.ravel(), equal_nan=True)
 
+def test_topology_with_missing_variable_standard_name() -> None:
+    # Basic test showing no error when variable has no standard name
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5, time_size=3)
+    del dataset['botz'].attrs['standard_name']
+    dataset.ems.topology
 
 @pytest.mark.matplotlib
 def test_plot_on_figure() -> None:
