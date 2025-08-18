@@ -1112,6 +1112,17 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return animate_on_figure(figure, self, coordinate=coordinate, **kwargs)
 
     @_requires_plot
+    def plot_scalar(
+        self,
+        axes: 'Axes',
+        data_array : DataArrayOrName,
+        **kwargs,
+    ) -> 'Collection':
+        collection = self.make_poly_collection(data_array)
+        axes.add_collection(collection)
+        return collection
+
+    @_requires_plot
     @utils.timed_func
     def make_poly_collection(
         self,

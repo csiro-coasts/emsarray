@@ -330,8 +330,8 @@ def plot_on_figure(
 
     if scalar is not None:
         # Plot a scalar variable on the polygons using a colour map
-        collection = convention.make_poly_collection(
-            scalar, cmap='jet', edgecolor='face')
+        collection = convention.plot_scalar(
+            axes, scalar, cmap='jet', edgecolor='face')
         axes.add_collection(collection)
         units = scalar.attrs.get('units')
         figure.colorbar(collection, ax=axes, location='right', label=units)
