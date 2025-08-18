@@ -51,6 +51,8 @@ flake8==7.3.0
     # via emsarray (pyproject.toml)
 fonttools==4.59.1
     # via matplotlib
+freezegun==1.5.5
+    # via emsarray (pyproject.toml)
 fsspec==2025.7.0
     # via dask
 geojson==3.2.0
@@ -188,6 +190,7 @@ pytest-mpl==0.17.0
     # via emsarray (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via
+    #   freezegun
     #   matplotlib
     #   pandas
 pytz==2025.2
