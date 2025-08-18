@@ -212,7 +212,8 @@ def test_cache_key_with_multifile_dataset_ugrid_mesh2d(datasets: pathlib.Path):
 
     dataset_paths = [ugrid_path1, ugrid_path2]
 
-    multifile_dataset = xarray.open_mfdataset(dataset_paths, data_vars=['values'])
+    multifile_dataset = xarray.open_mfdataset(
+        dataset_paths, data_vars=['values'], compat='no_conflicts')
 
     multifile_ds_hash = hashlib.sha1()
 
@@ -230,7 +231,8 @@ def test_cache_key_with_multifile_dataset_cfgrid2d(datasets: pathlib.Path):
 
     dataset_paths = [cfgrid_path1, cfgrid_path2]
 
-    multifile_dataset = xarray.open_mfdataset(dataset_paths, data_vars=['values'])
+    multifile_dataset = xarray.open_mfdataset(
+        dataset_paths, data_vars=['values'], compat='no_conflicts')
 
     multifile_ds_hash = hashlib.sha1()
 
