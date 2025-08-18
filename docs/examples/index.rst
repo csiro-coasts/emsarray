@@ -30,3 +30,8 @@ Gallery
           :width: 200
           :class: no-scaled-link
 
+   * - :ref:`example-plot-with-clim`
+
+       .. image:: /_static/images/plot-with-clim.png
+          :width: 200
+          :class: no-scaled-link
