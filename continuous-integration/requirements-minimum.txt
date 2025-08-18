@@ -4,13 +4,13 @@
 #
 #    pip-compile --extra=complete --output-file=./continuous-integration/requirements-minimum.txt --strip-extras --unsafe-package=certifi --unsafe-package=emsarray --unsafe-package=pytz --unsafe-package=tzdata pyproject.toml
 #
-bokeh~=3.4.3
+bokeh~=3.6.3
     # via dask
-bottleneck~=1.3.8
+bottleneck~=1.4.2
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-cartopy~=0.22.0
+cartopy~=0.23.0
     # via emsarray
 cftime~=1.6.4.post1
     # via
@@ -34,30 +34,33 @@ contourpy~=1.2.1
     #   matplotlib
 cycler~=0.12.1
     # via matplotlib
-dask~=2024.1.1
+dask~=2024.12.1
     # via
+    #   dask-expr
     #   distributed
     #   xarray
-distributed~=2024.1.1
+dask-expr~=1.1.21
     # via dask
-fonttools~=4.47.2
+distributed~=2024.12.1
+    # via dask
+fonttools~=4.53.1
     # via matplotlib
-fsspec~=2023.12.2
+fsspec~=2024.6.1
     # via dask
 geojson~=3.1.0
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-idna~=3.6
+idna~=3.10
     # via requests
-importlib-metadata~=7.0.2
+importlib-metadata~=8.2.0
     # via dask
-jinja2~=3.1.5
+jinja2~=3.1.6
     # via
     #   bokeh
     #   dask
     #   distributed
-kiwisolver~=1.4.8
+kiwisolver~=1.4.9
     # via matplotlib
 locket~=1.0.0
     # via
@@ -67,17 +70,17 @@ lz4~=4.3.3
     # via dask
 markupsafe~=2.1.5
     # via jinja2
-matplotlib~=3.8.4
+matplotlib~=3.9.4
     # via
     #   cartopy
     #   emsarray
-msgpack~=1.0.8
+msgpack~=1.1.1
     # via distributed
-netcdf4~=1.6.5
+netcdf4~=1.7.2
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-numpy~=1.25.2
+numpy~=1.26.4
     # via
     #   bokeh
     #   bottleneck
@@ -95,7 +98,7 @@ numpy~=1.25.2
     #   pykdtree
     #   shapely
     #   xarray
-packaging~=23.2
+packaging~=24.2
     # via
     #   bokeh
     #   cartopy
@@ -111,23 +114,24 @@ pandas~=2.2.3
     # via
     #   bokeh
     #   dask
+    #   dask-expr
     #   xarray
 partd~=1.4.2
     # via dask
-pillow~=10.2.0
+pillow~=10.4.0
     # via
     #   bokeh
     #   matplotlib
-platformdirs~=4.1.0
+platformdirs~=4.2.2
     # via pooch
 pooch~=1.8.2
     # via emsarray
-psutil~=5.9.8
+psutil~=6.0.0
     # via distributed
-pyarrow~=15.0.2
-    # via dask
-pyarrow-hotfix~=0.6
-    # via dask
+pyarrow~=17.0.0
+    # via
+    #   dask
+    #   dask-expr
 pykdtree~=1.3.13
     # via emsarray
 pyparsing~=3.1.4
@@ -139,7 +143,7 @@ pyshp~=2.3.1
     #   cartopy
     #   emsarray
     #   emsarray (pyproject.toml)
-python-dateutil~=2.8.2
+python-dateutil~=2.9.0.post0
     # via
     #   matplotlib
     #   pandas
@@ -148,9 +152,9 @@ pyyaml~=6.0.2
     #   bokeh
     #   dask
     #   distributed
-requests~=2.31.0
+requests~=2.32.4
     # via pooch
-shapely~=2.0.6
+shapely~=2.0.7
     # via
     #   cartopy
     #   emsarray
@@ -170,19 +174,19 @@ tornado~=6.4.2
     # via
     #   bokeh
     #   distributed
-urllib3~=2.1.0
+urllib3~=2.2.3
     # via
     #   distributed
     #   requests
-xarray~=2024.1.1
+xarray~=2024.7.0
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-xyzservices~=2023.10.1
+xyzservices~=2024.6.0
     # via bokeh
 zict~=3.0.0
     # via distributed
-zipp~=3.17.0
+zipp~=3.20.2
     # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
@@ -191,5 +195,5 @@ zipp~=3.17.0
 # pytz
 # tzdata
 pytz
-certifi
 tzdata
+certifi

@@ -6,6 +6,8 @@ PYTHON_VERSIONS=('3.11' '3.12' '3.13')
 HERE="$( cd -- "$( realpath -- "$( dirname -- "$0" )" )" && pwd )"
 PROJECT_ROOT="$( dirname "$HERE" )"
 
+PIP_TOOLS='pip-tools!=7.5.0'
+
 cd "$PROJECT_ROOT"
 
 conda_venv_root=$( mktemp -d emsarray-conda-environments.XXXXXXX )
@@ -26,7 +28,7 @@ conda install \
 	"python=${version}" pip
 conda run \
 	--prefix="${conda_prefix}" \
-	pip install pip-tools packaging requests python-dateutil pip-tools
+	pip install "$PIP_TOOLS" packaging requests python-dateutil
 conda run \
 	--prefix="${conda_prefix}" \
 	python3 ./scripts/min_deps_check.py "$requirements_file"
@@ -46,7 +48,7 @@ for version in "${PYTHON_VERSIONS[@]}" ; do
 		--prefix="${conda_prefix}" \
 		--channel conda-forge \
 		"python=${version}" \
-		pip-tools
+		"$PIP_TOOLS"
 	conda run \
 		--prefix="${conda_prefix}" \
 		pip-compile \
