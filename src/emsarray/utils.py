@@ -695,15 +695,17 @@ def datetime_from_np_time(
         The timezone that the numpy datetime is in.
         Defaults to UTC, as xarray will convert all time variables to UTC when
         opening files.
+        The returned Python datetime will be in this timezone.
 
     Returns
     =======
     datetime.datetime
         A timezone aware Python datetime.datetime instance.
     """
-    epoc = numpy.datetime64('1970-01-01')
-    timestamp = (np_time - epoc).astype('timedelta64[ns]')
-    return datetime.datetime.fromtimestamp(timestamp.astype(float) / 1e9, tz=tz)
+    np_epoc = numpy.datetime64('1970-01-01')
+    ns_since_epoc = (np_time - np_epoc).astype('timedelta64[ns]')
+    py_epoc = datetime.datetime(1970, 1, 1, tzinfo=tz)
+    return py_epoc + datetime.timedelta(seconds=ns_since_epoc.astype(float) / 1e9)
 
 
 class RequiresExtraException(Exception):

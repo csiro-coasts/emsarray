@@ -64,6 +64,7 @@ testing = [
 	"types-pytz",
 	"flake8",
 	"isort",
+	"freezegun",
 ]
 
 [project.scripts]
