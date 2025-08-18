@@ -8,3 +8,4 @@ Next release (in development)
 * Added an example to the documentation showing
   :ref:`how to set the clim parameter in plots <example-plot-with-clim>`
   (:pr:`179`).
+* Bumped pinned dependencies (:pr:`183`).
