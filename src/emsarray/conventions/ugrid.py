@@ -1262,7 +1262,10 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         del topology_variables
 
         logger.debug("Slicing data variables...")
-        dimension_masks: dict[Hashable, numpy.ndarray] = {
+        dimension_masks: dict[Hashable, numpy.ndarray[
+            tuple[Any, ...],
+            numpy.dtype[numpy.bool[bool]],
+        ] | numpy.bool[bool]] = {
             topology.node_dimension: ~numpy.ma.getmask(new_node_indexes),
             topology.face_dimension: ~numpy.ma.getmask(new_face_indexes),
         }
@@ -1294,7 +1297,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
                     if dim in dimension_masks:
                         # ... make a tuple slice like (:, :, :, bool_array)
                         # where bool_array indicates which rows to include
-                        slice_index = tuple([numpy.s_[:]] * index + [dimension_masks[dim]])  # type: ignore
+                        slice_index = tuple([numpy.s_[:]] * index + [dimension_masks[dim]])
                         values = values[slice_index]
 
                 data_array = xarray.DataArray(data=values, dims=data_array.dims, name=name)

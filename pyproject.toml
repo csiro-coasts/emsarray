@@ -110,7 +110,6 @@ mpl-use-full-test-name = true
 
 [tool.mypy]
 python_version = "3.11"
-plugins = ["numpy.typing.mypy_plugin"]
 
 disallow_untyped_defs = true
 warn_return_any = true

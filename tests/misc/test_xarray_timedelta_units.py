@@ -33,30 +33,6 @@ def make_dataset():
     return dataset
 
 
-@only_versions('xarray < 2023.09.0')
-def test_xarray_timedelta_units_unsafe_cast(
-    tmp_path: pathlib.Path,
-):
-    """
-    When saving a dataset to disk, xarray.coding.times.cast_to_int_if_safe
-    will check if it is possible to encode a timedelta64 using integer values
-    by casting the values and checking for equality.
-    Recent versions of numpy will emit warnings
-    when casting a data array with dtype timedelta64 to int
-    if it contains NaT (not a time) values.
-    xarray fixed this but introduced a new issue instead.
-
-    See also
-    ========
-    https://github.com/pydata/xarray/issues/7942
-    https://github.com/pydata/xarray/issues/9134
-
-    """
-    dataset = make_dataset()
-    with pytest.warns(RuntimeWarning, match='invalid value encountered in cast'):
-        dataset.to_netcdf(tmp_path / "period.nc")
-
-
 @only_versions('xarray >= 2024.02.0, < 2025.03.0')
 def test_xarray_timedelta_units_cast_runtimewarning(
     tmp_path: pathlib.Path,

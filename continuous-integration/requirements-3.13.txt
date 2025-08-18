@@ -4,15 +4,15 @@
 #
 #    pip-compile --extra=testing --output-file=./continuous-integration/requirements-3.13.txt --unsafe-package=emsarray pyproject.toml
 #
-bokeh==3.6.2
+bokeh==3.7.3
     # via dask
-bottleneck==1.4.2
+bottleneck==1.5.0
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-cartopy==0.24.1
+cartopy==0.25.0
     # via emsarray
-certifi==2024.12.14
+certifi==2025.8.3
     # via
     #   netcdf4
     #   pyproj
@@ -23,9 +23,9 @@ cftime==1.6.4.post1
     #   netcdf4
 cfunits==3.3.7
     # via emsarray
-charset-normalizer==3.4.1
+charset-normalizer==3.4.3
     # via requests
-click==8.1.8
+click==8.2.1
     # via
     #   dask
     #   distributed
@@ -33,25 +33,25 @@ cloudpickle==3.1.1
     # via
     #   dask
     #   distributed
-contourpy==1.3.1
+contourpy==1.3.3
     # via
     #   bokeh
     #   matplotlib
-coverage[toml]==7.6.10
+coverage[toml]==7.10.4
     # via pytest-cov
 cycler==0.12.1
     # via matplotlib
-dask[array,complete,dataframe,diagnostics,distributed]==2025.1.0
+dask[array,complete,dataframe,diagnostics,distributed]==2025.7.0
     # via
     #   distributed
     #   xarray
-distributed==2025.1.0
+distributed==2025.7.0
     # via dask
-flake8==7.1.1
+flake8==7.3.0
     # via emsarray (pyproject.toml)
-fonttools==4.55.4
+fonttools==4.59.1
     # via matplotlib
-fsspec==2024.12.0
+fsspec==2025.7.0
     # via dask
 geojson==3.2.0
     # via
@@ -59,44 +59,46 @@ geojson==3.2.0
     #   emsarray (pyproject.toml)
 idna==3.10
     # via requests
-iniconfig==2.0.0
+iniconfig==2.1.0
     # via pytest
-isort==5.13.2
+isort==6.0.1
     # via emsarray (pyproject.toml)
-jinja2==3.1.5
+jinja2==3.1.6
     # via
     #   bokeh
     #   dask
     #   distributed
     #   pytest-mpl
-kiwisolver==1.4.8
+kiwisolver==1.4.9
     # via matplotlib
 locket==1.0.0
     # via
     #   distributed
     #   partd
-lz4==4.3.3
+lz4==4.4.4
     # via dask
 markupsafe==3.0.2
     # via jinja2
-matplotlib==3.10.0
+matplotlib==3.10.5
     # via
     #   cartopy
     #   emsarray
     #   pytest-mpl
 mccabe==0.7.0
     # via flake8
-msgpack==1.1.0
+msgpack==1.1.1
     # via distributed
-mypy==1.14.1
+mypy==1.17.1
     # via emsarray (pyproject.toml)
-mypy-extensions==1.0.0
+mypy-extensions==1.1.0
     # via mypy
+narwhals==2.1.2
+    # via bokeh
 netcdf4==1.7.2
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-numpy==2.2.2
+numpy==2.3.2
     # via
     #   bokeh
     #   bottleneck
@@ -114,7 +116,7 @@ numpy==2.2.2
     #   pykdtree
     #   shapely
     #   xarray
-packaging==24.2
+packaging==25.0
     # via
     #   bokeh
     #   cartopy
@@ -128,51 +130,57 @@ packaging==24.2
     #   pytest
     #   pytest-mpl
     #   xarray
-pandas==2.2.3
+pandas==2.3.1
     # via
     #   bokeh
     #   dask
     #   xarray
-pandas-stubs==2.2.3.241126
+pandas-stubs==2.3.0.250703
     # via emsarray (pyproject.toml)
 partd==1.4.2
     # via dask
-pillow==11.1.0
+pathspec==0.12.1
+    # via mypy
+pillow==11.3.0
     # via
     #   bokeh
     #   matplotlib
     #   pytest-mpl
-platformdirs==4.3.6
+platformdirs==4.3.8
     # via pooch
-pluggy==1.5.0
-    # via pytest
+pluggy==1.6.0
+    # via
+    #   pytest
+    #   pytest-cov
 pooch==1.8.2
     # via emsarray
-psutil==6.1.1
+psutil==7.0.0
     # via distributed
-pyarrow==19.0.0
+pyarrow==21.0.0
     # via dask
-pycodestyle==2.12.1
+pycodestyle==2.14.0
     # via flake8
-pyflakes==3.2.0
+pyflakes==3.4.0
     # via flake8
-pykdtree==1.3.13
+pygments==2.19.2
+    # via pytest
+pykdtree==1.4.3
     # via emsarray
-pyparsing==3.2.1
+pyparsing==3.2.3
     # via matplotlib
-pyproj==3.7.0
+pyproj==3.7.2
     # via cartopy
 pyshp==2.3.1
     # via
     #   cartopy
     #   emsarray
     #   emsarray (pyproject.toml)
-pytest==8.3.4
+pytest==8.4.1
     # via
     #   emsarray (pyproject.toml)
     #   pytest-cov
     #   pytest-mpl
-pytest-cov==6.0.0
+pytest-cov==6.2.1
     # via emsarray (pyproject.toml)
 pytest-mpl==0.17.0
     # via emsarray (pyproject.toml)
@@ -180,16 +188,16 @@ python-dateutil==2.9.0.post0
     # via
     #   matplotlib
     #   pandas
-pytz==2024.2
+pytz==2025.2
     # via pandas
 pyyaml==6.0.2
     # via
     #   bokeh
     #   dask
     #   distributed
-requests==2.32.3
+requests==2.32.4
     # via pooch
-shapely==2.0.6
+shapely==2.1.1
     # via
     #   cartopy
     #   emsarray
@@ -198,34 +206,34 @@ six==1.17.0
     # via python-dateutil
 sortedcontainers==2.4.0
     # via distributed
-tblib==3.0.0
+tblib==3.1.0
     # via distributed
 toolz==1.0.0
     # via
     #   dask
     #   distributed
     #   partd
-tornado==6.4.2
+tornado==6.5.2
     # via
     #   bokeh
     #   distributed
-types-pytz==2024.2.0.20241221
+types-pytz==2025.2.0.20250809
     # via
     #   emsarray (pyproject.toml)
     #   pandas-stubs
-typing-extensions==4.12.2
+typing-extensions==4.14.1
     # via mypy
-tzdata==2025.1
+tzdata==2025.2
     # via pandas
-urllib3==2.3.0
+urllib3==2.5.0
     # via
     #   distributed
     #   requests
-xarray[parallel]==2025.1.1
+xarray[parallel]==2025.8.0
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-xyzservices==2025.1.0
+xyzservices==2025.4.0
     # via bokeh
 zict==3.0.0
     # via distributed
