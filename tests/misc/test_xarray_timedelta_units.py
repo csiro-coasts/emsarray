@@ -57,7 +57,7 @@ def test_xarray_timedelta_units_unsafe_cast(
         dataset.to_netcdf(tmp_path / "period.nc")
 
 
-@only_versions('xarray >= 2024.02.0')
+@only_versions('xarray >= 2024.02.0, < 2025.03.0')
 def test_xarray_timedelta_units_cast_runtimewarning(
     tmp_path: pathlib.Path,
 ):
@@ -69,9 +69,12 @@ def test_xarray_timedelta_units_cast_runtimewarning(
     when casting a data array with dtype timedelta64 to int16
     if it contains NaT (not a time) values.
 
+    This check was later refactored out in favour of something more robust.
+
     See also
     ========
     https://github.com/pydata/xarray/issues/9134
+    https://github.com/pydata/xarray/pull/9498
     """
     dataset = make_dataset()
     message = "Not possible to cast encoded times from dtype('int64') to dtype('int16') without overflow."
