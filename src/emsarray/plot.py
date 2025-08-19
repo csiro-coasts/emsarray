@@ -274,7 +274,8 @@ def make_plot_title(
 def plot_on_figure(
     figure: Figure,
     convention: 'conventions.Convention',
-    *,
+    *variables: xarray.DataArray | tuple[xarray.DataArray, ...],
+    axes: GeoAxes | None = None,
     scalar: xarray.DataArray | None = None,
     vector: tuple[xarray.DataArray, xarray.DataArray] | None = None,
     title: str | None = None,
@@ -315,31 +316,30 @@ def plot_on_figure(
     coast : bool, default True
         Whether to add coastlines to the plot using :func:`add_coast()`.
     """
-    if projection is None:
-        projection = cartopy.crs.PlateCarree()
 
-    axes: GeoAxes = figure.add_subplot(projection=projection)
-    axes.set_aspect(aspect='equal', adjustable='datalim')
+    # Support old syntax of separately specifying scalar and vector items to plot.
+    # This will be deprecated soon.
+    if scalar is not None:
+        variables = variables + (scalar,)
+    if vector is not None:
+        variables = variables + (vector,)
 
-    if scalar is None and vector is None:
-        # Plot the polygon shapes for want of anything else to draw
-        collection = convention.make_poly_collection()
-        axes.add_collection(collection)
+    # Construct some axes if we don't have any
+    if axes is None:
+        if projection is None:
+            projection = cartopy.crs.PlateCarree()
+        axes = figure.add_subplot(projection=projection)
+        axes.set_aspect(aspect='equal', adjustable='datalim')
+
+    # Plot everything we have
+    for var in variables:
+        convention.plot_on_axes(axes, var)
+
+    # Plot the geometry of the dataset if there are no variables passed in
+    if len(variables) == 0:
+        convention.plot_geometry_on_axes(axes)
         if title is None:
             title = 'Geometry'
-
-    if scalar is not None:
-        # Plot a scalar variable on the polygons using a colour map
-        collection = convention.plot_scalar(
-            axes, scalar, cmap='jet', edgecolor='face')
-        axes.add_collection(collection)
-        units = scalar.attrs.get('units')
-        figure.colorbar(collection, ax=axes, location='right', label=units)
-
-    if vector is not None:
-        # Plot a vector variable using a quiver
-        quiver = convention.make_quiver(axes, *vector)
-        axes.add_collection(quiver)
 
     if title:
         axes.set_title(title)
@@ -349,16 +349,11 @@ def plot_on_figure(
 
     if coast:
         add_coast(axes)
+
     if gridlines:
         add_gridlines(axes)
 
     axes.autoscale()
-
-    # Work around for gridline positioning issues
-    # https://github.com/SciTools/cartopy/issues/2245#issuecomment-1732313921
-    layout_engine = figure.get_layout_engine()
-    if layout_engine is not None:
-        layout_engine.execute(figure)
 
 
 @_requires_plot

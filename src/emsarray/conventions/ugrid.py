@@ -1353,27 +1353,35 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         return dataset
 
     @_requires_plot
-    def plot_scalar(
+    def plot_on_axes(
         self,
         axes: 'Axes',
-        data_array : DataArrayOrName,
+        variable: xarray.DataArray | tuple[xarray.DataArray, ...],
         **kwargs: Any,
     ) -> 'Collection':
-        data_array = utils.name_to_data_array(self.dataset, data_array)
-        grid_kind = self.get_grid_kind(data_array)
+        if isinstance(variable, xarray.DataArray):
+            grid_kind = self.get_grid_kind(variable)
+            if grid_kind is UGridKind.node:
+                return self.plot_tripcolor_on_axes(axes, variable, **kwargs)
 
-        if grid_kind is UGridKind.node:
-            collection = self.plot_tripcolor(axes, data_array, **kwargs)
-            axes.add_collection(collection)
-            return collection
+        return super().plot_on_axes(axes, variable, **kwargs)
 
-        else:
-            return super().plot_scalar(axes, data_array)
-
-    def plot_tripcolor(
+    def plot_tripcolor_on_axes(
         self,
         axes: 'Axes',
         data_array: xarray.DataArray,
+        *,
+        shading: str = 'gouraud',
+        **kwargs: Any,
+    ) -> 'Collection':
+        collection = self.make_tripcolor(axes, data_array, **kwargs)
+        axes.add_collection(collection)
+        return collection
+
+    def make_tripcolor(
+        self,
+        axes: 'Axes',
+        data_array: xarray.DataArray | None = None,
         *,
         shading: str = 'gouraud',
         **kwargs: Any,

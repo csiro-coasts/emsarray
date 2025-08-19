@@ -30,9 +30,9 @@ from emsarray.types import Bounds, DataArrayOrName, Pathish
 if TYPE_CHECKING:
     # Import these optional dependencies only during type checking
     from cartopy.crs import CRS
+    from cartopy.mpl.geoaxes import GeoAxes
     from matplotlib.animation import FuncAnimation
-    from matplotlib.axes import Axes
-    from matplotlib.collections import PolyCollection
+    from matplotlib.collections import Collection, PolyCollection
     from matplotlib.figure import Figure
     from matplotlib.quiver import Quiver
 
@@ -935,6 +935,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     def plot_on_figure(
         self,
         figure: 'Figure',
+        *variables: DataArrayOrName | tuple[DataArrayOrName, ...],
         scalar: DataArrayOrName | None = None,
         vector: tuple[DataArrayOrName, DataArrayOrName] | None = None,
         title: str | None = None,
@@ -971,26 +972,30 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         :func:`.plot.plot_on_figure` : The underlying implementation
         """
         if scalar is not None:
-            kwargs['scalar'] = utils.name_to_data_array(self.dataset, scalar)
+            variables = variables + (scalar,)
 
         if vector is not None:
-            kwargs['vector'] = tuple(utils.name_to_data_array(self.dataset, v) for v in vector)
+            variables = variables + (vector,)
+
+        mapped_variables: list[xarray.DataArray | tuple[xarray.DataArray, ...]] = []
+        for variable in variables:
+            if isinstance(variable, tuple):
+                mapped_variables.append(tuple(
+                    utils.name_to_data_array(self.dataset, v)
+                    for v in variable
+                ))
+            else:
+                mapped_variables.append(utils.name_to_data_array(self.dataset, variable))
 
         if title is not None:
             kwargs['title'] = title
-        elif scalar is not None and vector is None:
-            # Make a title out of the scalar variable, but only if a title
-            # hasn't been supplied and we don't also have vectors to plot.
-            #
-            # We can't make a good name from vectors,
-            # as they are in two variables with names like
-            # 'u component of current' and 'v component of current'.
-            #
-            # Users can supply their own titles
-            # if this automatic behaviour is insufficient
-            kwargs['title'] = make_plot_title(self.dataset, kwargs['scalar'])
 
-        plot_on_figure(figure, self, **kwargs)
+        # Find a title if there is a single variable passed in
+        elif len(variables) == 1 and isinstance(variables[0], xarray.DataArray):
+            variable = variables[0]
+            kwargs['title'] = make_plot_title(self.dataset, variable)
+
+        plot_on_figure(figure, self, *mapped_variables, **kwargs)
 
     @_requires_plot
     def plot(self, *args: Any, **kwargs: Any) -> None:
@@ -1112,13 +1117,69 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         return animate_on_figure(figure, self, coordinate=coordinate, **kwargs)
 
     @_requires_plot
-    def plot_scalar(
+    def plot_on_axes(
         self,
-        axes: 'Axes',
-        data_array : DataArrayOrName,
-        **kwargs,
+        axes: 'GeoAxes',
+        variable: xarray.DataArray | tuple[xarray.DataArray, ...],
+        **kwargs: Any,
     ) -> 'Collection':
-        collection = self.make_poly_collection(data_array)
+        if isinstance(variable, xarray.DataArray):
+            grid_kind = self.get_grid_kind(variable)
+            if grid_kind is self.default_grid_kind:
+                return self.plot_polygons_on_axes(axes, variable)
+
+            raise ValueError(f"Not able to plot variable {variable.name!r}, grid kind {grid_kind}")
+
+        else:
+            names = tuple(v.name for v in variable)
+            grid_kinds = tuple(self.get_grid_kind(v) for v in variable)
+            if len(variable) == 2 and grid_kinds == (self.default_grid_kind, self.default_grid_kind):
+                return self.plot_vector_components_on_axes(axes, variable)
+
+            raise ValueError(f"Not able to plot variables {names!r}, grid kinds {grid_kinds!r}")
+
+    @_requires_plot
+    def plot_polygons_on_axes(
+        self,
+        axes: 'GeoAxes',
+        data_array: xarray.DataArray | None,
+        colorbar: bool = True,
+        **kwargs: Any,
+    ) -> 'Collection':
+        defaults = dict(cmap='jet', edgecolor='face')
+        kwargs = {**defaults, **kwargs}
+
+        collection = self.make_poly_collection(data_array, **kwargs)
+        axes.add_collection(collection)
+
+        if colorbar and data_array is not None:
+            units = data_array.attrs.get('units')
+            axes.get_figure().colorbar(collection, ax=axes, location='right', label=units)
+
+        return collection
+
+    @_requires_plot
+    def plot_vector_components_on_axes(
+        self,
+        axes: 'GeoAxes',
+        components: tuple[xarray.DataArray, xarray.DataArray],
+        **kwargs: Any,
+    ) -> 'Collection':
+        u, v = components
+        quiver = self.make_quiver(axes, u, v, **kwargs)
+        axes.add_collection(quiver)
+        return quiver
+
+    @_requires_plot
+    def plot_geometry_on_axes(
+        self,
+        axes: 'GeoAxes',
+        **kwargs: Any,
+    ) -> 'Collection':
+        """
+        Plot the geometry of this dataset on to some Axes
+        """
+        collection = self.make_poly_collection()
         axes.add_collection(collection)
         return collection
 
@@ -1131,7 +1192,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
     ) -> 'PolyCollection':
         """
         Make a :class:`~matplotlib.collections.PolyCollection`
-        from the geometry of this :class:`~xarray.Dataset`.
+        from the polygon geometry of this :class:`~xarray.Dataset`.
         This can be used to make custom matplotlib plots from your data.
 
         If a :class:`~xarray.DataArray` is passed in,
@@ -1201,32 +1262,23 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         return polygons_to_collection(self.polygons[self.mask], **kwargs)
 
-    def make_patch_collection(
-        self,
-        data_array: DataArrayOrName | None = None,
-        **kwargs: Any,
-    ) -> 'PolyCollection':
-        warnings.warn(
-            "Convention.make_patch_collection has been renamed to "
-            "Convention.make_poly_collection, and now returns a PolyCollection",
-            category=DeprecationWarning,
-        )
-        return self.make_poly_collection(data_array, **kwargs)
-
     @_requires_plot
     def make_quiver(
         self,
-        axes: 'Axes',
+        axes: 'GeoAxes',
         u: DataArrayOrName | None = None,
         v: DataArrayOrName | None = None,
         **kwargs: Any,
     ) -> 'Quiver':
         """
         Make a :class:`matplotlib.quiver.Quiver` instance to plot vector data.
+        The vectors will be placed at the centre of each polygon of the dataset.
+        The data arrays `u` and `v` represent the `x` and `y` vector components
+        for each polygon.
 
         Parameters
         ----------
-        axes : matplotlib.axes.Axes
+        axes : matplotlib.axes.GeoAxes
             The axes to make this quiver on.
         u, v : xarray.DataArray or str, optional
             The DataArrays or the names of DataArrays in this dataset
