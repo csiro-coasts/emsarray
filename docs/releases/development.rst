@@ -12,3 +12,6 @@ Next release (in development)
 * Fixed :func:`emsarray.utils.datetime_from_np_time`
   when the system timezone is not UTC and a specific timezone is requested
   (:issue:`176`, :pr:`183`).
+* Fixed an issue with UGrid datasets when some of the mesh topology variables
+  are not present in Dataset.data_vars as they are detected as coordinate variables
+  (:issue:`159`, :pr:`188`).
