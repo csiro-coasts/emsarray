@@ -378,10 +378,11 @@ class Mesh2DTopology:
         ``cf_role`` of ``"mesh_topology"``.
         """
         if self.topology_key is not None:
-            return self.dataset.data_vars[self.topology_key]
+            return self.dataset[self.topology_key]
         try:
+            data_arrays = (self.dataset[name] for name in self.dataset.variables.keys())
             return next(
-                data_array for data_array in self.dataset.data_vars.values()
+                data_array for data_array in data_arrays
                 if data_array.attrs.get('cf_role') == 'mesh_topology'
             )
         except StopIteration:
@@ -436,18 +437,18 @@ class Mesh2DTopology:
     @property
     def node_x(self) -> xarray.DataArray:
         """Data array of node X / longitude coordinates."""
-        return self.dataset.data_vars[self._node_coordinates[0]]
+        return self.dataset[self._node_coordinates[0]]
 
     @property
     def node_y(self) -> xarray.DataArray:
         """Data array of node Y / latitude coordinates."""
-        return self.dataset.data_vars[self._node_coordinates[1]]
+        return self.dataset[self._node_coordinates[1]]
 
     @property
     def edge_x(self) -> xarray.DataArray | None:
         """Data array of characteristic edge X / longitude coordinates. Optional."""
         try:
-            return self.dataset.data_vars[self._edge_coordinates[0]]
+            return self.dataset[self._edge_coordinates[0]]
         except KeyError:
             return None
 
@@ -455,7 +456,7 @@ class Mesh2DTopology:
     def edge_y(self) -> xarray.DataArray | None:
         """Data array of characteristic edge y / latitude coordinates. Optional."""
         try:
-            return self.dataset.data_vars[self._edge_coordinates[1]]
+            return self.dataset[self._edge_coordinates[1]]
         except KeyError:
             return None
 
@@ -463,7 +464,7 @@ class Mesh2DTopology:
     def face_x(self) -> xarray.DataArray | None:
         """Data array of characteristic face x / longitude coordinates. Optional."""
         try:
-            return self.dataset.data_vars[self._face_coordinates[0]]
+            return self.dataset[self._face_coordinates[0]]
         except KeyError:
             return None
 
@@ -471,7 +472,7 @@ class Mesh2DTopology:
     def face_y(self) -> xarray.DataArray | None:
         """Data array of characteristic face y / latitude coordinates. Optional."""
         try:
-            return self.dataset.data_vars[self._face_coordinates[1]]
+            return self.dataset[self._face_coordinates[1]]
         except KeyError:
             return None
 
@@ -537,7 +538,7 @@ class Mesh2DTopology:
             return False
 
         try:
-            data_array = self.dataset.data_vars[self.mesh_attributes["edge_node_connectivity"]]
+            data_array = self.dataset[self.mesh_attributes["edge_node_connectivity"]]
         except KeyError:
             return False
 
@@ -570,7 +571,7 @@ class Mesh2DTopology:
                 "No valid edge_node_connectivity defined")
 
         name = self.mesh_attributes['edge_node_connectivity']
-        return self.dataset.data_vars[name]
+        return self.dataset[name]
 
     @cached_property
     def edge_node_array(self) -> numpy.ndarray:
@@ -625,7 +626,7 @@ class Mesh2DTopology:
             return False
 
         try:
-            data_array = self.dataset.data_vars[self.mesh_attributes["edge_face_connectivity"]]
+            data_array = self.dataset[self.mesh_attributes["edge_face_connectivity"]]
         except KeyError:
             return False
 
@@ -650,7 +651,7 @@ class Mesh2DTopology:
             raise NoConnectivityVariableException(
                 "No valid edge_face_connectivity defined")
         name = self.mesh_attributes['edge_face_connectivity']
-        return self.dataset.data_vars[name]
+        return self.dataset[name]
 
     @cached_property
     def edge_face_array(self) -> numpy.ndarray:
@@ -689,7 +690,7 @@ class Mesh2DTopology:
         If this is invalid, the entire dataset is invalid.
         """
         try:
-            data_array = self.dataset.data_vars[self.mesh_attributes["face_node_connectivity"]]
+            data_array = self.dataset[self.mesh_attributes["face_node_connectivity"]]
         except KeyError:
             return False
 
@@ -713,7 +714,7 @@ class Mesh2DTopology:
         all the others can be derived from this if required.
         """
         name = self.mesh_attributes['face_node_connectivity']
-        return self.dataset.data_vars[name]
+        return self.dataset[name]
 
     @cached_property
     def face_node_array(self) -> numpy.ndarray:
@@ -734,7 +735,7 @@ class Mesh2DTopology:
         variable is incorrect.
         """
         try:
-            data_array = self.dataset.data_vars[self.mesh_attributes["face_edge_connectivity"]]
+            data_array = self.dataset[self.mesh_attributes["face_edge_connectivity"]]
         except KeyError:
             return False
 
@@ -773,7 +774,7 @@ class Mesh2DTopology:
             raise NoConnectivityVariableException(
                 "No valid face_edge_connectivity defined")
         name = self.mesh_attributes['face_edge_connectivity']
-        return self.dataset.data_vars[name]
+        return self.dataset[name]
 
     @cached_property
     def face_edge_array(self) -> numpy.ndarray:
@@ -816,7 +817,7 @@ class Mesh2DTopology:
         variable is incorrect.
         """
         try:
-            data_array = self.dataset.data_vars[self.mesh_attributes["face_face_connectivity"]]
+            data_array = self.dataset[self.mesh_attributes["face_face_connectivity"]]
         except KeyError:
             return False
 
@@ -841,7 +842,7 @@ class Mesh2DTopology:
             raise NoConnectivityVariableException(
                 "No valid face_face_connectivity defined")
         name = self.mesh_attributes['face_face_connectivity']
-        return self.dataset.data_vars[name]
+        return self.dataset[name]
 
     @cached_property
     def face_face_array(self) -> numpy.ndarray:
@@ -1201,7 +1202,7 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         topology_variables: list[xarray.DataArray] = [topology.mesh_variable]
 
         # This is the fill value used in the mask.
-        new_fill_value = clip_mask.data_vars['new_node_index'].encoding['_FillValue']
+        new_fill_value = clip_mask['new_node_index'].encoding['_FillValue']
 
         def integer_indexes(data_array: xarray.DataArray) -> numpy.ndarray:
             masked_values = numpy.ma.masked_invalid(data_array.values)
@@ -1211,11 +1212,11 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
             masked_integers: numpy.ndarray = masked_values.astype(numpy.int_)
             return masked_integers
 
-        new_node_indexes = integer_indexes(clip_mask.data_vars['new_node_index'])
-        new_face_indexes = integer_indexes(clip_mask.data_vars['new_face_index'])
-        has_edges = 'new_edge_index' in clip_mask.data_vars
+        new_node_indexes = integer_indexes(clip_mask['new_node_index'])
+        new_face_indexes = integer_indexes(clip_mask['new_face_index'])
+        has_edges = 'new_edge_index' in clip_mask.variables
         if has_edges:
-            new_edge_indexes = integer_indexes(clip_mask.data_vars['new_edge_index'])
+            new_edge_indexes = integer_indexes(clip_mask['new_edge_index'])
 
         # Re-index the face_node_connectivity variable
         topology_variables.append(update_connectivity(
@@ -1273,7 +1274,8 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
             dimension_masks[topology.edge_dimension] = ~numpy.ma.getmask(new_edge_indexes)
         mesh_dimensions = set(dimension_masks.keys())
 
-        for name, data_array in dataset.data_vars.items():
+        for name in dataset.variables.keys():
+            data_array = dataset[name]
             data_array_path = work_path / (str(name) + '.nc')
             if name in topology_variable_names:
                 logger.debug("Skipping %r as it is a topology variable", name)
