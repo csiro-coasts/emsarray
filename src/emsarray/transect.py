@@ -562,6 +562,7 @@ class Transect:
         clamp_to_surface: bool = True,
         bathymetry: xarray.DataArray | None = None,
         cmap: str | Colormap = 'jet',
+        clim: tuple[float, float] | None = None,
         ocean_floor_colour: str = 'black',
         landmarks: list[Landmark] | None = None,
     ) -> None:
@@ -607,6 +608,7 @@ class Transect:
             clamp_to_surface=clamp_to_surface,
             bathymetry=bathymetry,
             cmap=cmap,
+            clim=clim,
             ocean_floor_colour=ocean_floor_colour,
             landmarks=landmarks,
         )
@@ -622,6 +624,7 @@ class Transect:
         clamp_to_surface: bool = True,
         bathymetry: xarray.DataArray | None = None,
         cmap: str | Colormap = 'jet',
+        clim: tuple[float, float] | None = None,
         ocean_floor_colour: str = 'black',
         landmarks: list[Landmark] | None = None,
         coordinate: xarray.DataArray | None = None,
@@ -652,6 +655,7 @@ class Transect:
         if coordinate is None:
             coordinate = self.convention.time_coordinate
         coordinate_indexes = numpy.arange(coordinate.size)
+        animation_dimension = coordinate.dims[0]
 
         coordinate_callable: Callable[[Any], str]
         if title is None:
@@ -667,14 +671,17 @@ class Transect:
         else:
             coordinate_callable = title
 
-        axes, collection, data_array = self._plot_on_figure(
+        first_frame = data_array.isel({animation_dimension: 0})
+        first_frame.load()
+        axes, collection, _prepared_frame = self._plot_on_figure(
             figure=figure,
-            data_array=data_array,
+            data_array=first_frame,
             title=None,
             trim_nans=trim_nans,
             clamp_to_surface=clamp_to_surface,
             bathymetry=bathymetry,
             cmap=cmap,
+            clim=clim,
             ocean_floor_colour=ocean_floor_colour,
             landmarks=landmarks,
         )
@@ -686,7 +693,10 @@ class Transect:
             axes.set_title(coordinate_callable(coordinate_value))
             changes.append(axes)
 
-            collection.set_array(data_array[index].values.flatten())
+            frame_data = data_array.isel({animation_dimension: index})
+            frame_data.load()
+            prepared_data = self.prepare_data_array_for_transect(frame_data)
+            collection.set_array(prepared_data.values.flatten())
             changes.append(collection)
             return changes
 
@@ -711,6 +721,7 @@ class Transect:
         clamp_to_surface: bool = True,
         bathymetry: xarray.DataArray | None = None,
         cmap: str | Colormap = 'jet',
+        clim: tuple[float, float] | None = None,
         ocean_floor_colour: str = 'black',
         landmarks: list[Landmark] | None = None,
     ) -> tuple[Axes, PolyCollection, xarray.DataArray]:
@@ -724,6 +735,7 @@ class Transect:
         depth = transect_dataset.coords['depth']
         distance_bounds = transect_dataset.data_vars['distance_bounds']
 
+        data_array = data_array.load()
         data_array = self.prepare_data_array_for_transect(data_array)
 
         positive_down = depth.attrs['positive'] == 'down'
@@ -769,12 +781,11 @@ class Transect:
             cmap = colormaps[cmap].copy()
         cmap.set_bad(ocean_floor_colour)
 
-        if data_array.size != 0:
+        # Find a min/max from the data if clim isn't provided and the data array is not empty.
+        # An empty data array happens when the transect line does not intersect
+        # the dataset geometry.
+        if clim is None and data_array.size != 0:
             clim = (numpy.nanmin(data_array), numpy.nanmax(data_array))
-        else:
-            # An empty data array happens when the transect line does not
-            # intersect the dataset geometry.
-            clim = None
 
         collection = self.make_poly_collection(cmap=cmap, clim=clim, edgecolor='face')
         axes.add_collection(collection)

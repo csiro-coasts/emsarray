@@ -15,3 +15,8 @@ Next release (in development)
 * Fixed an issue with UGrid datasets when some of the mesh topology variables
   are not present in Dataset.data_vars as they are detected as coordinate variables
   (:issue:`159`, :pr:`188`).
+* Load data frame by frame when plotting a transect animation.
+  This has a backwards incompatible effect of not examining the whole data array to generate a reasonable *clim*.
+  Only the first frame is used to generate the clim to avoid loading more data than required.
+  The new clim parameter allows users to specify the data limits explicitly if this is insufficient
+  (:pr:`191`).
