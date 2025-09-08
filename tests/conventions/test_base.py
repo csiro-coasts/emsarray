@@ -146,12 +146,45 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
 
 
-def test_time_coordinate(datasets: pathlib.Path) -> None:
+def test_time_coordinate_with_units(datasets: pathlib.Path) -> None:
     dataset = xarray.open_dataset(datasets / 'times.nc')
     SimpleConvention(dataset).bind()
     time_coordinate = dataset.ems.time_coordinate
     assert time_coordinate.name == 'time'
     xarray.testing.assert_equal(time_coordinate, dataset['time'])
+
+
+def test_time_coordinate_no_units(datasets: pathlib.Path) -> None:
+    dataset = xarray.Dataset({
+        'time': xarray.DataArray(
+            data=pandas.date_range('2025-09-08', '2025-10-08'),
+            attrs={'coordinate_type': 'time', 'standard_name': 'time'},
+        ),
+    })
+
+    SimpleConvention(dataset).bind()
+    time_coordinate = dataset.ems.time_coordinate
+    assert time_coordinate.name == 'time'
+    xarray.testing.assert_equal(time_coordinate, dataset['time'])
+
+
+def test_time_coordinate_with_units_first(datasets: pathlib.Path) -> None:
+    dataset = xarray.Dataset({
+        'time_no_units': xarray.DataArray(
+            data=pandas.date_range('2025-09-08', '2025-10-08'),
+            attrs={'coordinate_type': 'time', 'standard_name': 'time'},
+        ),
+        'time_with_units': xarray.DataArray(
+            data=pandas.date_range('2025-09-08', '2025-10-08'),
+            attrs={'coordinate_type': 'time', 'standard_name': 'time'},
+        ),
+    })
+
+    dataset['time_with_units'].encoding['units'] = 'days since 1970-01-01'
+
+    SimpleConvention(dataset).bind()
+    time_coordinate = dataset.ems.time_coordinate
+    assert time_coordinate.name == 'time_with_units'
 
 
 def test_time_coordinate_missing() -> None:

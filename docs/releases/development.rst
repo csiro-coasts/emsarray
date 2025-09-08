@@ -20,3 +20,6 @@ Next release (in development)
   Only the first frame is used to generate the clim to avoid loading more data than required.
   The new clim parameter allows users to specify the data limits explicitly if this is insufficient
   (:pr:`191`).
+* Detect time coordinates with correct dtype and some standard attributes even without a `units` attribute.
+  Variables with `units` are preferred
+  (:issue:`190`, :pr:`193`).
