@@ -296,17 +296,31 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         ----------
         .. [1] `CF Conventions v1.10, 4.4 Time Coordinate <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#time-coordinate>`_
         """
+        # First look for a datetime64 variable with a 'units' field in the encoding
         for name in self.dataset.variables.keys():
             variable = self.dataset[name]
-            # xarray will automatically decode all time variables
-            # and move the 'units' attribute over to encoding to store this change.
-            if 'units' in variable.encoding:
-                units = variable.encoding['units']
-                # A time variable must have units of the form '<units> since <epoc>'
-                if 'since' in units:
-                    # The variable must now be a numpy datetime
-                    if variable.dtype.type == numpy.datetime64:
+            # The variable must be a numpy datetime
+            if variable.dtype.type == numpy.datetime64:
+                # xarray will automatically decode all time variables
+                # and move the 'units' attribute over to encoding to store this change.
+                if 'units' in variable.encoding:
+                    units = variable.encoding['units']
+                    # A time variable must have units of the form '<units> since <epoc>'
+                    if 'since' in units:
                         return variable
+
+        # Next, look for any datetime64 variable with an appropriate attribute
+        for name in self.dataset.variables.keys():
+            variable = self.dataset[name]
+            if variable.dtype.type == numpy.datetime64:
+                possible_attributes = {
+                    'coordinate_type': 'time',
+                    'standard_name': 'time',
+                    'axis': 'T',
+                }
+                if any(variable.attrs.get(name, None) == value for name, value in possible_attributes.items()):
+                    return variable
+
         raise NoSuchCoordinateError("Could not find time coordinate in dataset")
 
     @cached_property
