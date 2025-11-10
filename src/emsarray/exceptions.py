@@ -38,7 +38,7 @@ class NoSuchCoordinateError(KeyError, EmsarrayError):
     """
 
 
-class InvalidPolygonWarning(EmsarrayWarning):
+class InvalidGeometryWarning(EmsarrayWarning):
     """
-    A polygon in a dataset was invalid or not simple.
+    Some geometry in a dataset was invalid or not simple.
     """

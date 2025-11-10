@@ -10,7 +10,7 @@ import enum
 import logging
 from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import cast
+from typing import Self, cast
 
 import numpy
 import xarray
@@ -20,7 +20,7 @@ from xarray.core.dataset import DatasetCoordinates
 from emsarray import masking, utils
 from emsarray.types import Pathish
 
-from ._base import DimensionConvention, Specificity
+from ._base import DimensionConvention, DimensionIndex, Specificity
 
 logger = logging.getLogger(__name__)
 
@@ -117,20 +117,15 @@ class ArakawaCGridKind(str, enum.Enum):
     #: :meta hide-value:
     node = 'node'
 
-    def __call__(self, j: int, i: int) -> 'ArakawaCIndex':
+    def __call__(self, j: int, i: int) -> DimensionIndex[Self]:
         return (self, j, i)
 
 
-#: The native index type for Arakawa C grids
-#: is a tuple with three elements: ``(kind, j, i).``
-#:
-#: :meta hide-value:
-ArakawaCIndex = tuple[ArakawaCGridKind, int, int]
 ArakawaCCoordinates = dict[ArakawaCGridKind, tuple[Hashable, Hashable]]
 ArakawaCDimensions = dict[ArakawaCGridKind, tuple[Hashable, Hashable]]
 
 
-class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
+class ArakawaC(DimensionConvention[ArakawaCGridKind]):
     """
     An Arakawa C grid is a curvilinear orthogonal grid
     with data defined on grid faces, edges, and nodes.
@@ -254,11 +249,16 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
             for kind, coordinates in self.coordinate_names.items()
         }
 
-    def unpack_index(self, index: ArakawaCIndex) -> tuple[ArakawaCGridKind, Sequence[int]]:
-        return index[0], index[1:]
-
-    def pack_index(self, grid_kind: ArakawaCGridKind, indexes: Sequence[int]) -> ArakawaCIndex:
-        return cast(ArakawaCIndex, (grid_kind, *indexes))
+    def _make_geometry(self, grid_kind: ArakawaCGridKind) -> numpy.ndarray:
+        if grid_kind is ArakawaCGridKind.face:
+            return self._make_polygons()
+        if grid_kind is ArakawaCGridKind.left:
+            return self._make_left_edges()
+        if grid_kind is ArakawaCGridKind.back:
+            return self._make_left_edges()
+        if grid_kind is ArakawaCGridKind.node:
+            return self._make_nodes()
+        raise NotImplementedError(f"Haven't implemented geometry for {grid_kind} yet")
 
     def _make_polygons(self) -> numpy.ndarray:
         j_size, i_size = self.face.shape
@@ -286,6 +286,16 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
             utils.make_polygons_with_holes(points, out=out[j_slice])
 
         return out
+
+    def _make_left_edges(self) -> numpy.ndarray:
+        left = self.grids[ArakawaCGridKind.left]
+        out = numpy.empty(shape=left.size, fill_value=None, dtype=object)
+
+    def _make_back_edges(self) -> numpy.ndarray:
+        pass
+
+    def _make_nodes(self) -> numpy.ndarray:
+        pass
 
     @cached_property
     def face_centres(self) -> numpy.ndarray:

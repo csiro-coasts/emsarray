@@ -866,3 +866,27 @@ def data_array_to_name(dataset: xarray.Dataset, data_array: DataArrayOrName) -> 
         if data_array not in dataset.variables:
             raise ValueError(f"Data array {data_array!r} is not in the dataset")
         return data_array
+
+
+class LazyDict(Mapping):
+    def __init__(self, lazy_dict: Mapping):
+        self.lazy_dict = dict(lazy_dict)
+        self.computed_dict = {}
+
+    def __contains__(self, key):
+        return key in self.lazy_dict
+
+    def __getitem__(self, key):
+        if key in self.computed_dict:
+            return self.computed_dict[key]
+        if key in self.lazy_dict:
+            value = self.lazy_dict[key]()
+            self.computed_dict[key] = value
+            return value
+        raise KeyError(key)
+
+    def __len__(self):
+        return len(self.lazy_dict)
+
+    def __iter__(self):
+        return iter(self.lazy_dict)
