@@ -1030,11 +1030,7 @@ class UGridKind(str, enum.Enum):
     node = 'node'
 
 
-#: UGRID indexes are always single integers, for all index kinds.
-UGridIndex = tuple[UGridKind, int]
-
-
-class UGrid(DimensionConvention[UGridKind, UGridIndex]):
+class UGrid(DimensionConvention[UGridKind]):
     """A :class:`.Convention` subclass to handle unstructured grid datasets.
     """
 
@@ -1078,12 +1074,6 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         if self.topology.has_edge_dimension:
             dimensions[UGridKind.edge] = [self.topology.edge_dimension]
         return dimensions
-
-    def unpack_index(self, index: UGridIndex) -> tuple[UGridKind, Sequence[int]]:
-        return index[0], index[1:]
-
-    def pack_index(self, grid_kind: UGridKind, indexes: Sequence[int]) -> UGridIndex:
-        return (grid_kind, indexes[0])
 
     @cached_property
     def grid_kinds(self) -> frozenset[UGridKind]:

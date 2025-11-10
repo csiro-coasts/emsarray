@@ -28,10 +28,6 @@ class CFGridKind(str, enum.Enum):
     face = 'face'
 
 
-#: A two-tuple of ``(y, x)``.
-CFGridIndex = tuple[int, int]
-
-
 CF_LATITUDE_UNITS = {
     'degrees_north', 'degree_north', 'degree_N', 'degrees_N',
     'degreeN', 'degreesN'
@@ -183,7 +179,7 @@ class CFGridTopology(abc.ABC):
         return int(numpy.prod(self.shape))
 
 
-class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind, CFGridIndex]):
+class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind]):
     """
     A base class for CF grid datasets.
     There are two concrete subclasses: :class:`CFGrid1D` and :class:`CFGrid2D`.
@@ -252,12 +248,6 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind, CFGridInd
         return {
             CFGridKind.face: [self.topology.y_dimension, self.topology.x_dimension],
         }
-
-    def unpack_index(self, index: CFGridIndex) -> tuple[CFGridKind, Sequence[int]]:
-        return CFGridKind.face, index
-
-    def pack_index(self, grid_kind: CFGridKind, indexes: Sequence[int]) -> CFGridIndex:
-        return cast(CFGridIndex, indexes)
 
     def get_all_geometry_names(self) -> list[Hashable]:
         # Grid datasets contain latitude and longitude variables

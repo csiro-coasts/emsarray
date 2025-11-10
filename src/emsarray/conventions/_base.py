@@ -3,10 +3,11 @@ import dataclasses
 import enum
 import hashlib
 import logging
+import math
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, Tuple, cast
 
 import numpy
 import shapely
@@ -16,12 +17,18 @@ from shapely.geometry.base import BaseGeometry
 from shapely.strtree import STRtree
 
 from emsarray import utils
-from emsarray.exceptions import InvalidPolygonWarning, NoSuchCoordinateError
+from emsarray.exceptions import (
+    InvalidGeometryWarning,
+    NoSuchCoordinateError,
+)
 from emsarray.operations import depth, point_extraction
 from emsarray.operations.cache import hash_attributes, hash_int, hash_string
 from emsarray.plot import (
-    _requires_plot, animate_on_figure, make_plot_title, plot_on_figure,
-    polygons_to_collection
+    _requires_plot,
+    animate_on_figure,
+    make_plot_title,
+    plot_on_figure,
+    polygons_to_collection,
 )
 from emsarray.state import State
 from emsarray.types import Bounds, DataArrayOrName, Pathish
@@ -29,9 +36,9 @@ from emsarray.types import Bounds, DataArrayOrName, Pathish
 if TYPE_CHECKING:
     # Import these optional dependencies only during type checking
     from cartopy.crs import CRS
+    from cartopy.mpl.geoaxes import GeoAxes
     from matplotlib.animation import FuncAnimation
-    from matplotlib.axes import Axes
-    from matplotlib.collections import PolyCollection
+    from matplotlib.collections import Collection, PolyCollection
     from matplotlib.figure import Figure
     from matplotlib.quiver import Quiver
 
@@ -39,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
-class SpatialIndexItem[Index]:
+class SpatialIndexItem[GridKind, Index, Geometry: BaseGeometry]:
     """Information about an item in the :class:`~shapely.strtree.STRtree`
     spatial index for a dataset.
 
@@ -48,19 +55,34 @@ class SpatialIndexItem[Index]:
     Convention.spatial_index
     """
 
-    #: The linear index of this cell
+    grid_kind: GridKind
+
+    #: The linear index of this item
     linear_index: int
 
-    #: The native index of this cell
+    #: The native index of this item
     index: Index
 
-    #: The geographic shape of this cell
-    polygon: Polygon
+    #: The indexed geometry
+    geometry: Geometry
+
+    @utils.deprecated(
+        (
+            "SpatialIndexItem.polygon has been deprecated. "
+            "Use SpatialIndexItem.geometry instead."
+        ),
+        DeprecationWarning,
+    )
+    def polygon(self) -> Polygon:
+        if isinstance(self.geometry, Polygon):
+            return self.geometry
+        raise ValueError(
+            f"Indexed geometry is not a Polygon, it is a {type(self.geometry).__name__}!")
 
     def __repr__(self) -> str:
         items = {
             'index': f'{self.index}/{self.linear_index}',
-            'polygon': self.polygon.wkt,
+            'geometry': self.geometry.wkt,
         }
         item_str = ' '.join(f'{key}: {value}' for key, value in items.items())
         return f'<{type(self).__name__} {item_str}>'
@@ -68,10 +90,12 @@ class SpatialIndexItem[Index]:
     def __lt__(self, other: Any) -> bool:
         if not isinstance(other, SpatialIndexItem):
             return NotImplemented
+        if self.grid_kind is not other.grid_kind:
+            return NotImplemented
 
-        # SpatialIndexItems are only for cells / polygons, so we only need to
-        # compare the linear indexes. The polygon attribute is not orderable,
-        # so comparing on that is going to be unpleasant.
+        # SpatialIndexItems can only compare between other SpatialIndexItems of
+        # the same GridKind. As such, we only need to compare the linear index
+        # to establish a total ordering
         return self.linear_index < other.linear_index
 
 
@@ -91,6 +115,67 @@ class Specificity(enum.IntEnum):
     LOW = 10
     MEDIUM = 20
     HIGH = 30
+
+
+@dataclasses.dataclass
+class Grid[GridKind, Index](abc.ABC):
+    convention: 'Convention[GridKind, Index]'
+    grid_kind: GridKind
+
+    @property
+    @abc.abstractmethod
+    def shape(self) -> Tuple[int, ...]:
+        pass
+
+    @cached_property
+    def size(self) -> int:
+        return int(math.prod(self.shape))
+
+    @cached_property
+    def geometry(self) -> numpy.ndarray:
+        return self.convention.ake_geometry(self.grid_kind)
+
+    @cached_property
+    def geometry_type(self) -> type[BaseGeometry]:
+        return type(next(shape for shape in self.geometry if shape is not None))
+
+    @cached_property
+    def strtree(self) -> STRtree:
+        return STRtree(self.geometry)
+
+    @cached_property
+    def mask(self) -> numpy.ndarray:
+        return cast(numpy.ndarray, self.geometry == None)  # noqa: E711
+
+    @abc.abstractmethod
+    def ravel_index(self, index: Index) -> int:
+        pass
+
+    @abc.abstractmethod
+    def wind_index(self, linear_index: int) -> Index:
+        pass
+
+    @abc.abstractmethod
+    def ravel(
+        self,
+        data_array: DataArrayOrName,
+        *,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        pass
+
+    @abc.abstractmethod
+    def wind(
+        self,
+        data_array: DataArrayOrName,
+        *,
+        axis: int | None = None,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        pass
+
+    def __repr__(self) -> str:
+        return '<Grid: {self.grid_kind} {self.shape}>'
 
 
 class Convention[GridKind, Index](abc.ABC):
@@ -254,31 +339,17 @@ class Convention[GridKind, Index](abc.ABC):
         ----------
         .. [1] `CF Conventions v1.10, 4.4 Time Coordinate <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#time-coordinate>`_
         """
-        # First look for a datetime64 variable with a 'units' field in the encoding
         for name in self.dataset.variables.keys():
             variable = self.dataset[name]
-            # The variable must be a numpy datetime
-            if variable.dtype.type == numpy.datetime64:
-                # xarray will automatically decode all time variables
-                # and move the 'units' attribute over to encoding to store this change.
-                if 'units' in variable.encoding:
-                    units = variable.encoding['units']
-                    # A time variable must have units of the form '<units> since <epoc>'
-                    if 'since' in units:
+            # xarray will automatically decode all time variables
+            # and move the 'units' attribute over to encoding to store this change.
+            if 'units' in variable.encoding:
+                units = variable.encoding['units']
+                # A time variable must have units of the form '<units> since <epoc>'
+                if 'since' in units:
+                    # The variable must now be a numpy datetime
+                    if variable.dtype.type == numpy.datetime64:
                         return variable
-
-        # Next, look for any datetime64 variable with an appropriate attribute
-        for name in self.dataset.variables.keys():
-            variable = self.dataset[name]
-            if variable.dtype.type == numpy.datetime64:
-                possible_attributes = {
-                    'coordinate_type': 'time',
-                    'standard_name': 'time',
-                    'axis': 'T',
-                }
-                if any(variable.attrs.get(name, None) == value for name, value in possible_attributes.items()):
-                    return variable
-
         raise NoSuchCoordinateError("Could not find time coordinate in dataset")
 
     @cached_property
@@ -453,9 +524,11 @@ class Convention[GridKind, Index](abc.ABC):
         --------
         :meth:`.Convention.wind_index` : The inverse operation
         """
+        # TODO Feels weird that this one is generic while nothing else is.
+        # Currently there is no generic method that will tell you the grid kind of an index.
+        # DimensionConvention has such a method
         pass
 
-    @abc.abstractmethod
     def wind_index(
         self,
         linear_index: int,
@@ -501,7 +574,9 @@ class Convention[GridKind, Index](abc.ABC):
         --------
         :meth:`.Convention.ravel_index` : The inverse operation
         """
-        pass
+        if grid_kind is None:
+            grid_kind = self.default_grid_kind
+        return self.grids[grid_kind].wind_index(linear_index)
 
     @property
     @abc.abstractmethod
@@ -516,15 +591,29 @@ class Convention[GridKind, Index](abc.ABC):
     def default_grid_kind(self) -> GridKind:
         """
         The default :data:`grid kind <.GridKind>` for this dataset.
-        For most datasets this should be the face grid.
+        For most datasets this should be a face grid.
         """
+        # TODO Deprecate this?
         pass
+
 
     @property
     @abc.abstractmethod
+    def grids(self) -> dict[GridKind, Grid[GridKind, Index]]:
+        pass
+
+    @cached_property
+    @utils.deprecated(
+        "Convention.grid_size[grid_kind] is deprecated, "
+        "use Convention.grids[grid_kind].size instead."
+    )
     def grid_size(self) -> dict[GridKind, int]:
         """The linear size of each grid kind."""
-        pass
+        return {grid_kind: grid.size for grid_kind, grid in self.grids.items()}
+
+    def get_grid(self, data_array: xarray.DataArray) -> Grid:
+        # TODO Document
+        return self.grids[self.get_grid_kind(data_array)]
 
     @abc.abstractmethod
     def get_grid_kind(self, data_array: xarray.DataArray) -> GridKind:
@@ -570,7 +659,6 @@ class Convention[GridKind, Index](abc.ABC):
         """
         pass
 
-    @abc.abstractmethod
     def ravel(
         self,
         data_array: xarray.DataArray,
@@ -611,12 +699,11 @@ class Convention[GridKind, Index](abc.ABC):
         .utils.ravel_dimensions : A function that ravels some given dimensions in a dataset.
         Convention.wind : The inverse operation.
         """
-        pass
+        return self.get_grid(data_array).ravel(data_array)
 
-    @abc.abstractmethod
     def wind(
         self,
-        data_array: xarray.DataArray,
+        data_array: DataArrayOrName,
         *,
         grid_kind: GridKind | None = None,
         axis: int | None = None,
@@ -706,7 +793,9 @@ class Convention[GridKind, Index](abc.ABC):
         .utils.wind_dimension : Reshape a particular dimension in a data array.
         Convention.ravel : The inverse operation.
         """
-        pass
+        if grid_kind is None:
+            grid_kind = self.default_grid_kind
+        return self.grids[grid_kind].wind(data_array, axis=axis, linear_dimension=linear_dimension)
 
     @cached_property  # type: ignore
     @_requires_plot
@@ -725,6 +814,7 @@ class Convention[GridKind, Index](abc.ABC):
     def plot_on_figure(
         self,
         figure: 'Figure',
+        *variables: DataArrayOrName | tuple[DataArrayOrName, ...],
         scalar: DataArrayOrName | None = None,
         vector: tuple[DataArrayOrName, DataArrayOrName] | None = None,
         title: str | None = None,
@@ -761,26 +851,30 @@ class Convention[GridKind, Index](abc.ABC):
         :func:`.plot.plot_on_figure` : The underlying implementation
         """
         if scalar is not None:
-            kwargs['scalar'] = utils.name_to_data_array(self.dataset, scalar)
+            variables = variables + (scalar,)
 
         if vector is not None:
-            kwargs['vector'] = tuple(utils.name_to_data_array(self.dataset, v) for v in vector)
+            variables = variables + (vector,)
+
+        mapped_variables: list[xarray.DataArray | tuple[xarray.DataArray, ...]] = []
+        for variable in variables:
+            if isinstance(variable, tuple):
+                mapped_variables.append(tuple(
+                    utils.name_to_data_array(self.dataset, v)
+                    for v in variable
+                ))
+            else:
+                mapped_variables.append(utils.name_to_data_array(self.dataset, variable))
 
         if title is not None:
             kwargs['title'] = title
-        elif scalar is not None and vector is None:
-            # Make a title out of the scalar variable, but only if a title
-            # hasn't been supplied and we don't also have vectors to plot.
-            #
-            # We can't make a good name from vectors,
-            # as they are in two variables with names like
-            # 'u component of current' and 'v component of current'.
-            #
-            # Users can supply their own titles
-            # if this automatic behaviour is insufficient
-            kwargs['title'] = make_plot_title(self.dataset, kwargs['scalar'])
 
-        plot_on_figure(figure, self, **kwargs)
+        # Find a title if there is a single variable passed in
+        elif len(variables) == 1 and isinstance(variables[0], xarray.DataArray):
+            variable = variables[0]
+            kwargs['title'] = make_plot_title(self.dataset, variable)
+
+        plot_on_figure(figure, self, *mapped_variables, **kwargs)
 
     @_requires_plot
     def plot(self, *args: Any, **kwargs: Any) -> None:
@@ -902,6 +996,73 @@ class Convention[GridKind, Index](abc.ABC):
         return animate_on_figure(figure, self, coordinate=coordinate, **kwargs)
 
     @_requires_plot
+    def plot_on_axes(
+        self,
+        axes: 'GeoAxes',
+        variable: xarray.DataArray | tuple[xarray.DataArray, ...],
+        **kwargs: Any,
+    ) -> 'Collection':
+        if isinstance(variable, xarray.DataArray):
+            grid_kind = self.get_grid_kind(variable)
+            if grid_kind is self.default_grid_kind:
+                return self.plot_polygons_on_axes(axes, variable)
+
+            raise ValueError(f"Not able to plot variable {variable.name!r}, grid kind {grid_kind}")
+
+        else:
+            names = tuple(v.name for v in variable)
+            grid_kinds = tuple(self.get_grid_kind(v) for v in variable)
+            if len(variable) == 2 and grid_kinds == (self.default_grid_kind, self.default_grid_kind):
+                return self.plot_vector_components_on_axes(axes, variable)
+
+            raise ValueError(f"Not able to plot variables {names!r}, grid kinds {grid_kinds!r}")
+
+    @_requires_plot
+    def plot_polygons_on_axes(
+        self,
+        axes: 'GeoAxes',
+        data_array: xarray.DataArray | None,
+        colorbar: bool = True,
+        **kwargs: Any,
+    ) -> 'Collection':
+        defaults = dict(cmap='jet', edgecolor='face')
+        kwargs = {**defaults, **kwargs}
+
+        collection = self.make_poly_collection(data_array, **kwargs)
+        axes.add_collection(collection)
+
+        if colorbar and data_array is not None:
+            units = data_array.attrs.get('units')
+            axes.get_figure().colorbar(collection, ax=axes, location='right', label=units)
+
+        return collection
+
+    @_requires_plot
+    def plot_vector_components_on_axes(
+        self,
+        axes: 'GeoAxes',
+        components: tuple[xarray.DataArray, xarray.DataArray],
+        **kwargs: Any,
+    ) -> 'Collection':
+        u, v = components
+        quiver = self.make_quiver(axes, u, v, **kwargs)
+        axes.add_collection(quiver)
+        return quiver
+
+    @_requires_plot
+    def plot_geometry_on_axes(
+        self,
+        axes: 'GeoAxes',
+        **kwargs: Any,
+    ) -> 'Collection':
+        """
+        Plot the geometry of this dataset on to some Axes
+        """
+        collection = self.make_poly_collection()
+        axes.add_collection(collection)
+        return collection
+
+    @_requires_plot
     @utils.timed_func
     def make_poly_collection(
         self,
@@ -910,7 +1071,7 @@ class Convention[GridKind, Index](abc.ABC):
     ) -> 'PolyCollection':
         """
         Make a :class:`~matplotlib.collections.PolyCollection`
-        from the geometry of this :class:`~xarray.Dataset`.
+        from the polygon geometry of this :class:`~xarray.Dataset`.
         This can be used to make custom matplotlib plots from your data.
 
         If a :class:`~xarray.DataArray` is passed in,
@@ -963,14 +1124,15 @@ class Convention[GridKind, Index](abc.ABC):
                 )
 
             data_array = utils.name_to_data_array(self.dataset, data_array)
+            grid = self.get_grid(data_array)
 
-            data_array = self.ravel(data_array)
+            data_array = grid.ravel(data_array)
             if len(data_array.dims) > 1:
                 raise ValueError(
                     "Data array has too many dimensions - did you forget to "
                     "select a single timestep or a single depth layer?")
 
-            values = data_array.values[self.mask]
+            values = data_array.values[grid.mask]
             kwargs['array'] = values
             if 'clim' not in kwargs:
                 kwargs['clim'] = (numpy.nanmin(values), numpy.nanmax(values))
@@ -978,22 +1140,27 @@ class Convention[GridKind, Index](abc.ABC):
         if 'transform' not in kwargs:
             kwargs['transform'] = self.data_crs
 
-        return polygons_to_collection(self.polygons[self.mask], **kwargs)
+        return polygons_to_collection(grid.geometry[grid.mask], **kwargs)
 
     @_requires_plot
     def make_quiver(
         self,
-        axes: 'Axes',
+        axes: 'GeoAxes',
         u: DataArrayOrName | None = None,
         v: DataArrayOrName | None = None,
+        *,
+        grid_kind: GridKind | None = None,
         **kwargs: Any,
     ) -> 'Quiver':
         """
         Make a :class:`matplotlib.quiver.Quiver` instance to plot vector data.
+        The vectors will be placed at the centre of each polygon of the dataset.
+        The data arrays `u` and `v` represent the `x` and `y` vector components
+        for each polygon.
 
         Parameters
         ----------
-        axes : matplotlib.axes.Axes
+        axes : matplotlib.axes.GeoAxes
             The axes to make this quiver on.
         u, v : xarray.DataArray or str, optional
             The DataArrays or the names of DataArrays in this dataset
@@ -1009,8 +1176,6 @@ class Convention[GridKind, Index](abc.ABC):
         """
         from matplotlib.quiver import Quiver
 
-        x, y = numpy.transpose(self.face_centres)
-
         # A Quiver needs some values when being initialized.
         # We don't always want to provide values to the quiver,
         # sometimes preferring to fill them in later,
@@ -1019,18 +1184,35 @@ class Convention[GridKind, Index](abc.ABC):
         values: tuple[numpy.ndarray, numpy.ndarray] | tuple[float, float]
         values = numpy.nan, numpy.nan
 
+        if (u is None or v is None) and grid_kind is None:
+            raise ValueError("Need either a (u, v) pair or a grid_kind to make a quiver")
+
+
+        if grid_kind is not None:
+            grid = self.grids[grid_kind]
         if u is not None and v is not None:
             u = utils.name_to_data_array(self.dataset, u)
             v = utils.name_to_data_array(self.dataset, v)
 
-            if u.dims != v.dims:
+            u_grid_kind = self.get_grid_kind(u)
+            v_grid_kind = self.get_grid_kind(v)
+            if u_grid_kind != v_grid_kind:
                 raise ValueError(
-                    "Vector data array dimensions must be identical!\n"
-                    f"u dimensions: {tuple(u.dims)}\n"
-                    f"v dimensions: {tuple(v.dims)}"
+                    "Vector data arrays must be defined on the same grid. "
+                    f"Data arrays (u, v) had grid kinds {(u_grid_kind, v_grid_kind)}."
                 )
 
-            u, v = self.ravel(u), self.ravel(v)
+            if grid_kind is None:
+                grid_kind = u_grid_kind
+                grid = self.grids[grid_kind]
+
+            elif grid_kind is not u_grid_kind:
+                raise ValueError(
+                    f"Data arrays (u, v) with grid kinds {(u_grid_kind, v_grid_kind)} "
+                    f"not the same as grid_kind {grid_kind}"
+                )
+
+            u, v = grid.ravel(u), grid.ravel(v)
 
             if len(u.dims) > 1:
                 raise ValueError(
@@ -1042,89 +1224,41 @@ class Convention[GridKind, Index](abc.ABC):
         if 'transform' not in kwargs:
             kwargs['transform'] = self.data_crs
 
+        x, y = numpy.transpose([
+            [p.x, p.y] if p is not None else [numpy.nan, numpy.nan]
+            for p in shapely.centroid(grid.geometry)
+        ])
+
         return Quiver(axes, x, y, *values, **kwargs)
 
-    @cached_property
-    @utils.timed_func
-    def polygons(self) -> numpy.ndarray:
-        """A :class:`numpy.ndarray` of :class:`shapely.Polygon` instances
-        representing the cells in this dataset.
-
-        The order of the polygons in the list
-        corresponds to the linear index of this dataset.
-        Not all valid cell indexes have a polygon,
-        these holes are represented as :data:`None` in the list.
-        If you want a list of just polygons, apply the :attr:`mask <Convention.mask>`:
-
-        .. code-block:: python
-
-            dataset = emsarray.open_dataset("...")
-            only_polygons = dataset.ems.polygons[dataset.ems.mask]
-
-        See Also
-        --------
-        :meth:`ravel_index`
-        :attr:`mask`
-        """
-        polygons = self._make_polygons()
-
-        not_none = (polygons != None)  # noqa: E711
-        invalid_polygon_indices = numpy.flatnonzero(not_none & ~shapely.is_valid(polygons))
-        if len(invalid_polygon_indices):
+    def _validate_geometry(
+        self,
+        grid_kind: GridKind,
+        geometry: numpy.ndarray,
+    ) -> numpy.ndarray:
+        not_none = (geometry != None)  # noqa: E711
+        invalid_indices = numpy.flatnonzero(not_none & ~shapely.is_valid(geometry))
+        if len(invalid_indices):
             indices_str = numpy.array2string(
-                invalid_polygon_indices, max_line_width=None, threshold=5)
+                invalid_indices, max_line_width=None, threshold=5)
             warnings.warn(
-                f"Dropping invalid polygons at indices {indices_str}",
-                category=InvalidPolygonWarning)
-            polygons[invalid_polygon_indices] = None
-            not_none[invalid_polygon_indices] = False
+                f"Dropping invalid {grid_kind} geometry at indices {indices_str}",
+                category=InvalidGeometryWarning)
+            geometry[invalid_indices] = None
+            not_none[invalid_indices] = False
 
-        polygons.flags.writeable = False
-        return polygons
+        geometry.flags.writeable = False
+
+        return geometry
 
     @abc.abstractmethod
-    def _make_polygons(self) -> numpy.ndarray:
+    def _make_geometry(self, grid_kind: GridKind) -> numpy.ndarray:
         pass
 
-    @cached_property
-    def face_centres(self) -> numpy.ndarray:
-        """
-        A numpy :class:`~numpy.ndarray` of face centres, which are (x, y) pairs.
-        The first dimension will be the same length and in the same order
-        as :attr:`Convention.polygons`,
-        while the second dimension will always be of size 2.
-        """
-        # This default implementation simply finds the centroid of each polygon.
-        # Subclasses are free to override this if the particular convention and dataset
-        # provides the cell centres as a data array.
-        centres = numpy.array([
-            polygon.centroid.coords[0] if polygon is not None else [numpy.nan, numpy.nan]
-            for polygon in self.polygons
-        ])
-        return cast(numpy.ndarray, centres)
-
-    @cached_property
-    def mask(self) -> numpy.ndarray:
-        """
-        A boolean :class:`numpy.ndarray` indicating which cells have valid polygons.
-        This can be used to select only items from linear arrays
-        that have a corresponding polygon.
-
-        .. code-block:: python
-
-            dataset = emsarray.open_dataset("...")
-            mask = dataset.ems.mask
-            plottable_polygons = dataset.ems.polygons[mask]
-            plottable_values = dataset.ems.ravel("eta")[mask]
-
-        See Also
-        --------
-        :meth:`Convention.ravel`
-        """
-        mask = numpy.fromiter(
-            (p is not None for p in self.polygons),
-            dtype=bool, count=self.polygons.size)
-        return cast(numpy.ndarray, mask)
+    def make_geometry(self, grid_kind: GridKind) -> numpy.ndarray:
+        geometry = self._make_geometry(grid_kind)
+        self._validate_geometry(grid_kind, geometry)
+        return geometry
 
     @cached_property
     def geometry(self) -> Polygon | MultiPolygon:
@@ -1135,7 +1269,8 @@ class Convention[GridKind, Index](abc.ABC):
         This is equivalent to the union of all polygons in the dataset,
         although specific conventions may have a simpler way of constructing this.
         """
-        return shapely.unary_union(self.polygons[self.mask])
+        grid = self.grids[self.default_grid_kind]
+        return shapely.unary_union(grid.geometry[grid.mask])
 
     @cached_property
     def bounds(self) -> Bounds:
@@ -1181,12 +1316,15 @@ class Convention[GridKind, Index](abc.ABC):
             ])
             hits = dataset.ems.strtree.query(geometry, predicate='intersects')
         """
-        return STRtree(self.polygons)
+        grid = self.grids[self.default_grid_kind]
+        return grid.strtree
 
     def get_index_for_point(
         self,
         point: Point,
-    ) -> SpatialIndexItem[Index] | None:
+        *,
+        grid_kind: GridKind | None = None,
+    ) -> SpatialIndexItem[GridKind, Index, BaseGeometry] | None:
         """
         Find the index for a :class:`~shapely.Point` in the dataset.
 
@@ -1211,14 +1349,28 @@ class Convention[GridKind, Index](abc.ABC):
         This can happen if the point is exactly one of the cell vertices,
         or falls on a cell edge,
         or if the geometry of the dataset contains overlapping polygons.
+
+        This operation only makes sense for grid with polygonal geometry.
         """
-        hits = numpy.sort(self.strtree.query(point, predicate='intersects'))
+        if grid_kind is None:
+            grid_kind = self.default_grid_kind
+        grid = self.grids[grid_kind]
+
+        # This is an assumption inherent in the code before the geometry rewrite.
+        # TODO Relax this in the future?
+        if not issubclass(grid.geometry_type, Polygon):
+            raise ValueError(
+                "Convention.get_index_for_point() only makes sense on polygonal grids. "
+                f"Grid kind {grid_kind} has geometry type {grid.geometry_type}.")
+
+        hits = numpy.sort(grid.strtree.query(point, predicate='intersects'))
         if len(hits) > 0:
             linear_index = hits[0]
             return SpatialIndexItem(
+                grid_kind=grid_kind,
                 linear_index=linear_index,
-                index=self.wind_index(linear_index),
-                polygon=self.polygons[linear_index])
+                index=grid.wind_index(linear_index),
+                geometry=grid.geometry[linear_index])
         return None
 
     def selector_for_index(self, index: Index) -> xarray.Dataset:
@@ -1718,28 +1870,97 @@ class Convention[GridKind, Index](abc.ABC):
             hash_attributes(hash, data_array.attrs)
 
 
-class DimensionConvention[GridKind, Index](Convention[GridKind, Index]):
+type DimensionIndex[GridKind] = tuple[GridKind, *tuple[int, ...]]
+
+
+@dataclasses.dataclass(kw_only=True)
+class DimensionGrid[GridKind](Grid[GridKind, DimensionIndex[GridKind]]):
+    dimensions: Sequence[Hashable]
+
+    @cached_property
+    def shape(self) -> Tuple[int, ...]:
+        return tuple(
+            self.convention.dataset.sizes[dimension]
+            for dimension in self.dimensions
+        )
+
+    def ravel_index(self, index: DimensionIndex[GridKind]) -> int:
+        grid_kind, *indexes = index
+        if grid_kind is not self.grid_kind:
+            raise ValueError(
+                f"Index is for grid kind {grid_kind}, expected {self.grid_kind}")
+        return int(numpy.ravel_multi_index(indexes, self.shape))
+
+    def wind_index(
+        self,
+        linear_index: int,
+    ) -> DimensionIndex[GridKind]:
+        indexes = tuple(map(int, numpy.unravel_index(linear_index, self.shape)))
+        return (self.grid_kind, *indexes)
+
+    def ravel(
+        self,
+        data_array: DataArrayOrName,
+        *,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        data_array = utils.name_to_data_array(self.convention.dataset, data_array)
+        grid_kind = self.convention.get_grid_kind(data_array)
+        if grid_kind is not self.grid_kind:
+            raise ValueError(
+                f"Data array has grid kind {grid_kind}, expected {self.grid_kind}")
+
+        return utils.ravel_dimensions(
+            data_array, list(self.dimensions),
+            linear_dimension=linear_dimension)
+
+    def wind(
+        self,
+        data_array: DataArrayOrName,
+        *,
+        axis: int | None = None,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        data_array = utils.name_to_data_array(self.convention.dataset, data_array)
+
+        if axis is not None:
+            linear_dimension = data_array.dims[axis]
+        elif linear_dimension is None:
+            linear_dimension = data_array.dims[-1]
+
+        return utils.wind_dimension(
+            data_array,
+            dimensions=self.dimensions, sizes=self.shape,
+            linear_dimension=linear_dimension)
+
+    def __repr__(self) -> str:
+        return f'<DimensionGrid: {self.grid_kind} {self.dimensions} {self.shape}>'
+
+
+class DimensionConvention[GridKind](Convention[GridKind, DimensionIndex[GridKind]]):
     """
     A Convention subclass where different grid kinds
     are always defined on unique sets of dimension.
     This covers most conventions.
 
-    This subclass adds the abstract methods and properties:
+    This subclass adds the abstract property:
 
     - :attr:`.grid_dimensions`
-    - :meth:`.unpack_index`
-    - :meth:`.pack_index`
 
     Default implementations are provided for:
 
-    - :attr:`.grid_size`
-    - :meth:`.get_grid_kind`
-    - :meth:`.ravel_index`
-    - :meth:`.wind_index`
-    - :meth:`.ravel`
-    - :meth:`.wind`
-    - :meth:`.selector_for_index`
     """
+
+    @cached_property
+    def grids(self) -> dict[GridKind, Grid[GridKind, DimensionIndex[GridKind]]]:
+        return {
+            grid_kind: DimensionGrid(
+                convention=self,
+                grid_kind=grid_kind,
+                dimensions = self.grid_dimensions[grid_kind],
+            )
+            for grid_kind in self.grid_kinds
+        }
 
     @property
     @abc.abstractmethod
@@ -1789,106 +2010,13 @@ class DimensionConvention[GridKind, Index](Convention[GridKind, Index]):
                 return kind
         raise ValueError("Unknown grid kind")
 
-    @abc.abstractmethod
-    def unpack_index(self, index: Index) -> tuple[GridKind, Sequence[int]]:
-        """Convert a native index in to a grid kind and dimension indexes.
-
-        Parameters
-        ----------
-        index : Index
-            A native index
-
-        Returns
-        -------
-        grid_kind : GridKind
-            The grid kind
-        indexes : sequence of int
-            The dimension indexes
-
-        See Also
-        --------
-        pack_index
-        """
-
-        pass
-
-    @abc.abstractmethod
-    def pack_index(self, grid_kind: GridKind, indexes: Sequence[int]) -> Index:
-        """Convert a grid kind and dimension indexes in to a native index.
-
-        Parameters
-        ----------
-        grid_kind : GridKind
-            The grid kind
-        indexes : sequence of int
-            The dimension indexes
-
-        Returns
-        -------
-        index : Index
-            The corresponding native index
-
-        See Also
-        --------
-        unpack_index
-        """
-        pass
-
-    def ravel_index(self, index: Index) -> int:
-        grid_kind, indexes = self.unpack_index(index)
-        shape = self.grid_shape[grid_kind]
-        return int(numpy.ravel_multi_index(indexes, shape))
-
-    def wind_index(
-        self,
-        linear_index: int,
-        *,
-        grid_kind: GridKind | None = None,
-    ) -> Index:
-        if grid_kind is None:
-            grid_kind = self.default_grid_kind
-        shape = self.grid_shape[grid_kind]
-        indexes = tuple(map(int, numpy.unravel_index(linear_index, shape)))
-        return self.pack_index(grid_kind, indexes)
-
-    def ravel(
-        self,
-        data_array: xarray.DataArray,
-        *,
-        linear_dimension: Hashable | None = None,
-    ) -> xarray.DataArray:
-        kind = self.get_grid_kind(data_array)
-        dimensions = self.grid_dimensions[kind]
-        return utils.ravel_dimensions(
-            data_array, list(dimensions),
-            linear_dimension=linear_dimension)
-
-    def wind(
-        self,
-        data_array: xarray.DataArray,
-        *,
-        grid_kind: GridKind | None = None,
-        axis: int | None = None,
-        linear_dimension: Hashable | None = None,
-    ) -> xarray.DataArray:
-        if axis is not None:
-            linear_dimension = data_array.dims[axis]
-        elif linear_dimension is None:
-            linear_dimension = data_array.dims[-1]
-        if grid_kind is None:
-            grid_kind = self.default_grid_kind
-
-        dimensions = self.grid_dimensions[grid_kind]
-        sizes = [self.dataset.sizes[dim] for dim in dimensions]
-
-        return utils.wind_dimension(
-            data_array,
-            dimensions=dimensions, sizes=sizes,
-            linear_dimension=linear_dimension)
+    def ravel_index(self, index: DimensionIndex[GridKind]) -> int:
+        grid_kind = index[0]
+        return self.grids[grid_kind].ravel_index(index)
 
     def selector_for_indexes(
         self,
-        indexes: list[Index],
+        indexes: list[DimensionIndex[GridKind]],
         *,
         index_dimension: Hashable | None = None,
     ) -> xarray.Dataset:
@@ -1897,16 +2025,15 @@ class DimensionConvention[GridKind, Index](Convention[GridKind, Index]):
         if len(indexes) == 0:
             raise ValueError("Need at least one index to select")
 
-        grid_kinds, index_tuples = zip(*[self.unpack_index(index) for index in indexes])
+        grid_kinds = set(index[0] for index in indexes)
+        index_tuples = [index[1:] for index in indexes]
 
-        unique_grid_kinds = set(grid_kinds)
-        if len(unique_grid_kinds) > 1:
+        if len(grid_kinds) > 1:
             raise ValueError(
                 "All indexes must be on the same grid kind, got "
-                + ", ".join(map(repr, unique_grid_kinds)))
+                + ", ".join(map(repr, grid_kinds)))
 
-        grid_kind = grid_kinds[0]
-        dimensions = self.grid_dimensions[grid_kind]
+        dimensions = self.grid_dimensions[grid_kinds.pop()]
         # This array will have shape (len(indexes), len(dimensions))
         index_array = numpy.array(index_tuples)
         return xarray.Dataset({
