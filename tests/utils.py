@@ -1,6 +1,5 @@
 import abc
 import contextlib
-import dataclasses
 import importlib.metadata
 import itertools
 import tracemalloc
@@ -465,7 +464,6 @@ def plot_geometry(
         axes.set_extent(extent)
 
     figure.savefig(out)
-
 
 
 class TracemallocTracker:
