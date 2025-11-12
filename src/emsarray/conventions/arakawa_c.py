@@ -261,18 +261,31 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         return cast(ArakawaCIndex, (grid_kind, *indexes))
 
     def _make_polygons(self) -> numpy.ndarray:
-        # Make an array of shape (j, i, 2) of all the nodes
-        grid = numpy.stack([self.node.longitude.values, self.node.latitude.values], axis=-1)
+        j_size, i_size = self.face.shape
+        longitude = self.node.longitude.values
+        latitude = self.node.latitude.values
 
-        # Transform this in to an array of shape (topology.size, 4, 2)
-        points = numpy.stack([
-            grid[:-1, :-1],
-            grid[:-1, +1:],
-            grid[+1:, +1:],
-            grid[+1:, :-1],
-        ], axis=2).reshape((-1, 4, 2))
+        # Preallocate the points array. We will copy data straight in to this
+        # to save repeated memory allocations.
+        points = numpy.empty(shape=(i_size, 4, 2), dtype=self.node.longitude.dtype)
+        # Preallocate the output array so we can fill it in batches
+        out = numpy.full(shape=self.face.size, fill_value=None, dtype=object)
+        # Construct polygons row by row
+        for j in range(self.face.shape[0]):
+            points[:, 0, 0] = longitude[j + 0, :-1]
+            points[:, 1, 0] = longitude[j + 0, +1:]
+            points[:, 2, 0] = longitude[j + 1, +1:]
+            points[:, 3, 0] = longitude[j + 1, :-1]
 
-        return utils.make_polygons_with_holes(points)
+            points[:, 0, 1] = latitude[j + 0, :-1]
+            points[:, 1, 1] = latitude[j + 0, +1:]
+            points[:, 2, 1] = latitude[j + 1, +1:]
+            points[:, 3, 1] = latitude[j + 1, :-1]
+
+            j_slice = slice(j * i_size, (j + 1) * i_size)
+            utils.make_polygons_with_holes(points, out=out[j_slice])
+
+        return out
 
     @cached_property
     def face_centres(self) -> numpy.ndarray:
