@@ -102,6 +102,7 @@ filterwarnings = [
 markers = [
 	"matplotlib: Tests that involve matplotlib and plotting",
 	"tutorial: Tests that involve the tutorial datasets",
+	"memory_usage: Regression tests for memory allocations",
 ]
 
 mpl-use-full-test-name = true

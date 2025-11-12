@@ -8,6 +8,7 @@ the SHOC simple convention is used to test both.
 import itertools
 import json
 import pathlib
+import logging
 
 import numpy
 import pandas
@@ -25,8 +26,10 @@ from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.operations import geometry
 from tests.utils import (
     AxisAlignedShocGrid, DiagonalShocGrid, ShocGridGenerator,
-    ShocLayerGenerator, assert_property_not_cached, plot_geometry
+    ShocLayerGenerator, assert_property_not_cached, plot_geometry, track_peak_memory_usage,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def make_dataset(
@@ -497,3 +500,17 @@ def test_plot_on_figure() -> None:
     dataset.ems.plot_on_figure(figure, surface_temp)
 
     assert len(figure.axes) == 2
+
+
+def test_make_polygon_memory_usage() -> None:
+    j_size, i_size = 1000, 2000
+    dataset = make_dataset(j_size=j_size, i_size=i_size)
+
+    with track_peak_memory_usage() as tracker:
+        assert len(dataset.ems.polygons) == j_size * i_size
+
+    logger.info(f"current memory usage: %d, peak memory usage: %d", tracker.current, tracker.peak)
+
+    target = 665_000_000
+    assert tracker.peak < target, "Peak memory allocation is too large"
+    assert tracker.peak > target * 0.9, "Peak memory allocation is suspiciously small - did you improve things?"
