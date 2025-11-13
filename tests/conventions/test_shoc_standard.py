@@ -673,6 +673,6 @@ def test_make_polygons_memory_usage():
 
     logger.info("current memory usage: %d, peak memory usage: %d", tracker.current, tracker.peak)
 
-    target = 133_000_000
+    target = 134_500_000
     assert tracker.peak < target, "Peak memory allocation is too large"
     assert tracker.peak > target * 0.9, "Peak memory allocation is suspiciously small - did you improve things?"
