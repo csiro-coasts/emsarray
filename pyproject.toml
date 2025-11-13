@@ -49,9 +49,9 @@ complete = [
 
 docs = [
 	"emsarray[complete]",
-	"sphinx ~=6.2.1",
-	"sphinx_book_theme ~=1.0.1",
-	"livereload~=2.6.3",
+	"sphinx ~=8.2.3",
+	"sphinx_book_theme ~=1.1.4",
+	"livereload~=2.7.1",
 ]
 
 testing = [
