@@ -9,7 +9,7 @@ import warnings
 from collections.abc import Hashable, Sequence
 from contextlib import suppress
 from functools import cached_property
-from typing import Generic, TypeVar, cast
+from typing import cast
 
 import numpy
 import xarray
@@ -183,10 +183,7 @@ class CFGridTopology(abc.ABC):
         return int(numpy.prod(self.shape))
 
 
-Topology = TypeVar('Topology', bound=CFGridTopology)
-
-
-class CFGrid(Generic[Topology], DimensionConvention[CFGridKind, CFGridIndex]):
+class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind, CFGridIndex]):
     """
     A base class for CF grid datasets.
     There are two concrete subclasses: :class:`CFGrid1D` and :class:`CFGrid2D`.
