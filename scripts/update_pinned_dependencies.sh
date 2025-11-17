@@ -2,7 +2,7 @@
 
 set -e
 
-PYTHON_VERSIONS=('3.11' '3.12' '3.13')
+PYTHON_VERSIONS=('3.12' '3.13' '3.14')
 HERE="$( cd -- "$( realpath -- "$( dirname -- "$0" )" )" && pwd )"
 PROJECT_ROOT="$( dirname "$HERE" )"
 

@@ -12,7 +12,7 @@ authors = [
 	{name = "Coastal Environmental Modelling team, Oceans and Atmosphere, CSIRO", email = "coasts@csiro.au"},
 ]
 license = {file = "LICENSE"}
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
 	"bottleneck >=1.3",
 	"geojson >=3.1",
@@ -49,9 +49,9 @@ complete = [
 
 docs = [
 	"emsarray[complete]",
-	"sphinx ~=6.2.1",
-	"sphinx_book_theme ~=1.0.1",
-	"livereload~=2.6.3",
+	"sphinx ~=8.2.3",
+	"sphinx_book_theme ~=1.1.4",
+	"livereload~=2.7.1",
 ]
 
 testing = [
@@ -110,7 +110,7 @@ mpl-use-full-test-name = true
 # mpl-baseline-path = "tests/baseline_images"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 
 disallow_untyped_defs = true
 warn_return_any = true
