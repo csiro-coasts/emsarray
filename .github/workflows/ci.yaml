@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 env:
-  python-version: "3.13"
+  python-version: "3.14"
 
 jobs:
   build:
@@ -65,12 +65,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.12", "3.13", "3.14"]
         dependencies: ["pinned"]
         include:
-          - python-version: "3.13"
+          - python-version: "3.14"
             dependencies: "latest"
-          - python-version: "3.11"
+          - python-version: "3.12"
             dependencies: "minimum"
 
 
