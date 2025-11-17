@@ -18,7 +18,7 @@ from collections.abc import (
     Callable, Hashable, Iterable, Mapping, MutableMapping, Sequence
 )
 from types import TracebackType
-from typing import Any, Literal, TypeVar, cast
+from typing import Any, Literal, cast
 
 import cftime
 import netCDF4
@@ -33,10 +33,6 @@ from emsarray.types import DataArrayOrName, Pathish
 logger = logging.getLogger(__name__)
 
 DEFAULT_CALENDAR = 'proleptic_gregorian'
-
-
-_T = TypeVar("_T")
-_Exception = TypeVar("_Exception", bound=BaseException)
 
 
 class PerfTimer:
@@ -56,10 +52,10 @@ class PerfTimer:
         self._start = time.perf_counter()
         return self
 
-    def __exit__(
+    def __exit__[E: BaseException](
         self,
-        exc_type: type[_Exception] | None,
-        exc_value: _Exception | None,
+        exc_type: type[E] | None,
+        exc_value: E | None,
         traceback: TracebackType
     ) -> bool | None:
         self._stop = time.perf_counter()
@@ -75,7 +71,7 @@ class PerfTimer:
         return self._stop - self._start
 
 
-def timed_func(fn: Callable[..., _T]) -> Callable[..., _T]:
+def timed_func[F: Callable](fn: F) -> F:
     """
     Log the execution time of the decorated function.
     Logs "Calling ``<func.__qualname__>``" before the wrapped function is called,
@@ -101,13 +97,13 @@ def timed_func(fn: Callable[..., _T]) -> Callable[..., _T]:
     fn_logger = logging.getLogger(fn.__module__)
 
     @functools.wraps(fn)
-    def wrapper(*args: Any, **kwargs: Any) -> _T:
+    def wrapper(*args, **kwargs):  # type: ignore
         fn_logger.debug("Calling %s", fn.__qualname__)
         with PerfTimer() as timer:
             value = fn(*args, **kwargs)
         fn_logger.debug("Completed %s in %fs", fn.__qualname__, timer.elapsed)
         return value
-    return wrapper
+    return cast(F, wrapper)
 
 
 def to_netcdf_with_fixes(
@@ -376,7 +372,7 @@ def extract_vars(
     return dataset.drop_vars(drop_vars)
 
 
-def pairwise(iterable: Iterable[_T]) -> Iterable[tuple[_T, _T]]:
+def pairwise[T](iterable: Iterable[T]) -> Iterable[tuple[T, T]]:
     """
     Iterate over values in an iterator in pairs.
 
@@ -734,15 +730,15 @@ class RequiresExtraException(Exception):
         self.extra = extra
 
 
-def requires_extra(
+def requires_extra[T](
     extra: str,
     import_error: ImportError | None,
     exception_class: type[RequiresExtraException] = RequiresExtraException,
-) -> Callable[[_T], _T]:
+) -> Callable[[T], T]:
     if import_error is None:
         return lambda fn: fn
 
-    def error_decorator(fn: _T) -> _T:
+    def error_decorator(fn: T) -> T:
         @functools.wraps(fn)  # type: ignore
         def error(*args: Any, **kwargs: Any) -> Any:
             raise exception_class(extra) from import_error

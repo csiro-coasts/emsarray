@@ -3,23 +3,30 @@ import functools
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, overload
 
 import emsarray
 from emsarray.cli import BaseCommand, CommandException
 
-T = TypeVar('T')
-
 logger = logging.getLogger(__name__)
 
 
-def key_value(arg: str, value_type: Callable = str) -> dict[str, T]:
+@overload
+def key_value(arg: str) -> dict[str, str]: ...  # noqa: E704
+@overload
+def key_value[T](arg: str, value_type: Callable[[str], T]) -> dict[str, T]: ...  # noqa: E704
+
+
+def key_value[T](arg: str, value_type: Callable[[str], T] | None = None) -> dict[str, T] | dict[str, str]:
     try:
         name, value = arg.split("=", 2)
     except ValueError:
         raise argparse.ArgumentTypeError(
             "Coordinate / dimension indexes must be given as `name=value` pairs")
-    return {name: value_type(value)}
+    if value_type is None:
+        return {name: value}
+    else:
+        return {name: value_type(value)}
 
 
 class UpdateDict(argparse.Action):

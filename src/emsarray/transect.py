@@ -1,7 +1,7 @@
 import dataclasses
 from collections.abc import Callable, Iterable
 from functools import cached_property
-from typing import Any, Generic, cast
+from typing import Any, cast
 
 import cfunits
 import numpy
@@ -16,7 +16,7 @@ from matplotlib.colors import Colormap
 from matplotlib.figure import Figure
 from matplotlib.ticker import EngFormatter, Formatter
 
-from emsarray.conventions import Convention, Index
+from emsarray.conventions import Convention
 from emsarray.plot import _requires_plot, make_plot_title
 from emsarray.types import DataArrayOrName, Landmark
 from emsarray.utils import move_dimensions_to_end, name_to_data_array
@@ -86,7 +86,7 @@ class TransectPoint:
 
 
 @dataclasses.dataclass
-class TransectSegment(Generic[Index]):
+class TransectSegment:
     """
     A TransectSegment holds information about each intersecting segment of the
     transect path and the dataset cells.
@@ -96,7 +96,6 @@ class TransectSegment(Generic[Index]):
     intersection: shapely.LineString
     start_distance: float
     end_distance: float
-    index: Index
     linear_index: int
     polygon: shapely.Polygon
 
@@ -281,7 +280,7 @@ class Transect:
         return points
 
     @cached_property
-    def segments(self) -> list[TransectSegment[Index]]:
+    def segments(self) -> list[TransectSegment]:
         """
         A list of :class:`.TransectSegmens` for each intersecting segment of the transect line and the dataset geometry.
         Segments are listed in order from the start of the line to the end of the line.
@@ -293,7 +292,6 @@ class Transect:
 
         for linear_index in intersecting_indexes:
             polygon = self.convention.polygons[linear_index]
-            index = self.convention.wind_index(linear_index)
             for intersection in self._intersect_polygon(polygon):
                 # The line will have two ends.
                 # The intersection starts and ends at these points.
@@ -314,7 +312,6 @@ class Transect:
                     intersection=intersection,
                     start_distance=start[1],
                     end_distance=end[1],
-                    index=index,
                     linear_index=linear_index,
                     polygon=polygon,
                 ))

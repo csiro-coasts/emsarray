@@ -14,8 +14,7 @@ Convention instances can be instantiated directly in this case.
 Refer to each Convention implementation for details.
 """
 from ._base import (
-    Convention, DimensionConvention, GridKind, Index, SpatialIndexItem,
-    Specificity
+    Convention, DimensionConvention, SpatialIndexItem, Specificity
 )
 from ._registry import get_dataset_convention, register_convention
 from ._utils import open_dataset
@@ -25,7 +24,7 @@ from .shoc import ShocSimple, ShocStandard
 from .ugrid import UGrid
 
 __all__ = [
-    "Convention", "DimensionConvention", "GridKind", "Index",
+    "Convention", "DimensionConvention",
     "SpatialIndexItem", "Specificity",
     "get_dataset_convention", "register_convention",
     "open_dataset",
