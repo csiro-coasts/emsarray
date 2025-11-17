@@ -1,4 +1,5 @@
 import json
+import logging
 import pathlib
 import warnings
 
@@ -20,7 +21,11 @@ from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )
 from emsarray.operations import geometry
-from tests.utils import assert_property_not_cached, filter_warning
+from tests.utils import (
+    assert_property_not_cached, filter_warning, track_peak_memory_usage
+)
+
+logger = logging.getLogger(__name__)
 
 
 def make_faces(width: int, height, fill_value: int) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
@@ -981,3 +986,17 @@ def test_has_valid_face_edge_connectivity():
     dataset_fill_value_above_range['Mesh2_face_edges'].encoding['_FillValue'] = 89
 
     assert dataset_fill_value_above_range.ems.topology.has_valid_face_edge_connectivity is True
+
+
+@pytest.mark.memory_usage
+def test_make_polygons_memory_usage():
+    dataset = make_dataset(width=600, height=600)
+
+    with track_peak_memory_usage() as tracker:
+        assert len(dataset.ems.polygons) == dataset.ems.topology.face_count
+
+    logger.info("current memory usage: %d, peak memory usage: %d", tracker.current, tracker.peak)
+
+    target = 78_000_000
+    assert tracker.peak < target, "Peak memory allocation is too large"
+    assert tracker.peak > target * 0.9, "Peak memory allocation is suspiciously small - did you improve things?"

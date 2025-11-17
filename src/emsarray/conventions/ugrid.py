@@ -7,6 +7,7 @@ See Also
 """
 import enum
 import logging
+import math
 import pathlib
 import warnings
 from collections import defaultdict
@@ -1115,10 +1116,15 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         for unique_size in unique_sizes:
             # Extract the face node data for every polygon of this size
             indices = numpy.flatnonzero(polygon_sizes == unique_size)
-            nodes = numpy.ma.getdata(face_node)[indices, :unique_size]
-            coords = numpy.stack([node_x[nodes], node_y[nodes]], axis=-1)
-            # Generate the polygons directly in to their correct locations
-            shapely.polygons(coords, indices=indices, out=polygons)
+            chunk_size = 1000
+            chunk_count = math.ceil(len(indices) / chunk_size)
+            for chunk_index in range(chunk_count):
+                chunk_slice = slice(chunk_index * chunk_size, (chunk_index + 1) * chunk_size)
+                chunk_indices = indices[chunk_slice]
+                nodes = numpy.ma.getdata(face_node)[chunk_indices, :unique_size]
+                coords = numpy.stack([node_x[nodes], node_y[nodes]], axis=-1)
+                # Generate the polygons directly in to their correct locations
+                shapely.polygons(coords, indices=chunk_indices, out=polygons)
 
         return polygons
 

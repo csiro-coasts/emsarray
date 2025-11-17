@@ -413,39 +413,32 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
         lon_bounds = self.topology.longitude_bounds.values
         lat_bounds = self.topology.latitude_bounds.values
 
-        # Make a bounds array as if this dataset had 2D coordinates.
-        # 1D bounds are (lon, 2) and (lat, 2).
-        # 2D bounds are (lat, lon, 4)
-        # where the 4 points are (j-i, i-1), (j-1, i+1), (j+1, i+1), (j+1, i-1).
-        # The bounds values are repeated as required, are given a new dimension,
-        # then repeated along that new dimension.
-        # They will come out as array with shape (y_size, x_size, 4)
+        # Create the polygons batched by row.
+        # The point array is copied by shapely before being used,
+        # so this can accidentally use a whole bunch of memory for large datasets.
+        # Creating them one by one is very slow but very memory efficient.
+        # Creating the polygons in one batch is faster but uses up a huge amount of memory.
+        # Batching them row by row is a decent compromise.
+        out = numpy.full(shape=y_size * x_size, dtype=object, fill_value=None)
 
-        lon_bounds_2d = numpy.stack([
-            lon_bounds[:, 0],
-            lon_bounds[:, 1],
-            lon_bounds[:, 1],
-            lon_bounds[:, 0],
-        ], axis=-1)
-        lon_bounds_2d = numpy.broadcast_to(numpy.expand_dims(lon_bounds_2d, 0), (y_size, x_size, 4))
+        # By preallocating this array, we can copy data in to it to save on a number of allocations.
+        chunk_points = numpy.empty(shape=(x_size, 4, 2), dtype=lon_bounds.dtype)
+        # By chunking by row, the longitude bounds never change between loops
+        chunk_points[:, 0, 0] = lon_bounds[:, 0]
+        chunk_points[:, 1, 0] = lon_bounds[:, 1]
+        chunk_points[:, 2, 0] = lon_bounds[:, 1]
+        chunk_points[:, 3, 0] = lon_bounds[:, 0]
 
-        lat_bounds_2d = numpy.stack([
-            lat_bounds[:, 0],
-            lat_bounds[:, 0],
-            lat_bounds[:, 1],
-            lat_bounds[:, 1],
-        ], axis=-1)
-        lat_bounds_2d = numpy.broadcast_to(numpy.expand_dims(lat_bounds_2d, 0), (x_size, y_size, 4))
-        lat_bounds_2d = numpy.transpose(lat_bounds_2d, (1, 0, 2))
+        for row in range(y_size):
+            chunk_points[:, 0, 1] = lat_bounds[row, 0]
+            chunk_points[:, 1, 1] = lat_bounds[row, 0]
+            chunk_points[:, 2, 1] = lat_bounds[row, 1]
+            chunk_points[:, 3, 1] = lat_bounds[row, 1]
 
-        assert lon_bounds_2d.shape == lat_bounds_2d.shape == (y_size, x_size, 4)
+            row_slice = slice(row * x_size, (row + 1) * x_size)
+            utils.make_polygons_with_holes(chunk_points, out=out[row_slice])
 
-        # points is a (topology.size, 4, 2) array of the corners of each cell
-        points = numpy.stack([lon_bounds_2d, lat_bounds_2d], axis=-1).reshape((-1, 4, 2))
-
-        polygons = utils.make_polygons_with_holes(points)
-
-        return polygons
+        return out
 
     @cached_property
     def face_centres(self) -> numpy.ndarray:
@@ -597,13 +590,22 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
 
     def _make_polygons(self) -> numpy.ndarray:
         # Construct polygons from the bounds of the cells
-        lon_bounds = self.topology.longitude_bounds.values
-        lat_bounds = self.topology.latitude_bounds.values
+        j_size, i_size = self.topology.shape
+        lon_bounds = self.topology.longitude_bounds
+        lat_bounds = self.topology.latitude_bounds
 
-        # points is a (topology.size, 4, 2) array of the corners of each cell
-        points = numpy.stack([lon_bounds, lat_bounds], axis=-1).reshape((-1, 4, 2))
+        assert lon_bounds.shape == (j_size, i_size, 4)
+        assert lat_bounds.shape == (j_size, i_size, 4)
 
-        return utils.make_polygons_with_holes(points)
+        chunk_points = numpy.empty(shape=(i_size, 4, 2), dtype=lon_bounds.dtype)
+        out = numpy.full(shape=j_size * i_size, dtype=object, fill_value=None)
+        for j in range(j_size):
+            chunk_points[:, :, 0] = lon_bounds[j, :, :]
+            chunk_points[:, :, 1] = lat_bounds[j, :, :]
+            chunk_slice = slice(j * i_size, (j + 1) * i_size)
+            utils.make_polygons_with_holes(chunk_points, out=out[chunk_slice])
+
+        return out
 
     @cached_property
     def face_centres(self) -> numpy.ndarray:

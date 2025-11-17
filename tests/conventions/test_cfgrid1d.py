@@ -1,4 +1,5 @@
 import json
+import logging
 import pathlib
 
 import numpy
@@ -15,7 +16,11 @@ from emsarray.conventions.grid import (
     CFGrid1D, CFGrid1DTopology, CFGridKind, CFGridTopology
 )
 from emsarray.operations import geometry
-from tests.utils import assert_property_not_cached, box, mask_from_strings
+from tests.utils import (
+    assert_property_not_cached, box, mask_from_strings, track_peak_memory_usage
+)
+
+logger = logging.getLogger(__name__)
 
 
 def make_dataset(
@@ -500,3 +505,17 @@ def test_topology():
     assert_allclose(
         latitude_bounds.values,
         0.1 * numpy.array([[i - 0.5, i + 0.5] for i in range(11)]))
+
+
+def test_make_polygon_memory_usage() -> None:
+    width, height = 2000, 1000
+    dataset = make_dataset(width=width, height=height)
+
+    with track_peak_memory_usage() as tracker:
+        assert len(dataset.ems.polygons) == width * height
+
+    logger.info("current memory usage: %d, peak memory usage: %d", tracker.current, tracker.peak)
+
+    target = 135_000_000
+    assert tracker.peak < target, "Peak memory allocation is too large"
+    assert tracker.peak > target * 0.9, "Peak memory allocation is suspiciously small - did you improve things?"
