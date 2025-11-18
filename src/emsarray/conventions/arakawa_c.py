@@ -8,6 +8,7 @@ See Also
 """
 import enum
 import logging
+import shapely
 from collections.abc import Hashable, Sequence
 from functools import cached_property
 from typing import Self, cast
@@ -90,7 +91,7 @@ class ArakawaCGridTopology:
 
 
 class ArakawaCGridKind(str, enum.Enum):
-    """Araawa C grid datasets can store data on
+    """Arakawa C grid datasets can store data on
     cell faces, left edges, back edges, and nodes.
     The kind of grid is specified by this enum.
     """
@@ -258,7 +259,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
             return self._make_left_edges()
         if grid_kind is ArakawaCGridKind.node:
             return self._make_nodes()
-        raise NotImplementedError(f"Haven't implemented geometry for {grid_kind} yet")
+        raise ValueError(f"Invalid grid kind {grid_kind}")
 
     def _make_polygons(self) -> numpy.ndarray:
         j_size, i_size = self.face.shape
@@ -267,11 +268,11 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
 
         # Preallocate the points array. We will copy data straight in to this
         # to save repeated memory allocations.
-        points = numpy.empty(shape=(i_size, 4, 2), dtype=self.node.longitude.dtype)
+        points = numpy.empty(shape=(i_size, 4, 2), dtype=longitude.dtype)
         # Preallocate the output array so we can fill it in batches
         out = numpy.full(shape=self.face.size, fill_value=None, dtype=object)
         # Construct polygons row by row
-        for j in range(self.face.shape[0]):
+        for j in range(j_size):
             points[:, 0, 0] = longitude[j + 0, :-1]
             points[:, 1, 0] = longitude[j + 0, +1:]
             points[:, 2, 0] = longitude[j + 1, +1:]
@@ -288,14 +289,61 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
         return out
 
     def _make_left_edges(self) -> numpy.ndarray:
-        left = self.grids[ArakawaCGridKind.left]
-        out = numpy.empty(shape=left.size, fill_value=None, dtype=object)
+        j_size, i_size = self.left.shape
+        longitude = self.node.longitude.values
+        latitude = self.node.latitude.values
+
+        points = numpy.empty(shape=(i_size, 2, 2), dtype=longitude.dtype)
+
+        out = numpy.full(shape=self.left.size, fill_value=None, dtype=object)
+        for j in range(j_size):
+            points[:, 0, 0] = longitude[j + 0, :]
+            points[:, 1, 0] = longitude[j + 1, :]
+
+            points[:, 0, 1] = latitude[j + 0, :]
+            points[:, 1, 1] = latitude[j + 1, :]
+
+            j_slice = slice(j * i_size, (j + 1) * i_size)
+            utils.make_linestrings_with_holes(points, out=out[j_slice])
+
+        return out
 
     def _make_back_edges(self) -> numpy.ndarray:
-        pass
+        j_size, i_size = self.back.shape
+        longitude = self.node.longitude.values
+        latitude = self.node.latitude.values
+
+        points = numpy.empty(shape=(i_size, 2, 2), dtype=longitude.dtype)
+
+        out = numpy.full(shape=self.back.size, fill_value=None, dtype=object)
+        for j in range(j_size):
+            points[:, 0, 0] = longitude[j, :-1]
+            points[:, 1, 0] = longitude[j, +1:]
+
+            points[:, 0, 1] = latitude[j, :-1]
+            points[:, 1, 1] = latitude[j, +1:]
+
+            j_slice = slice(j * i_size, (j + 1) * i_size)
+            utils.make_linestrings_with_holes(points, out=out[j_slice])
+
+        return out
 
     def _make_nodes(self) -> numpy.ndarray:
-        pass
+        j_size, i_size = self.node.shape
+        longitude = self.node.longitude.values
+        latitude = self.node.latitude.values
+
+        points = numpy.empty(shape=(i_size, 2), dtype=longitude.dtype)
+
+        out = numpy.full(shape=self.node.size, fill_value=None, dtype=object)
+        for j in range(j_size):
+            points[:, 0] = longitude[j, :]
+            points[:, 1] = latitude[j, :]
+
+            j_slice = slice(j * i_size, (j + 1) * i_size)
+            utils.make_points_with_holes(points, out=out[j_slice])
+
+        return out
 
     @cached_property
     def face_centres(self) -> numpy.ndarray:

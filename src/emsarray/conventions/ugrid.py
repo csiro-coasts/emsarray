@@ -1083,7 +1083,16 @@ class UGrid(DimensionConvention[UGridKind]):
             items.append(UGridKind.edge)
         return frozenset(items)
 
-    def _make_polygons(self) -> numpy.ndarray:
+    def _make_geometry(self, grid_kind: UGridKind) -> numpy.ndarray:
+        if grid_kind is UGridKind.face:
+            return self._make_faces()
+        if grid_kind is UGridKind.edge:
+            return self._make_edges()
+        if grid_kind is UGridKind.node:
+            return self._make_nodes()
+        raise ValueError(f"Invalid grid kind {grid_kind}")
+
+    def _make_faces(self) -> numpy.ndarray:
         """Generate list of Polygons"""
         topology = self.topology
         # X,Y coords of each node
@@ -1117,6 +1126,55 @@ class UGrid(DimensionConvention[UGridKind]):
                 shapely.polygons(coords, indices=chunk_indices, out=polygons)
 
         return polygons
+
+    def _make_edges(self) -> numpy.ndarray:
+        topology = self.topology
+        # X,Y coords of each node
+        node_x = topology.node_x.values
+        node_y = topology.node_y.values
+        # The nodes that each edge is constructed from
+        edge_node = topology.edge_node_array
+        edge_count = topology.edge_count
+
+        chunk_size = 1000
+        chunk_count = math.ceil(edge_count / chunk_size)
+
+        points = numpy.zeros((chunk_size, 2, 2), dtype=node_x.dtype)
+        out = numpy.full(edge_count, None, dtype=object)
+
+        for chunk_index in range(chunk_count):
+            chunk_slice = slice(chunk_index * chunk_size, min(edge_count, (chunk_index + 1) * chunk_size))
+            chunk_points = points[:chunk_slice.stop - chunk_slice.start]
+            chunk_points[:, 0, 0] = node_x[edge_node[chunk_slice, 0]]
+            chunk_points[:, 1, 0] = node_x[edge_node[chunk_slice, 1]]
+            chunk_points[:, 0, 1] = node_y[edge_node[chunk_slice, 0]]
+            chunk_points[:, 1, 1] = node_y[edge_node[chunk_slice, 1]]
+            shapely.linestrings(chunk_points, out=out[chunk_slice])
+
+        return out
+
+    def _make_nodes(self) -> numpy.ndarray:
+        topology = self.topology
+        # X,Y coords of each node
+        node_x = topology.node_x.values
+        node_y = topology.node_y.values
+
+        node_count = topology.node_count
+
+        chunk_size = 1000
+        chunk_count = math.ceil(node_count / chunk_size)
+
+        points = numpy.zeros((chunk_size, 2), dtype=node_x.dtype)
+        out = numpy.full(node_count, None, dtype=object)
+
+        for chunk_index in range(chunk_count):
+            chunk_slice = slice(chunk_index * chunk_size, min(node_count, (chunk_index + 1) * chunk_size))
+            chunk_points = points[:chunk_slice.stop - chunk_slice.start]
+            chunk_points[:, 0] = node_x[chunk_slice]
+            chunk_points[:, 1] = node_y[chunk_slice]
+            shapely.points(chunk_points, out=out[chunk_slice])
+
+        return out
 
     @cached_property
     def face_centres(self) -> numpy.ndarray:

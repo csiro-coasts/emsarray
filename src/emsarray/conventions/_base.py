@@ -133,7 +133,7 @@ class Grid[GridKind, Index](abc.ABC):
 
     @cached_property
     def geometry(self) -> numpy.ndarray:
-        return self.convention.ake_geometry(self.grid_kind)
+        return self.convention.make_geometry(self.grid_kind)
 
     @cached_property
     def geometry_type(self) -> type[BaseGeometry]:
@@ -1259,6 +1259,17 @@ class Convention[GridKind, Index](abc.ABC):
         geometry = self._make_geometry(grid_kind)
         self._validate_geometry(grid_kind, geometry)
         return geometry
+
+    @cached_property
+    @utils.deprecated(
+        "dataset.ems.polygons is deprecated. "
+        "Use dataset.ems.get_grid(data_array).geometry instead."
+    )
+    def polygons(self) -> numpy.ndarray:
+        grid = self.grids[self.default_grid_kind]
+        if issubclass(grid.geometry_type, Polygon):
+            return grid.geometry
+        raise ValueError(f"Default grid kind {grid.grid_kind} does not have polygonal geometry")
 
     @cached_property
     def geometry(self) -> Polygon | MultiPolygon:
