@@ -15,7 +15,7 @@ from collections.abc import Hashable, Iterable, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy
 import shapely
@@ -26,9 +26,15 @@ from emsarray import utils
 from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )
+from emsarray.operations import triangulate
+from emsarray.plot import _requires_plot
 from emsarray.types import Bounds, Pathish
 
 from ._base import DimensionConvention, Specificity
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.collections import Collection
 
 logger = logging.getLogger(__name__)
 
@@ -1351,3 +1357,50 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         dataset = super().drop_geometry()
         dataset.attrs.pop('Conventions', None)
         return dataset
+
+    @_requires_plot
+    def plot_on_axes(
+        self,
+        axes: 'Axes',
+        variable: xarray.DataArray | tuple[xarray.DataArray, ...],
+        **kwargs: Any,
+    ) -> 'Collection':
+        if isinstance(variable, xarray.DataArray):
+            grid_kind = self.get_grid_kind(variable)
+            if grid_kind is UGridKind.node:
+                return self.plot_tripcolor_on_axes(axes, variable, **kwargs)
+
+        return super().plot_on_axes(axes, variable, **kwargs)
+
+    def plot_tripcolor_on_axes(
+        self,
+        axes: 'Axes',
+        data_array: xarray.DataArray,
+        *,
+        shading: str = 'gouraud',
+        **kwargs: Any,
+    ) -> 'Collection':
+        collection = self.make_tripcolor(axes, data_array, **kwargs)
+        axes.add_collection(collection)
+        return collection
+
+    def make_tripcolor(
+        self,
+        axes: 'Axes',
+        data_array: xarray.DataArray | None = None,
+        *,
+        shading: str = 'gouraud',
+        **kwargs: Any,
+    ) -> 'Collection':
+        import matplotlib.tri
+
+        topology = self.topology
+        vertices = numpy.c_[topology.node_x.values, topology.node_y.values].T
+
+        _vertices, triangles, _face_indices = triangulate.triangulate_dataset(self.dataset, vertices=vertices)
+        triangulation = matplotlib.tri.Triangulation(vertices[:, 0], vertices[:, 1], triangles)
+
+        data_array = utils.name_to_data_array(self.dataset, data_array)
+
+        collection = axes.tripcolor(triangulation, data_array.values, shading='gouraud', **kwargs)
+        return collection

@@ -1,6 +1,8 @@
 """
 Operations for making a triangular mesh out of the polygons of a dataset.
 """
+from typing import Any
+
 import numpy
 import pandas
 import shapely
@@ -14,6 +16,8 @@ IndexTriangle = tuple[int, int, int]
 
 def triangulate_dataset(
     dataset: xarray.Dataset,
+    *,
+    vertices: numpy.ndarray[tuple[Any, ...], numpy.dtype[Any]] | None = None,
 ) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """
     Triangulate the polygon cells of a dataset
@@ -93,11 +97,14 @@ def triangulate_dataset(
     """
     polygons = dataset.ems.polygons
 
-    # Find all the unique coordinates and assign them each a unique index
-    all_coords = shapely.get_coordinates(polygons)
-    vertex_index = pandas.MultiIndex.from_arrays(all_coords.T).drop_duplicates()
+    if vertices is None:
+        # Find all the unique coordinates and assign them each a unique index
+        all_coords = shapely.get_coordinates(polygons)
+        vertex_index = pandas.MultiIndex.from_arrays(all_coords.T).drop_duplicates()
+        vertices = numpy.array(vertex_index.to_list())
+    else:
+        vertex_index = pandas.MultiIndex.from_arrays(list(vertices))
     vertex_series = pandas.Series(numpy.arange(len(vertex_index)), index=vertex_index)
-    vertex_coords = numpy.array(vertex_index.to_list())
 
     polygon_length = shapely.get_num_coordinates(polygons)
 
@@ -191,7 +198,7 @@ def triangulate_dataset(
     faces = joined_df['face_indices'].to_numpy()
     triangles = joined_df[['v0', 'v1', 'v2']].to_numpy()
 
-    return vertex_coords, triangles, faces
+    return vertices, triangles, faces
 
 
 def _triangulate_polygons_by_length(polygons: numpy.ndarray) -> numpy.ndarray:
