@@ -339,14 +339,6 @@ def test_grid_kinds():
     assert convention.default_grid_kind == CFGridKind.face
 
 
-def test_grid_kind_and_size():
-    dataset = make_dataset(width=3, height=5)
-    convention = CFGrid1D(dataset)
-    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['temp'])
-    assert grid_kind is CFGridKind.face
-    assert size == 3 * 5
-
-
 def test_drop_geometry(datasets: pathlib.Path):
     dataset = xarray.open_dataset(datasets / 'cfgrid1d.nc')
 

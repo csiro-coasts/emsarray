@@ -328,27 +328,6 @@ def test_grid_kinds():
     assert convention.default_grid_kind == ArakawaCGridKind.face
 
 
-def test_grid_kind_and_size():
-    dataset = make_dataset(j_size=5, i_size=7)
-    convention: ShocStandard = dataset.ems
-
-    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['temp'])
-    assert grid_kind is ArakawaCGridKind.face
-    assert size == 5 * 7
-
-    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['u1'])
-    assert grid_kind is ArakawaCGridKind.left
-    assert size == 5 * 8
-
-    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['u2'])
-    assert grid_kind is ArakawaCGridKind.back
-    assert size == 6 * 7
-
-    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['flag'])
-    assert grid_kind is ArakawaCGridKind.node
-    assert size == 6 * 8
-
-
 @pytest.mark.parametrize(
     ['index', 'selector'],
     (

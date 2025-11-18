@@ -419,15 +419,6 @@ def test_grid_kinds() -> None:
     assert convention.default_grid_kind == CFGridKind.face
 
 
-def test_grid_kind_and_size() -> None:
-    dataset = make_dataset(j_size=5, i_size=7)
-    convention: ShocSimple = dataset.ems
-
-    grid_kind, size = convention.get_grid_kind_and_size(dataset.data_vars['temp'])
-    assert grid_kind is CFGridKind.face
-    assert size == 5 * 7
-
-
 def test_ravel() -> None:
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocSimple = dataset.ems

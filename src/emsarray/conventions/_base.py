@@ -16,7 +16,6 @@ from shapely.geometry.base import BaseGeometry
 from shapely.strtree import STRtree
 
 from emsarray import utils
-from emsarray.compat.shapely import SpatialIndex
 from emsarray.exceptions import InvalidPolygonWarning, NoSuchCoordinateError
 from emsarray.operations import depth, point_extraction
 from emsarray.operations.cache import hash_attributes, hash_int, hash_string
@@ -264,16 +263,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
                 "cannot assign a new convention.")
         state.bind_convention(self)
 
-    @utils.deprecated(
-        (
-            "Convention._get_data_array() has been deprecated. "
-            "Use emsarray.utils.name_to_data_array() instead."
-        ),
-        DeprecationWarning,
-    )
-    def _get_data_array(self, data_array: DataArrayOrName) -> xarray.DataArray:
-        return utils.name_to_data_array(self.dataset, data_array)
-
     @cached_property
     def time_coordinate(self) -> xarray.DataArray:
         """
@@ -397,100 +386,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             depth_coordinates.append(data_array)
 
         return tuple(depth_coordinates)
-
-    @utils.deprecated(
-        (
-            "Convention.get_time_name() is deprecated. "
-            "Use Convention.time_coordinate.name instead."
-        ),
-        DeprecationWarning,
-    )
-    def get_time_name(self) -> Hashable:
-        """Get the name of the time variable in this dataset.
-
-        .. deprecated:: 0.7.0
-            :meth:`Convention.get_time_name()` is deprecated and will be removed.
-            Use `Convention.time_coordinate.name` instead.
-
-        Returns
-        -------
-        Hashable
-            The name of the time coordinate.
-
-        See Also
-        --------
-        :attr:`Convention.time_coordinate`
-
-        Raises
-        ------
-        exceptions.NoSuchCoordinateError
-            If no time coordinate was found
-        """
-        return self.time_coordinate.name
-
-    @utils.deprecated(
-        (
-            "Convention.get_depth_name() is deprecated. "
-            "Use Convention.depth_coordinate.name instead."
-        ),
-        DeprecationWarning,
-    )
-    def get_depth_name(self) -> Hashable:
-        """Get the name of the layer depth coordinate variable.
-
-        .. deprecated:: 0.7.0
-            :meth:`Convention.get_depth_name()` is deprecated and will be removed.
-            Use `Convention.depth_coordinate.name` instead.
-
-        For datasets with multiple depth variables, this should be the one that
-        represents the centre of the layer, not the bounds.
-
-        Note that this is the name of the coordinate variable,
-        not the name of the dimension, for datasets where these differ.
-
-        Returns
-        -------
-        Hashable
-            The name of the depth coordinate.
-
-        Raises
-        ------
-        exceptions.NoSuchCoordinateError
-            If no time coordinate was found
-
-        See Also
-        --------
-        :attr:`Convention.depth_coordinate`
-        :meth:`Convention.get_depth_coordinate_for_data_array`
-        """
-        return self.depth_coordinate.name
-
-    @utils.deprecated(
-        (
-            "Convention.get_all_depth_names() is deprecated. "
-            "Use [c.name for c in Convention.depth_coordinates] instead."
-        ),
-        DeprecationWarning,
-    )
-    def get_all_depth_names(self) -> list[Hashable]:
-        """Get the names of all depth layers.
-        Some datasets include both a depth layer centre,
-        and the depth layer 'edges'.
-
-        .. deprecated:: 0.7.0
-            :meth:`Convention.get_all_depth_names()` is deprecated and will be removed.
-            Use `[c.name for c in Convention.depth_coordinates]` instead.
-
-        Note that this is the names of the coordinate variables,
-        not the names of the dimensions, for datasets where these differ.
-
-        See also
-        --------
-        :attr:`depth_coordinate`
-        :attr:`depth_coordinates`
-        :meth:`get_depth_coordinate_for_data_array`
-        """
-        return [c.name for c in self.depth_coordinates]
 
     def get_depth_coordinate_for_data_array(
         self,
@@ -639,25 +534,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         """
         pass
 
-    @utils.deprecated(
-        (
-            "Convention.unravel_index() has been renamed to "
-            "Convention.wind_index()."
-        ),
-        DeprecationWarning,
-    )
-    def unravel_index(
-        self,
-        linear_index: int,
-        grid_kind: GridKind | None = None,
-    ) -> Index:
-        """An alias for :meth:`Convention.wind_index()`.
-
-        .. deprecated:: 0.6.0
-            Use :meth:`Convention.wind_index()` instead
-        """
-        return self.wind_index(linear_index, grid_kind=grid_kind)
-
     @property
     @abc.abstractmethod
     def grid_kinds(self) -> frozenset[GridKind]:
@@ -724,62 +600,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             UGridKind.edge
         """
         pass
-
-    def get_grid_kind_and_size(
-        self, data_array: xarray.DataArray,
-    ) -> tuple[GridKind, int]:
-        """
-        Determines the relevant index kind and the extent of the linear index space
-        for this data array.
-
-        .. deprecated:: 0.6.0
-            This method is replaced by :meth:`Convention.get_grid_kind()`
-            and :attr:`Convention.grid_size`.
-
-        If the data array is not indexable using the native index types
-        a ValueError is raised.
-
-        Parameters
-        ----------
-        data_array : xarray.DataArray
-            The data array to introspect
-
-        Returns
-        -------
-        tuple of :data:`.GridKind` and int
-
-        Raises
-        ------
-        ValueError
-            If the data array passed in is not indexable using any native index type
-            a ValueError is raised.
-            Depth coordinates or time coordinates are examples of data arrays
-            that will not be indexable and will raise an error.
-
-        Example
-        -------
-        For a :class:`UGRID <.ugrid.UGrid>` dataset
-        with temperature data defined at the cell centres
-        and current defined as flux through the cell edges:
-
-        .. code-block:: python
-
-            >>> dataset.ems.topology.face_count
-            4
-            >>> dataset.ems.topology.edge_count
-            9
-            >>> dataset.data_vars['temp'].dims
-            ('time', 'depth', 'face')
-            >>> dataset.data_vars['u1'].dims
-            ('time', 'depth', 'edge')
-            >>> dataset.ems.get_grid_kind_and_size(dataset.data_vars['temp'])
-            (UGridKind.face, 4)
-            >>> dataset.ems.get_grid_kind_and_size(dataset.data_vars['u1'])
-            (UGridKind.edge, 9)
-        """
-        grid_kind = self.get_grid_kind(data_array)
-        size = self.grid_size[grid_kind]
-        return grid_kind, size
 
     @abc.abstractmethod
     def ravel(
@@ -918,19 +738,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
         Convention.ravel : The inverse operation.
         """
         pass
-
-    @utils.deprecated(
-        "Convention.make_linear() has been renamed to Convention.ravel().",
-        DeprecationWarning,
-    )
-    def make_linear(self, data_array: xarray.DataArray) -> xarray.DataArray:
-        """A deprecated alias for :meth:`Convention.ravel()`
-
-        .. deprecated:: 0.6.0
-            This method is replaced by
-            :meth:`Convention.ravel()`
-        """
-        return self.ravel(data_array)
 
     @cached_property  # type: ignore
     @_requires_plot
@@ -1204,18 +1011,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
 
         return polygons_to_collection(self.polygons[self.mask], **kwargs)
 
-    def make_patch_collection(
-        self,
-        data_array: DataArrayOrName | None = None,
-        **kwargs: Any,
-    ) -> 'PolyCollection':
-        warnings.warn(
-            "Convention.make_patch_collection has been renamed to "
-            "Convention.make_poly_collection, and now returns a PolyCollection",
-            category=DeprecationWarning,
-        )
-        return self.make_poly_collection(data_array, **kwargs)
-
     @_requires_plot
     def make_quiver(
         self,
@@ -1418,54 +1213,6 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             hits = dataset.ems.strtree.query(geometry, predicate='intersects')
         """
         return STRtree(self.polygons)
-
-    @cached_property
-    @utils.timed_func
-    @utils.deprecated(
-        (
-            "Convention.spatial_index is deprecated. "
-            "Use Convention.strtree instead."
-        ),
-        DeprecationWarning,
-    )
-    def spatial_index(self) -> SpatialIndex[SpatialIndexItem[Index]]:
-        """
-        A :class:`shapely.strtree.STRtree` spatial index of all cells in this dataset.
-        This allows for fast spatial lookups, querying which cells lie at
-        a point, or which cells intersect a geometry.
-
-        .. deprecated:: 0.6.0
-
-            Use :attr:`Convention.strtree` instead.
-
-            This existed as a wrapper around a Shapely STRtree,
-            which changed its interface in Shapely 2.0.
-            Shapely 1.8.x is no longer supported by emsarray
-            so this compatibility wrapper is deprecated.
-            Use :attr:`Convention.strtree` directly instead.
-
-        Querying this spatial index will return a list of
-        (:class:`polygon <shapely.geometry.Polygon>`, :class:`SpatialIndexItem`) tuples
-        corresponding to each matching cell.
-        SpatialIndexItem instances have the cells linear index, native index, and polygon.
-
-        The query results from the STRtree contain all geometries with overlapping bounding boxes.
-        Query results need to be refined further
-        by comparing the cell geometry to the query geometry.
-        Refer to the Shapely 1.8.x STRtree docs for examples.
-
-        See Also
-        --------
-        :class:`.SpatialIndexItem` : The dataclass returned from querying the STRtree.
-
-        `Shapely 1.8.x STRtree docs <https://shapely.readthedocs.io/en/1.8.5.post1/manual.html#str-packed-r-tree>`_
-        """
-        items = [
-            (poly, SpatialIndexItem(index, self.wind_index(index), poly))
-            for index, poly in enumerate(self.polygons)
-            if poly is not None
-        ]
-        return SpatialIndex(items)
 
     def get_index_for_point(
         self,
