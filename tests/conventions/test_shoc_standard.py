@@ -13,7 +13,7 @@ from shapely.geometry.polygon import Polygon, orient
 
 from emsarray.conventions import get_dataset_convention
 from emsarray.conventions.arakawa_c import (
-    ArakawaCGridKind, ArakawaCIndex, c_mask_from_centres
+    ArakawaCGridKind, c_mask_from_centres
 )
 from emsarray.conventions.shoc import ShocStandard
 from emsarray.operations import geometry
@@ -349,7 +349,7 @@ def test_grid_kinds():
         })],
     ),
 )
-def test_selector_for_index(index: ArakawaCIndex, selector: dict):
+def test_selector_for_index(index: tuple[ArakawaCGridKind, int, int], selector: dict):
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocStandard = dataset.ems
     assert selector == convention.selector_for_index(index)

@@ -118,6 +118,9 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     def drop_geometry(self) -> xarray.Dataset:
         return self.dataset
 
+    def _make_geometry(self, grid_kind: SimpleGridKind) -> numpy.ndarray:
+        return self._make_polygons()
+
     def _make_polygons(self) -> numpy.ndarray:
         height, width = self.shape
         # Each polygon is a box from (x, y, x+1, y+1),

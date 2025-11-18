@@ -395,6 +395,11 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
 
         return Specificity.LOW
 
+    def _make_geometry(self, grid_kind: ArakawaCGridKind) -> numpy.ndarray:
+        if grid_kind is CFGridKind.face:
+            return self._make_polygons()
+        raise ValueError(f"Invalid grid kind {grid_kind}")
+
     def _make_polygons(self) -> numpy.ndarray:
         y_size, x_size = self.topology.shape
         lon_bounds = self.topology.longitude_bounds.values
