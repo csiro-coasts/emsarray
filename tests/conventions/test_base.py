@@ -408,55 +408,6 @@ def test_strtree():
     assert set(items) == expected_intersections
 
 
-def test_get_index_for_point_centre():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    # Polygons for this simple convetion is box(x, y, x+1, y+1):w
-    index = convention.get_index_for_point(Point(1.5, 1.5))
-    assert index.index == SimpleGridIndex(1, 1)
-
-    index = convention.get_index_for_point(Point(2.5, 2.5))
-    assert index.index == SimpleGridIndex(2, 2)
-
-
-def test_get_index_for_point_vertex():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-    grid = convention.grids[SimpleGridKind.face]
-
-    point = Point(2, 2)
-
-    # There should be four cells intersecting this point
-    intersections = grid.strtree.query(point, predicate='intersects')
-    assert len(intersections) == 4
-
-    # `get_index_for_point` should still return a single item in this case
-    index = convention.get_index_for_point(point)
-    assert index.index == SimpleGridIndex(1, 1)
-
-    # The point should be the first of the hits in index order
-    assert index.linear_index == min(intersections)
-
-
-def test_get_index_for_point_miss():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    point = Point(-1, -1)
-
-    assert convention.get_index_for_point(point) is None
-
-
 def test_selector_for_point():
     dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
@@ -518,7 +469,9 @@ def test_select_point():
     # The underlying implementation does this, and the individual methods are
     # tested in detail elsewhere
     point = Point(3.5, 5.5)
-    index = convention.get_index_for_point(point).index
+    grid = convention.grids['face']
+    hits = grid.strtree.query(point, 'intersects')
+    index = grid.wind_index(hits[0])
     expected = convention.select_index(index)
     actual = convention.select_point(point)
     assert actual == expected
