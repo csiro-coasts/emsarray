@@ -437,9 +437,10 @@ def test_ravel() -> None:
 def test_wind() -> None:
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocSimple = dataset.ems
+    grid = convention.grids[CFGridKind.face]
 
     time_size = dataset.sizes['time']
-    values = numpy.arange(time_size * convention.grid_size[CFGridKind.face])
+    values = numpy.arange(time_size * grid.size)
     flat_array = xarray.DataArray(
         data=values.reshape((time_size, -1)),
         dims=['time', 'index'],

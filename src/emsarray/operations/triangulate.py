@@ -10,13 +10,12 @@ Using holoviews_. Try this in an IPython notebook for nice visualisations:
 
     import emsarray
     import holoviews as hv
-    from emsarray.operations import triangulate_dataset
     from holoviews import opts
     hv.extension('bokeh')
 
     # Triangulate the dataset
     dataset = emsarray.tuorial.open_dataset("austen")
-    vertices, triangles, cell_indexes = triangulate_dataset(dataset)
+    vertices, triangles, cell_indexes = dataset.ems.triangulate(dataset)
 
     # This takes a while to render
     mesh = hv.TriMesh((triangles, vertices))
@@ -29,10 +28,9 @@ Using trimesh_. This should pop up a new window to display the output:
     import emsarray
     import numpy
     import trimesh
-    from emsarray.operations import triangulate_dataset
 
     dataset = emsarray.tutorial.open_dataset("gbr4")
-    vertices, triangles, cell_indexes = triangulate_dataset(dataset)
+    vertices, triangles, cell_indexes = dataset.ems.triangulate(dataset)
     # Trimesh expects 3D vertices.
     vertices = numpy.c_[vertices, numpy.zeros(len(vertices))]
     mesh = trimesh.Trimesh(vertices=vertices, faces=triangles)
@@ -49,7 +47,6 @@ Using trimesh_. This should pop up a new window to display the output:
 from typing import cast
 
 import numpy
-import pandas
 import shapely
 import xarray
 from shapely.geometry import LineString, MultiPoint, Polygon
@@ -63,11 +60,8 @@ def triangulate_dataset(
     dataset: xarray.Dataset,
 ) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """
-    Triangulate the polygon cells of a dataset
-
-    A mesh can be constructed from this triangulation,
-    for example using `Holoviews TriMesh <holoviews_>`_
-    or `trimesh.Trimesh <trimesh_>`_.
+    Triangulate the polygon cells of a dataset in a naive way.
+    Users should prefer to use :meth:`.Convention.triangulate()`.
 
     Parameters
     ----------

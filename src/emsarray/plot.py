@@ -9,10 +9,9 @@ import numpy
 import shapely
 import xarray
 
-from emsarray import conventions
+from emsarray import conventions, utils
 from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.types import DataArrayOrName, Landmark
-from emsarray.utils import requires_extra
 
 try:
     import cartopy.crs
@@ -36,7 +35,7 @@ except ImportError as exc:
 __all___ = ['CAN_PLOT', 'plot_on_figure', 'polygons_to_collection']
 
 
-_requires_plot = requires_extra(extra='plot', import_error=IMPORT_EXCEPTION)
+_requires_plot = utils.requires_extra(extra='plot', import_error=IMPORT_EXCEPTION)
 
 
 def add_coast(axes: GeoAxes, **kwargs: Any) -> None:
@@ -311,20 +310,22 @@ def plot_on_figure(
     axes: GeoAxes = figure.add_subplot(projection=projection)
     axes.set_aspect(aspect='equal', adjustable='datalim')
 
+    data_arrays = utils.name_to_data_array(convention.dataset, variables)
+
     if title is None:
         if len(variables) == 0:
             title = 'Geometry'
 
         if len(variables) == 1:
-            variable = variables[0]
-            if isinstance(variable, xarray.DataArray):
-                title = make_plot_title(convention.dataset, variable)
+            data_array = data_arrays[0]
+            if isinstance(data_array, xarray.DataArray):
+                title = make_plot_title(convention.dataset, data_array)
 
     if title is not None:
         axes.set_title(title)
 
-    for variable in variables:
-        convention.make_artist(axes, variable)
+    for data_array in data_arrays:
+        convention.make_artist(axes, data_array)
 
     if len(variables) == 0:
         convention.plot_geometry(axes)
@@ -350,10 +351,8 @@ def plot_on_figure(
 def animate_on_figure(
     figure: Figure,
     convention: 'conventions.Convention',
-    *,
     coordinate: xarray.DataArray,
-    scalar: xarray.DataArray | None = None,
-    vector: tuple[xarray.DataArray, xarray.DataArray] | None = None,
+    *variables: DataArrayOrName | tuple[DataArrayOrName, ...],
     title: str | Callable[[Any], str] | None = None,
     projection: cartopy.crs.Projection | None = None,
     landmarks: Iterable[Landmark] | None = None,
@@ -376,16 +375,10 @@ def animate_on_figure(
         This is used to build the polygons and vector quivers.
     coordinate : :class:`xarray.DataArray`
         The coordinate values to vary across frames in the animation.
-    scalar : :class:`xarray.DataArray`, optional
+    variables : :class:`xarray.DataArray` or tuple of :class:`xarray.DataArray`.
         The data to plot as an :class:`xarray.DataArray`.
         This will be passed to :meth:`.Convention.make_poly_collection`.
         It should have horizontal dimensions appropriate for this convention,
-        and a dimension matching the ``coordinate`` parameter.
-    vector : tuple of :class:`numpy.ndarray`, optional
-        The *u* and *v* components of a vector field
-        as a tuple of :class:`xarray.DataArray`.
-        These will be passed to :meth:`.Convention.make_quiver`.
-        These should have horizontal dimensions appropriate for this convention,
         and a dimension matching the ``coordinate`` parameter.
     title : str or callable, optional
         The title for each frame of animation.
@@ -427,35 +420,18 @@ def animate_on_figure(
     axes.set_aspect(aspect='equal', adjustable='datalim')
     axes.title.set_animated(True)
 
-    collection = None
-    if scalar is not None:
-        # Plot a scalar variable on the polygons using a colour map
-        scalar_values = convention.ravel(scalar).values[:, convention.mask]
-        collection = convention.make_poly_collection(
-            cmap='jet', edgecolor='face',
-            clim=(numpy.nanmin(scalar_values), numpy.nanmax(scalar_values)))
-        axes.add_collection(collection)
-        collection.set_animated(True)
-        units = scalar.attrs.get('units')
-        figure.colorbar(collection, ax=axes, location='right', label=units)
+    data_arrays = utils.name_to_data_array(convention.dataset, variables)
+    coordinate_dim = coordinate.dims[0]
+    artists: list[GridArtist] = []
+    for data_array in data_arrays:
+        current_variable: xarray.DataArray | tuple[xarray.DataArray, ...]
+        if isinstance(data_array, xarray.DataArray):
+            current_variable = data_array.isel({coordinate_dim: 0})
+        else:
+            current_variable = tuple(v.isel({coordinate_dim: 0}) for v in data_array)
 
-    quiver = None
-    if vector is not None:
-        # Plot a vector variable using a quiver
-        vector_u_values, vector_v_values = (
-            convention.ravel(vec).values
-            for vec in vector)
-        # Quivers must start with some data.
-        # Vector arrows are scaled using this initial data.
-        # Find the absolute maximum value in all directions for initial data
-        # to make the autoscaling behave across all frames.
-        coordinate_dim = coordinate.dims[0]
-        initial_u, initial_v = (
-            abs(vec).max(dim=str(coordinate_dim), skipna=True)
-            for vec in vector)
-        quiver = convention.make_quiver(axes, initial_u, initial_v)
-        quiver.set_animated(True)
-        axes.add_collection(quiver)
+        artist = convention.make_artist(axes, current_variable)
+        artists.append(artist)
 
     # Draw a coast overlay
     if coast:
@@ -492,13 +468,14 @@ def animate_on_figure(
             changes.extend(gridliner.xline_artists)
             changes.extend(gridliner.yline_artists)
 
-        if collection is not None:
-            collection.set_array(scalar_values[index])
-            changes.append(collection)
-
-        if quiver is not None:
-            quiver.set_UVC(vector_u_values[index], vector_v_values[index])
-            changes.append(quiver)
+        for data_array, artist in zip(data_arrays, artists):
+            current_variable: xarray.DataArray | tuple[xarray.DataArray, ...]
+            if isinstance(data_array, xarray.DataArray):
+                current_variable = data_array.isel({coordinate_dim: 0})
+            else:
+                current_variable = tuple(v.isel({coordinate_dim: 0}) for v in data_array)
+            artist.set_data_array(current_variable)
+            changes.append(artist)
 
         return changes
 
@@ -531,6 +508,11 @@ def animate_on_figure(
 DataArray = TypeVar('DataArray')
 
 class GridArtist(Artist):
+    """
+    A matplotlib Artist subclass that knows what Grid it is associated with,
+    and has a `set_data_array()` method.
+    Users can call `GridArtist.set_data_array()` to update the data in a plot.
+    """
     _grid: 'conventions.Grid'
 
     def set_grid(self, grid: 'conventions.Grid') -> None:
