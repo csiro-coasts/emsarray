@@ -231,10 +231,11 @@ def test_varnames():
 
 def test_polygons():
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+    face_grid = dataset.ems.grids['face']
 
-    polygons = dataset.ems.polygons
+    polygons = face_grid.geometry
     # Should be one item for every cell in the shape
-    assert polygons.size == 10 * 20
+    assert face_grid.size == polygons.size == 10 * 20
 
     polygon_grid = polygons.reshape((10, 20))
 
@@ -457,10 +458,11 @@ def test_drop_geometry(datasets: pathlib.Path):
 def test_values():
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
     eta = dataset.data_vars["eta"].isel(record=0)
-    values = dataset.ems.ravel(eta)
+    grid = dataset.ems.get_grid(eta)
+    values = grid.ravel(eta)
 
     # There should be one value per cell polygon
-    assert len(values) == len(dataset.ems.polygons)
+    assert grid.size == len(values)
 
     # The values should be in a specific order
     assert numpy.allclose(values, eta.values.ravel(), equal_nan=True)
@@ -628,27 +630,31 @@ def test_apply_clip_mask(tmp_path):
     assert_equal(clipped.data_vars['temp'].values, clip_values(dataset.data_vars['temp'].values))
 
     # Check that the new geometry matches the relevant polygons in the old geometry
-    original_polygons = convention.polygons.reshape(10, 8)[3:6, 2:5].ravel()
+    face_grid = convention.grids['face']
+    original_polygons = face_grid.geometry.reshape(10, 8)[3:6, 2:5].ravel()
 
-    assert len(clipped.ems.polygons) == 3 * 3
-    assert clipped.ems.polygons[0] is None
-    assert clipped.ems.polygons[1].equals_exact(original_polygons[1], 1e-6)
-    assert clipped.ems.polygons[2] is None
-    assert clipped.ems.polygons[3].equals_exact(original_polygons[3], 1e-6)
-    assert clipped.ems.polygons[4].equals_exact(original_polygons[4], 1e-6)
-    assert clipped.ems.polygons[5].equals_exact(original_polygons[5], 1e-6)
-    assert clipped.ems.polygons[6] is None
-    assert clipped.ems.polygons[7].equals_exact(original_polygons[7], 1e-6)
-    assert clipped.ems.polygons[8] is None
+    clipped_face_grid = clipped.ems.grids['face']
+    clipped_polygons = clipped_face_grid.geometry
+    assert clipped_face_grid.size == 3 * 3
+    assert clipped_polygons[0] is None
+    assert clipped_polygons[1].equals_exact(original_polygons[1], 1e-6)
+    assert clipped_polygons[2] is None
+    assert clipped_polygons[3].equals_exact(original_polygons[3], 1e-6)
+    assert clipped_polygons[4].equals_exact(original_polygons[4], 1e-6)
+    assert clipped_polygons[5].equals_exact(original_polygons[5], 1e-6)
+    assert clipped_polygons[6] is None
+    assert clipped_polygons[7].equals_exact(original_polygons[7], 1e-6)
+    assert clipped_polygons[8] is None
 
 
 @pytest.mark.memory_usage
 def test_make_polygons_memory_usage():
     j_size, i_size = 1000, 2000
     dataset = make_dataset(j_size=j_size, i_size=i_size)
+    face_grid = dataset.ems.grids['face']
 
     with track_peak_memory_usage() as tracker:
-        assert len(dataset.ems.polygons) == j_size * i_size
+        assert len(face_grid.geometry) == j_size * i_size
 
     logger.info("current memory usage: %d, peak memory usage: %d", tracker.current, tracker.peak)
 

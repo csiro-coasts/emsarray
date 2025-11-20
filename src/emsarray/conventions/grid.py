@@ -9,18 +9,23 @@ import warnings
 from collections.abc import Hashable, Sequence
 from contextlib import suppress
 from functools import cached_property
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import numpy
 import xarray
 from shapely.geometry import Polygon, box
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import masking, utils
+from emsarray import masking, utils, plot
 from emsarray.exceptions import ConventionViolationWarning
-from emsarray.types import Bounds, Pathish
+from emsarray.types import Bounds, DataArrayOrName, Pathish
 
 from ._base import DimensionConvention, Specificity
+
+if TYPE_CHECKING:
+    # Import these optional dependencies only during type checking
+    from matplotlib.artist import Artist
+    from matplotlib.axes import Axes
 
 
 class CFGridKind(str, enum.Enum):
@@ -233,6 +238,15 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind]):
         """A :class:`CFGridTopology` helper."""
         return self.topology_class(self.dataset)
 
+    def _make_geometry(self, grid_kind: CFGridKind) -> numpy.ndarray:
+        if grid_kind is CFGridKind.face:
+            return self._make_polygons()
+        raise ValueError(f"Invalid grid kind {grid_kind}")
+
+    @abc.abstractmethod
+    def _make_polygons(self) -> numpy.ndarray:
+        pass
+
     @cached_property
     def bounds(self) -> Bounds:
         # This can be computed easily from the coordinate bounds
@@ -279,9 +293,11 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind]):
     ) -> xarray.Dataset:
         topology = self.topology
 
-        intersecting_indexes = self.strtree.query(clip_geometry, predicate='intersects')
-        mask = numpy.full(topology.shape, fill_value=False)
-        mask.ravel()[intersecting_indexes] = True
+        face_grid = self.grids[CFGridKind.face]
+        intersecting_indexes = face_grid.strtree.query(clip_geometry, predicate='intersects')
+        mask = xarray.DataArray(numpy.full(face_grid.size, fill_value=False))
+        mask.values[intersecting_indexes] = True
+        mask = face_grid.wind(mask)
 
         if buffer > 0:
             mask = masking.blur_mask(mask, size=buffer)
@@ -300,6 +316,39 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind]):
 
     def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
+
+    def make_artist(
+        self,
+        axes: Axes,
+        data_array: DataArrayOrName | tuple[DataArrayOrName, ...],
+    ) -> Artist:
+        grid = self.grids[CFGridKind.face]
+        data_array = utils.name_to_data_array(self.dataset, data_array)
+
+        if isinstance(data_array, xarray.DataArray):
+            print("Plotting scalar variable")
+            return plot.make_polygon_scalar_artist(axes, self, grid, data_array)
+
+        if isinstance(data_array, tuple):
+            if len(data_array) == 2:
+                return plot.make_polygon_vector_artist(axes, self, grid, data_array)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(
+        self,
+        axes: Axes,
+    ) -> Artist:
+        grid = self.grids[CFGridKind.face]
+        collection = plot.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
+
 
 
 # 1D coordinate grids
@@ -394,11 +443,6 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
             return None
 
         return Specificity.LOW
-
-    def _make_geometry(self, grid_kind: ArakawaCGridKind) -> numpy.ndarray:
-        if grid_kind is CFGridKind.face:
-            return self._make_polygons()
-        raise ValueError(f"Invalid grid kind {grid_kind}")
 
     def _make_polygons(self) -> numpy.ndarray:
         y_size, x_size = self.topology.shape

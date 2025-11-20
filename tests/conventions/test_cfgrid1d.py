@@ -249,14 +249,15 @@ def test_varnames():
 
 def test_polygons_no_bounds():
     dataset = make_dataset(width=3, height=4, bounds=False)
-    polygons = dataset.ems.polygons
+    face_grid = dataset.ems.grids['face']
+    polygons = face_grid.geometry
 
     # Should be one item for every face
-    assert len(polygons) == 3 * 4
+    assert face_grid.size == len(polygons) == 3 * 4
 
     # There should be no empty polygons
     assert all(poly is not None for poly in polygons)
-    assert all(dataset.ems.mask)
+    assert all(face_grid.mask)
 
     # Check the coordinates for the generated polygons.
     assert_geometries_equal(
@@ -271,12 +272,12 @@ def test_polygons_bounds():
     assert_allclose(dataset.ems.topology.latitude_bounds, dataset['lat_bounds'])
 
     assert_geometries_equal(
-        dataset.ems.polygons[0],
+        dataset.ems.grids['face'].geometry[0],
         box(-0.08, -0.07, 0.02, 0.03),
         tolerance=1e-6)
 
     assert_geometries_equal(
-        dataset.ems.polygons[4],
+        dataset.ems.grids['face'].geometry[4],
         box(0.02, 0.03, 0.12, 0.13),
         tolerance=1e-6)
 
@@ -311,7 +312,7 @@ def test_selector_for_index():
     dataset = make_dataset(width=11, height=7, depth=5)
     convention: CFGrid1D = dataset.ems
 
-    index = (3, 4)
+    index = (CFGridKind.face, 3, 4)
     selector = {'lat': 3, 'lon': 4}
     assert selector == convention.selector_for_index(index)
 
@@ -327,8 +328,8 @@ def test_ravel():
     convention = CFGrid1D(dataset)
     for index in range(3 * 5):
         y, x = divmod(index, 3)
-        assert convention.ravel_index((y, x)) == index
-        assert convention.wind_index(index) == (y, x)
+        assert convention.ravel_index((CFGridKind.face, y, x)) == index
+        assert convention.wind_index(index) == (CFGridKind.face, y, x)
 
 
 def test_grid_kinds():
@@ -358,7 +359,7 @@ def test_values():
     values = dataset.ems.ravel(eta)
 
     # There should be one value per cell polygon
-    assert len(values) == len(dataset.ems.polygons)
+    assert len(values) == dataset.ems.grids['face'].size
 
     # The values should be in a specific order
     assert_equal(values, eta.values.ravel())
@@ -461,13 +462,13 @@ def test_apply_clip_mask(tmp_path):
     assert_equal(clipped.data_vars['temp'].values, clip_values(dataset.data_vars['temp'].values))
 
     # Check that the new geometry matches the relevant polygons in the old geometry
-    assert len(clipped.ems.polygons) == 5 * 4
+    assert clipped.ems.grids['face'].size == 5 * 4
     original_polys = numpy.concatenate([
-        dataset.ems.polygons[(i * 10 + 2):(i * 10 + 7)]
+        dataset.ems.grids['face'].geometry[(i * 10 + 2):(i * 10 + 7)]
         for i in range(3, 7)
     ], axis=None)
-    assert len(clipped.ems.polygons) == len(original_polys)
-    for original_poly, clipped_poly in zip(original_polys, clipped.ems.polygons):
+    assert clipped.ems.grids['face'].size == len(original_polys)
+    for original_poly, clipped_poly in zip(original_polys, clipped.ems.grids['face'].geometry):
         assert original_poly.equals_exact(clipped_poly, 1e-6)
 
 
@@ -504,7 +505,7 @@ def test_make_polygon_memory_usage() -> None:
     dataset = make_dataset(width=width, height=height)
 
     with track_peak_memory_usage() as tracker:
-        assert len(dataset.ems.polygons) == width * height
+        assert len(dataset.ems.grids['face'].geometry) == width * height
 
     logger.info("current memory usage: %d, peak memory usage: %d", tracker.current, tracker.peak)
 

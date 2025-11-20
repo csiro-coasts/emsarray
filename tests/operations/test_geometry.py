@@ -11,13 +11,14 @@ import shapely.geometry
 import xarray
 from shapely.testing import assert_geometries_equal
 
+from emsarray.conventions import Grid
 from emsarray.operations import geometry
 
 
-def _polygons(dataset: xarray.Dataset) -> pandas.DataFrame:
+def _polygons(grid: Grid) -> pandas.DataFrame:
     rows = [
         (linear_index, polygon)
-        for linear_index, polygon in enumerate(dataset.ems.polygons)
+        for linear_index, polygon in enumerate(grid.geometry)
         if polygon is not None]
     return pandas.DataFrame(rows, columns=['linear_index', 'polygon'])
 
@@ -28,6 +29,7 @@ def _json_roundtrip(value: Any) -> Any:
 
 def test_write_geojson(datasets: pathlib.Path, tmp_path: pathlib.Path):
     dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
+    face_grid = dataset.ems.grids['face']
     out_path = tmp_path / 'out.geojson'
 
     geometry.write_geojson(dataset, out_path)
@@ -36,9 +38,9 @@ def test_write_geojson(datasets: pathlib.Path, tmp_path: pathlib.Path):
     with open(out_path, 'rb') as f:
         saved_geometry = geojson.load(f)
     assert saved_geometry['type'] == 'FeatureCollection'
-    assert len(saved_geometry['features']) == numpy.count_nonzero(dataset.ems.polygons)
+    assert len(saved_geometry['features']) == numpy.count_nonzero(face_grid.geometry)
 
-    polygons = _polygons(dataset)
+    polygons = _polygons(face_grid)
     assert len(polygons) == len(saved_geometry['features'])
     polygons = polygons.assign(feature=saved_geometry['features'])
     for row in polygons.itertuples():
@@ -50,12 +52,13 @@ def test_write_geojson(datasets: pathlib.Path, tmp_path: pathlib.Path):
 
     saved_geometry = shapely.from_geojson(out_path.read_bytes())
     expected_geometry = shapely.GeometryCollection([
-        p for p in dataset.ems.polygons if p is not None])
+        p for p in face_grid.geometry if p is not None])
     assert_geometries_equal(saved_geometry, expected_geometry, tolerance=1e-6)
 
 
 def test_write_shapefile(datasets: pathlib.Path, tmp_path: pathlib.Path):
     dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
+    face_grid = dataset.ems.grids['face']
     out_path = tmp_path / 'out.shp'
 
     geometry.write_shapefile(dataset, out_path)
@@ -65,7 +68,7 @@ def test_write_shapefile(datasets: pathlib.Path, tmp_path: pathlib.Path):
 
     with shapefile.Reader(out_path) as shp:
         assert shp.shapeType == shapefile.POLYGON
-        polygons = _polygons(dataset)
+        polygons = _polygons(face_grid)
         assert len(shp) == len(polygons)
         polygons = polygons.assign(shape_record=shp.shapeRecords())
         for row in polygons.itertuples():
@@ -78,6 +81,7 @@ def test_write_shapefile(datasets: pathlib.Path, tmp_path: pathlib.Path):
 
 def test_write_wkt(datasets: pathlib.Path, tmp_path: pathlib.Path):
     dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
+    face_grid = dataset.ems.grids['face']
     out_path = tmp_path / 'out.wkt'
 
     geometry.write_wkt(dataset, out_path)
@@ -86,12 +90,13 @@ def test_write_wkt(datasets: pathlib.Path, tmp_path: pathlib.Path):
     saved_geometry = shapely.from_wkt(out_path.read_text())
     assert isinstance(saved_geometry, shapely.MultiPolygon)
     expected_geometry = shapely.MultiPolygon([
-        p for p in dataset.ems.polygons if p is not None])
+        p for p in face_grid.geometry if p is not None])
     assert_geometries_equal(saved_geometry, expected_geometry, tolerance=1e-6)
 
 
 def test_write_wkb(datasets: pathlib.Path, tmp_path: pathlib.Path):
     dataset = xarray.open_dataset(datasets / 'cfgrid2d.nc')
+    face_grid = dataset.ems.grids['face']
     out_path = tmp_path / 'out.wkb'
 
     geometry.write_wkb(dataset, out_path)
@@ -100,5 +105,5 @@ def test_write_wkb(datasets: pathlib.Path, tmp_path: pathlib.Path):
     saved_geometry = shapely.from_wkb(out_path.read_bytes())
     assert isinstance(saved_geometry, shapely.MultiPolygon)
     expected_geometry = shapely.MultiPolygon([
-        p for p in dataset.ems.polygons if p is not None])
+        p for p in face_grid.geometry if p is not None])
     assert_geometries_equal(saved_geometry, expected_geometry, tolerance=1e-7)

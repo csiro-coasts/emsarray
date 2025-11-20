@@ -21,14 +21,13 @@ from emsarray.exceptions import (
     InvalidGeometryWarning,
     NoSuchCoordinateError,
 )
-from emsarray.operations import depth, point_extraction
+from emsarray.operations import depth, point_extraction, triangulate
 from emsarray.operations.cache import hash_attributes, hash_int, hash_string
 from emsarray.plot import (
     _requires_plot,
     animate_on_figure,
     make_plot_title,
     plot_on_figure,
-    polygons_to_collection,
 )
 from emsarray.state import State
 from emsarray.types import Bounds, DataArrayOrName, Pathish
@@ -36,11 +35,10 @@ from emsarray.types import Bounds, DataArrayOrName, Pathish
 if TYPE_CHECKING:
     # Import these optional dependencies only during type checking
     from cartopy.crs import CRS
-    from cartopy.mpl.geoaxes import GeoAxes
+    from matplotlib.artist import Artist
+    from matplotlib.axes import Axes
     from matplotlib.animation import FuncAnimation
-    from matplotlib.collections import Collection, PolyCollection
     from matplotlib.figure import Figure
-    from matplotlib.quiver import Quiver
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +143,10 @@ class Grid[GridKind, Index](abc.ABC):
 
     @cached_property
     def mask(self) -> numpy.ndarray:
-        return cast(numpy.ndarray, self.geometry == None)  # noqa: E711
+        mask = numpy.fromiter(
+            (p is not None for p in self.geometry),
+            dtype=bool, count=self.size)
+        return cast(numpy.ndarray, mask)
 
     @abc.abstractmethod
     def ravel_index(self, index: Index) -> int:
@@ -167,7 +168,7 @@ class Grid[GridKind, Index](abc.ABC):
     @abc.abstractmethod
     def wind(
         self,
-        data_array: DataArrayOrName,
+        data_array: xarray.DataArray,
         *,
         axis: int | None = None,
         linear_dimension: Hashable | None = None,
@@ -339,17 +340,31 @@ class Convention[GridKind, Index](abc.ABC):
         ----------
         .. [1] `CF Conventions v1.10, 4.4 Time Coordinate <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#time-coordinate>`_
         """
+        # First look for a datetime64 variable with a 'units' field in the encoding
         for name in self.dataset.variables.keys():
             variable = self.dataset[name]
-            # xarray will automatically decode all time variables
-            # and move the 'units' attribute over to encoding to store this change.
-            if 'units' in variable.encoding:
-                units = variable.encoding['units']
-                # A time variable must have units of the form '<units> since <epoc>'
-                if 'since' in units:
-                    # The variable must now be a numpy datetime
-                    if variable.dtype.type == numpy.datetime64:
+            # The variable must be a numpy datetime
+            if variable.dtype.type == numpy.datetime64:
+                # xarray will automatically decode all time variables
+                # and move the 'units' attribute over to encoding to store this change.
+                if 'units' in variable.encoding:
+                    units = variable.encoding['units']
+                    # A time variable must have units of the form '<units> since <epoc>'
+                    if 'since' in units:
                         return variable
+
+        # Next, look for any datetime64 variable with an appropriate attribute
+        for name in self.dataset.variables.keys():
+            variable = self.dataset[name]
+            if variable.dtype.type == numpy.datetime64:
+                possible_attributes = {
+                    'coordinate_type': 'time',
+                    'standard_name': 'time',
+                    'axis': 'T',
+                }
+                if any(variable.attrs.get(name, None) == value for name, value in possible_attributes.items()):
+                    return variable
+
         raise NoSuchCoordinateError("Could not find time coordinate in dataset")
 
     @cached_property
@@ -703,7 +718,7 @@ class Convention[GridKind, Index](abc.ABC):
 
     def wind(
         self,
-        data_array: DataArrayOrName,
+        data_array: xarray.DataArray,
         *,
         grid_kind: GridKind | None = None,
         axis: int | None = None,
@@ -995,247 +1010,30 @@ class Convention[GridKind, Index](abc.ABC):
 
         return animate_on_figure(figure, self, coordinate=coordinate, **kwargs)
 
-    @_requires_plot
-    def plot_on_axes(
+    @abc.abstractmethod
+    def make_artist(
         self,
-        axes: 'GeoAxes',
-        variable: xarray.DataArray | tuple[xarray.DataArray, ...],
-        **kwargs: Any,
-    ) -> 'Collection':
-        if isinstance(variable, xarray.DataArray):
-            grid_kind = self.get_grid_kind(variable)
-            if grid_kind is self.default_grid_kind:
-                return self.plot_polygons_on_axes(axes, variable)
+        axes: Axes,
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+    ) -> Artist:
+        pass
 
-            raise ValueError(f"Not able to plot variable {variable.name!r}, grid kind {grid_kind}")
-
-        else:
-            names = tuple(v.name for v in variable)
-            grid_kinds = tuple(self.get_grid_kind(v) for v in variable)
-            if len(variable) == 2 and grid_kinds == (self.default_grid_kind, self.default_grid_kind):
-                return self.plot_vector_components_on_axes(axes, variable)
-
-            raise ValueError(f"Not able to plot variables {names!r}, grid kinds {grid_kinds!r}")
-
-    @_requires_plot
-    def plot_polygons_on_axes(
+    @abc.abstractmethod
+    def plot_geometry(
         self,
-        axes: 'GeoAxes',
-        data_array: xarray.DataArray | None,
-        colorbar: bool = True,
-        **kwargs: Any,
-    ) -> 'Collection':
-        defaults = dict(cmap='jet', edgecolor='face')
-        kwargs = {**defaults, **kwargs}
-
-        collection = self.make_poly_collection(data_array, **kwargs)
-        axes.add_collection(collection)
-
-        if colorbar and data_array is not None:
-            units = data_array.attrs.get('units')
-            axes.get_figure().colorbar(collection, ax=axes, location='right', label=units)
-
-        return collection
-
-    @_requires_plot
-    def plot_vector_components_on_axes(
-        self,
-        axes: 'GeoAxes',
-        components: tuple[xarray.DataArray, xarray.DataArray],
-        **kwargs: Any,
-    ) -> 'Collection':
-        u, v = components
-        quiver = self.make_quiver(axes, u, v, **kwargs)
-        axes.add_collection(quiver)
-        return quiver
-
-    @_requires_plot
-    def plot_geometry_on_axes(
-        self,
-        axes: 'GeoAxes',
-        **kwargs: Any,
-    ) -> 'Collection':
-        """
-        Plot the geometry of this dataset on to some Axes
-        """
-        collection = self.make_poly_collection()
-        axes.add_collection(collection)
-        return collection
-
-    @_requires_plot
-    @utils.timed_func
-    def make_poly_collection(
-        self,
-        data_array: DataArrayOrName | None = None,
-        **kwargs: Any,
-    ) -> 'PolyCollection':
-        """
-        Make a :class:`~matplotlib.collections.PolyCollection`
-        from the polygon geometry of this :class:`~xarray.Dataset`.
-        This can be used to make custom matplotlib plots from your data.
-
-        If a :class:`~xarray.DataArray` is passed in,
-        the values of that are assigned to the PolyCollection `array` parameter.
-
-        Parameters
-        ----------
-        data_array : Hashable or :class:`xarray.DataArray`, optional
-            A data array, or the name of a data variable in this dataset. Optional.
-            If given, the data array is :meth:`ravelled <.ravel>`
-            and passed to :meth:`PolyCollection.set_array() <matplotlib.cm.ScalarMappable.set_array>`.
-            The data is used to colour the patches.
-            Refer to the matplotlib documentation for more information on styling.
-        **kwargs
-            Any keyword arguments are passed to the
-            :class:`~matplotlib.collections.PolyCollection` constructor.
-
-        Returns
-        -------
-        :class:`~matplotlib.collections.PolyCollection`
-            A PolyCollection constructed using the geometry of this dataset.
-
-        Example
-        -------
-
-        .. code-block:: python
-
-            import cartopy.crs as ccrs
-            import matplotlib.pyplot as plt
-            import emsarray
-
-            figure = plt.figure(figsize=(10, 8))
-            axes = plt.subplot(projection=ccrs.PlateCarree())
-            axes.set_aspect(aspect='equal', adjustable='datalim')
-
-            ds = emsarray.open_dataset("./tests/datasets/ugrid_mesh2d.nc")
-            ds = ds.isel(record=0, Mesh2_layers=-1)
-            patches = ds.ems.make_poly_collection('temp')
-            axes.add_collection(patches)
-            figure.colorbar(patches, ax=axes, location='right', label='meters')
-
-            axes.set_title("Depth")
-            axes.autoscale()
-            figure.show()
-        """
-        if data_array is not None:
-            if 'array' in kwargs:
-                raise TypeError(
-                    "Can not pass both `data_array` and `array` to make_poly_collection"
-                )
-
-            data_array = utils.name_to_data_array(self.dataset, data_array)
-            grid = self.get_grid(data_array)
-
-            data_array = grid.ravel(data_array)
-            if len(data_array.dims) > 1:
-                raise ValueError(
-                    "Data array has too many dimensions - did you forget to "
-                    "select a single timestep or a single depth layer?")
-
-            values = data_array.values[grid.mask]
-            kwargs['array'] = values
-            if 'clim' not in kwargs:
-                kwargs['clim'] = (numpy.nanmin(values), numpy.nanmax(values))
-
-        if 'transform' not in kwargs:
-            kwargs['transform'] = self.data_crs
-
-        return polygons_to_collection(grid.geometry[grid.mask], **kwargs)
-
-    @_requires_plot
-    def make_quiver(
-        self,
-        axes: 'GeoAxes',
-        u: DataArrayOrName | None = None,
-        v: DataArrayOrName | None = None,
-        *,
-        grid_kind: GridKind | None = None,
-        **kwargs: Any,
-    ) -> 'Quiver':
-        """
-        Make a :class:`matplotlib.quiver.Quiver` instance to plot vector data.
-        The vectors will be placed at the centre of each polygon of the dataset.
-        The data arrays `u` and `v` represent the `x` and `y` vector components
-        for each polygon.
-
-        Parameters
-        ----------
-        axes : matplotlib.axes.GeoAxes
-            The axes to make this quiver on.
-        u, v : xarray.DataArray or str, optional
-            The DataArrays or the names of DataArrays in this dataset
-            that make up the *u* and *v* components of the vector.
-            If omitted, a Quiver will be constructed with all components set to 0.
-        **kwargs
-            Any keyword arguments are passed on to the Quiver constructor.
-
-        Returns
-        -------
-        matplotlib.quiver.Quiver
-            A quiver instance that can be added to a plot
-        """
-        from matplotlib.quiver import Quiver
-
-        # A Quiver needs some values when being initialized.
-        # We don't always want to provide values to the quiver,
-        # sometimes preferring to fill them in later,
-        # so `u` and `v` are optional.
-        # If they are not provided, we set default quiver values of `numpy.nan`.
-        values: tuple[numpy.ndarray, numpy.ndarray] | tuple[float, float]
-        values = numpy.nan, numpy.nan
-
-        if (u is None or v is None) and grid_kind is None:
-            raise ValueError("Need either a (u, v) pair or a grid_kind to make a quiver")
-
-
-        if grid_kind is not None:
-            grid = self.grids[grid_kind]
-        if u is not None and v is not None:
-            u = utils.name_to_data_array(self.dataset, u)
-            v = utils.name_to_data_array(self.dataset, v)
-
-            u_grid_kind = self.get_grid_kind(u)
-            v_grid_kind = self.get_grid_kind(v)
-            if u_grid_kind != v_grid_kind:
-                raise ValueError(
-                    "Vector data arrays must be defined on the same grid. "
-                    f"Data arrays (u, v) had grid kinds {(u_grid_kind, v_grid_kind)}."
-                )
-
-            if grid_kind is None:
-                grid_kind = u_grid_kind
-                grid = self.grids[grid_kind]
-
-            elif grid_kind is not u_grid_kind:
-                raise ValueError(
-                    f"Data arrays (u, v) with grid kinds {(u_grid_kind, v_grid_kind)} "
-                    f"not the same as grid_kind {grid_kind}"
-                )
-
-            u, v = grid.ravel(u), grid.ravel(v)
-
-            if len(u.dims) > 1:
-                raise ValueError(
-                    "Vector data arrays have too many dimensions - did you forget to "
-                    "select a single timestep or a single depth layer?")
-
-            values = u.values, v.values
-
-        if 'transform' not in kwargs:
-            kwargs['transform'] = self.data_crs
-
-        x, y = numpy.transpose([
-            [p.x, p.y] if p is not None else [numpy.nan, numpy.nan]
-            for p in shapely.centroid(grid.geometry)
-        ])
-
-        return Quiver(axes, x, y, *values, **kwargs)
+        axes: Axes,
+    ) -> Artist:
+        pass
 
     def _validate_geometry(
         self,
         grid_kind: GridKind,
         geometry: numpy.ndarray,
     ) -> numpy.ndarray:
+        grid = self.grids[grid_kind]
+        if grid.size != len(geometry):
+            raise RuntimeError("Length of grid geometry did not match grid size")
+
         not_none = (geometry != None)  # noqa: E711
         invalid_indices = numpy.flatnonzero(not_none & ~shapely.is_valid(geometry))
         if len(invalid_indices):
@@ -1272,6 +1070,35 @@ class Convention[GridKind, Index](abc.ABC):
         raise ValueError(f"Default grid kind {grid.grid_kind} does not have polygonal geometry")
 
     @cached_property
+    def face_centres(self) -> numpy.ndarray:
+        """
+        A numpy :class:`~numpy.ndarray` of face centres, which are (x, y) pairs.
+        The first dimension will be the same length and in the same order
+        as :attr:`Convention.polygons`,
+        while the second dimension will always be of size 2.
+        """
+        # This default implementation simply finds the centroid of each polygon.
+        # Subclasses are free to override this if the particular convention and dataset
+        # provides the cell centres as a data array.
+        grid = self.grids[self.default_grid_kind]
+        centres = numpy.array([
+            polygon.centroid.coords[0] if polygon is not None else [numpy.nan, numpy.nan]
+            for polygon in grid.geometry
+        ])
+        return cast(numpy.ndarray, centres)
+
+    @cached_property
+    @utils.deprecated(
+        "dataset.ems.mask is deprecated. "
+        "Use dataset.ems.get_grid(data_array).mask instead."
+    )
+    def mask(self) -> numpy.ndarray:
+        grid = self.grids[self.default_grid_kind]
+        if issubclass(grid.geometry_type, Polygon):
+            return grid.mask
+        raise ValueError(f"Default grid kind {grid.grid_kind} does not have polygonal geometry")
+
+    @cached_property
     def geometry(self) -> Polygon | MultiPolygon:
         """
         A :class:`shapely.Polygon` or :class:`shapely.MultiPolygon` that represents
@@ -1294,7 +1121,10 @@ class Convention[GridKind, Index](abc.ABC):
         return cast(Bounds, self.geometry.bounds)
 
     @cached_property
-    @utils.timed_func
+    @utils.deprecated(
+        "dataset.ems.strtree is deprecated. "
+        "Use dataset.ems.get_grid(data_array).strtree instead."
+    )
     def strtree(self) -> STRtree:
         """
         A :class:`shapely.strtree.STRtree` spatial index of all cells in this dataset.
@@ -1880,6 +1710,9 @@ class Convention[GridKind, Index](abc.ABC):
             # Hash dataset attributes
             hash_attributes(hash, data_array.attrs)
 
+    def triangulate(self) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+        return triangulate.triangulate_dataset(self.dataset)
+
 
 type DimensionIndex[GridKind] = tuple[GridKind, *tuple[int, ...]]
 
@@ -1927,13 +1760,11 @@ class DimensionGrid[GridKind](Grid[GridKind, DimensionIndex[GridKind]]):
 
     def wind(
         self,
-        data_array: DataArrayOrName,
+        data_array: xarray.DataArray,
         *,
         axis: int | None = None,
         linear_dimension: Hashable | None = None,
     ) -> xarray.DataArray:
-        data_array = utils.name_to_data_array(self.convention.dataset, data_array)
-
         if axis is not None:
             linear_dimension = data_array.dims[axis]
         elif linear_dimension is None:
@@ -2036,8 +1867,10 @@ class DimensionConvention[GridKind](Convention[GridKind, DimensionIndex[GridKind
         if len(indexes) == 0:
             raise ValueError("Need at least one index to select")
 
+        print(indexes)
         grid_kinds = set(index[0] for index in indexes)
         index_tuples = [index[1:] for index in indexes]
+        print(grid_kinds)
 
         if len(grid_kinds) > 1:
             raise ValueError(

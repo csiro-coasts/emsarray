@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import Any, Literal
+from typing import Any, Literal, Self, TypeVar, cast
 
 import numpy
+import shapely
 import xarray
 
 from emsarray import conventions
 from emsarray.exceptions import NoSuchCoordinateError
-from emsarray.types import Landmark
+from emsarray.types import DataArrayOrName, Landmark
 from emsarray.utils import requires_extra
 
 try:
@@ -21,9 +22,10 @@ try:
     from matplotlib import animation, patheffects
     from matplotlib.artist import Artist
     from matplotlib.axes import Axes
-    from matplotlib.collections import PolyCollection
+    from matplotlib.collections import PolyCollection, TriMesh
     from matplotlib.figure import Figure
-    from shapely.geometry import Polygon
+    from matplotlib.quiver import Quiver
+    from matplotlib.tri import Triangulation
     CAN_PLOT = True
     IMPORT_EXCEPTION = None
 except ImportError as exc:
@@ -189,7 +191,7 @@ def bounds_to_extent(bounds: tuple[float, float, float, float]) -> list[float]:
 
 @_requires_plot
 def polygons_to_collection(
-    polygons: Iterable[Polygon],
+    polygons: Iterable[shapely.Polygon],
     **kwargs: Any,
 ) -> PolyCollection:
     """
@@ -264,9 +266,7 @@ def make_plot_title(
 def plot_on_figure(
     figure: Figure,
     convention: 'conventions.Convention',
-    *,
-    scalar: xarray.DataArray | None = None,
-    vector: tuple[xarray.DataArray, xarray.DataArray] | None = None,
+    *variables: DataArrayOrName | tuple[DataArrayOrName, ...],
     title: str | None = None,
     projection: cartopy.crs.Projection | None = None,
     landmarks: Iterable[Landmark] | None = None,
@@ -311,28 +311,23 @@ def plot_on_figure(
     axes: GeoAxes = figure.add_subplot(projection=projection)
     axes.set_aspect(aspect='equal', adjustable='datalim')
 
-    if scalar is None and vector is None:
-        # Plot the polygon shapes for want of anything else to draw
-        collection = convention.make_poly_collection()
-        axes.add_collection(collection)
-        if title is None:
+    if title is None:
+        if len(variables) == 0:
             title = 'Geometry'
 
-    if scalar is not None:
-        # Plot a scalar variable on the polygons using a colour map
-        collection = convention.make_poly_collection(
-            scalar, cmap='jet', edgecolor='face')
-        axes.add_collection(collection)
-        units = scalar.attrs.get('units')
-        figure.colorbar(collection, ax=axes, location='right', label=units)
+        if len(variables) == 1:
+            variable = variables[0]
+            if isinstance(variable, xarray.DataArray):
+                title = make_plot_title(convention.dataset, variable)
 
-    if vector is not None:
-        # Plot a vector variable using a quiver
-        quiver = convention.make_quiver(axes, *vector)
-        axes.add_collection(quiver)
-
-    if title:
+    if title is not None:
         axes.set_title(title)
+
+    for variable in variables:
+        convention.make_artist(axes, variable)
+
+    if len(variables) == 0:
+        convention.plot_geometry(axes)
 
     if landmarks:
         add_landmarks(axes, landmarks)
@@ -519,3 +514,226 @@ def animate_on_figure(
         figure, animate, frames=coordinate_indexes,
         interval=interval, repeat=repeat_arg, blit=True,
         init_func=lambda: animate(0))
+
+
+# Plotting:
+#
+# make_something_artist(axes, convention, grid, [data_array], **kwargs)
+#   Makes a matplotlib artist that can plot a data array on some axes.
+#   kwargs can be used to style the artist and provide other options.
+#   Returns an artist that is already added to the axes,
+#   and supports artist.set_data_array(data_array).
+#
+# plot_something(axes, convention, data_array)
+#   Calls make_something_artist with the provided data array.
+#
+
+DataArray = TypeVar('DataArray')
+
+class GridArtist(Artist):
+    _grid: 'conventions.Grid'
+
+    def set_grid(self, grid: 'conventions.Grid') -> None:
+        if hasattr(self, '_grid'):
+            raise ValueError("_grid is read only once set")
+        self._grid = grid
+
+
+def make_polygon_scalar_artist(
+    axes: Axes,
+    convention: 'conventions.Convention',
+    grid: 'conventions.Grid',
+    data_array: xarray.DataArray | None = None,
+    add_colorbar: bool | None = None,
+    **kwargs: Any,
+) -> PolygonScalarCollection:
+    kwargs = {
+        'edgecolor': 'face',
+        'linewidth': 0.5,
+        'facecolor': 'red',
+        'cmap': 'viridis',
+        'transform': convention.data_crs,
+        **kwargs,
+    }
+
+    collection = PolygonScalarCollection.from_grid(grid, data_array=data_array, **kwargs)
+    axes.add_collection(collection)
+
+    if add_colorbar is None:
+        add_colorbar = data_array is not None
+
+    if add_colorbar:
+        if data_array is not None:
+            units = data_array.attrs.get('units')
+        axes.figure.colorbar(collection, ax=axes, location='right', label=units)
+
+    return collection
+
+
+class PolygonScalarCollection(PolyCollection, GridArtist):
+    @classmethod
+    def from_grid(cls, grid: 'conventions.Grid', data_array: xarray.DataArray | None = None, **kwargs: Any) -> Self:
+        if not issubclass(grid.geometry_type, shapely.Polygon):
+            raise ValueError("Grid must have polygon geometry")
+
+        if data_array is not None:
+            values = cls.ravel_data_array(grid, data_array)
+            kwargs['array'] = values
+            kwargs['clim'] = numpy.nanmin(values), numpy.nanmax(values)
+
+        return cls(
+            verts=[
+                numpy.asarray(polygon.exterior.coords)
+                for polygon in grid.geometry[grid.mask]
+            ],
+            closed=False,
+            grid=grid,
+            **kwargs,
+        )
+
+    def set_data_array(self, data_array: xarray.DataArray | None) -> None:
+        print("PolygonScalarCollection.set_data_array", data_array)
+        if data_array is None:
+            self.set_array(None)
+        else:
+            self.set_array(self.ravel_data_array(self._grid, data_array))
+
+    @staticmethod
+    def ravel_data_array(grid: 'conventions.Grid', data_array: xarray.DataArray) -> numpy.ndarray:
+        flattened = grid.ravel(data_array)
+        if len(flattened.dims) > 1:
+            unexpected_dimensions = set(data_array.dims) & set(flattened.dims)
+            raise ValueError(
+                "Data array has too many dimensions, "
+                "did you forget to select a single time step or depth layer? "
+                f"Unexpected dimensions: {unexpected_dimensions}")
+        return cast(numpy.ndarray, flattened.values[grid.mask])
+
+
+type UVDataArray = tuple[xarray.DataArray, xarray.DataArray]
+
+
+def make_polygon_vector_artist(
+    axes: Axes,
+    convention: 'conventions.Convention',
+    grid: 'conventions.Grid',
+    data_array: UVDataArray | None = None,
+    **kwargs: Any,
+) -> PolygonVectorQuiver:
+    if 'transform' not in kwargs:
+        kwargs['transform'] = convention.data_crs
+
+    collection = PolygonVectorQuiver.from_grid(axes, grid, data_array, **kwargs)
+    axes.add_collection(collection)
+    return collection
+
+
+class PolygonVectorQuiver(Quiver, GridArtist):
+    @classmethod
+    def from_grid(
+        cls,
+        axes: Axes,
+        grid: 'conventions.Grid',
+        data_array: UVDataArray | None = None,
+        **kwargs: Any,
+    ) -> Self:
+        if not issubclass(grid.geometry_type, shapely.Polygon):
+            raise ValueError("Grid must have polygon geometry")
+
+        face_centres = numpy.array([
+            shape.centroid.coords[0]
+            if shape is not None
+            else [numpy.nan, numpy.nan]
+            for shape in grid.geometry
+        ])
+
+        x, y = numpy.transpose(face_centres)
+
+        # A Quiver needs some values when being initialized.
+        # We don't always want to provide values to the quiver,
+        # sometimes preferring to fill them in later,
+        # so `u` and `v` are optional.
+        # If they are not provided, we set default quiver values of `numpy.nan`.
+        values: tuple[numpy.ndarray, numpy.ndarray] | tuple[float, float]
+        values = numpy.nan, numpy.nan
+
+        if data_array is not None:
+            values = cls.ravel_data_array(grid, data_array)
+
+        return cls(axes, x, y, grid=grid, *values, **kwargs)
+
+    def set_data_array(self, data_array: UVDataArray) -> None:
+        values = self.ravel_data_array(self._grid, data_array)
+        self.set_array(values)
+
+    @staticmethod
+    def ravel_data_array(
+        grid: 'conventions.Grid',
+        data_array: UVDataArray,
+    ) -> tuple[numpy.ndarray, numpy.ndarray]:
+        u, v = data_array
+
+        if u.dims != v.dims:
+            raise ValueError(
+                "Vector data array dimensions must be identical!\n"
+                f"u dimensions: {tuple(u.dims)}\n"
+                f"v dimensions: {tuple(v.dims)}"
+            )
+
+        u, v = grid.ravel(u), grid.ravel(v)
+
+        if len(u.dims) > 1:
+            raise ValueError(
+                "Vector data arrays have too many dimensions - did you forget to "
+                "select a single timestep or a single depth layer?")
+
+        return u.values, v.values
+
+
+def make_node_scalar_artist(
+    axes: Axes,
+    convention: 'conventions.Convention',
+    grid: 'conventions.Grid',
+    data_array: xarray.DataArray | None = None,
+    **kwargs: Any,
+) -> NodeTriMesh:
+    trimesh = NodeTriMesh.from_grid(
+        grid=grid,
+        data_array=data_array,
+        **kwargs,
+    )
+    axes.add_collection(trimesh)
+    return trimesh
+
+
+class NodeTriMesh(TriMesh, GridArtist):
+    @classmethod
+    def from_grid(
+        cls,
+        grid: 'conventions.Grid',
+        data_array: xarray.DataArray | None = None,
+        **kwargs: Any,
+    ) -> Self:
+        vertices, triangles, _face_indexes = grid.convention.triangulate()
+        triangulation = Triangulation(vertices[:, 0], vertices[:, 1], triangles)
+
+        if data_array is not None:
+            values = cls.ravel_data_array(grid, data_array)
+            kwargs['array'] = values
+            kwargs['clim'] = numpy.nanmin(values), numpy.nanmax(values)
+
+        return cls(
+            triangulation,
+            grid=grid,
+            **kwargs,
+        )
+
+    def set_data_array(self, data_array: xarray.DataArray | None) -> None:
+        if data_array is None:
+            self.set_array(None)
+        else:
+            self.set_array(self.ravel_data_array(self._grid, data_array))
+
+    @staticmethod
+    def ravel_data_array(grid: 'conventions.Grid', data_array: xarray.DataArray) -> numpy.ndarray:
+        return cast(numpy.ndarray, grid.ravel(data_array))

@@ -18,7 +18,7 @@ from collections.abc import (
     Callable, Hashable, Iterable, Mapping, MutableMapping, Sequence
 )
 from types import TracebackType
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, overload
 
 import cftime
 import netCDF4
@@ -833,10 +833,18 @@ def splice_tuple(t: tuple, index: int, values: Sequence) -> tuple:
     return t[:index] + tuple(values) + t[index:][1:]
 
 
+@overload
+def name_to_data_array(dataset: xarray.Dataset, data_array: tuple[DataArrayOrName, ...]) -> tuple[xarray.DataArray, ...]: ...
+
+
+@overload
+def name_to_data_array(dataset: xarray.Dataset, data_array: DataArrayOrName) -> xarray.DataArray: ...
+
+
 def name_to_data_array(
     dataset: xarray.Dataset,
-    data_array: DataArrayOrName,
-) -> xarray.DataArray:
+    data_array: DataArrayOrName | tuple[DataArrayOrName, ...],
+) -> xarray.DataArray | tuple[xarray.DataArray, ...]:
     """
     Takes either a data array or the name of a data array in the dataset,
     and returns the data array.
@@ -860,6 +868,9 @@ def name_to_data_array(
     xarray.DataArray
         The data array passed in, extracted from the dataset if necessary
     """
+    if isinstance(data_array, tuple):
+        return tuple(name_to_data_array(dataset, d) for d in data_array)
+
     if isinstance(data_array, xarray.DataArray):
         check_data_array_dimensions_match(dataset, data_array)
         return data_array
