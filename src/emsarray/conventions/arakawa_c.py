@@ -8,20 +8,24 @@ See Also
 """
 import enum
 import logging
-import shapely
 from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import Self, cast
+from typing import TYPE_CHECKING, Self, cast
 
 import numpy
 import xarray
 from shapely.geometry.base import BaseGeometry
 from xarray.core.dataset import DatasetCoordinates
 
-from emsarray import masking, utils
-from emsarray.types import Pathish
+from emsarray import masking, plot, utils
+from emsarray.operations import triangulate
+from emsarray.types import DataArrayOrName, Pathish
 
 from ._base import DimensionConvention, DimensionIndex, Specificity
+
+if TYPE_CHECKING:
+    from matplotlib.artist import Artist
+    from matplotlib.axes import Axes
 
 logger = logging.getLogger(__name__)
 
@@ -378,9 +382,11 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
         logger.info("Finding intersecting cells for centre mask")
 
         # A cell is included if it intersects the clip polygon
-        intersecting_indexes = self.strtree.query(clip_geometry, predicate='intersects')
-        face_mask = numpy.full(self.face.shape, fill_value=False)
-        face_mask.ravel()[intersecting_indexes] = True
+        face_grid = self.grids[ArakawaCGridKind.face]
+        intersecting_indexes = face_grid.strtree.query(clip_geometry, predicate='intersects')
+        face_mask = xarray.DataArray(numpy.full(face_grid.size, fill_value=False))
+        face_mask.values[intersecting_indexes] = True
+        face_mask = face_grid.wind(face_mask)
 
         # Expand the mask by one cell around the clipped region, as a buffer
         if buffer > 0:
@@ -394,6 +400,66 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
 
     def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
+
+    def triangulate(self) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+        polygons = self.grids[ArakawaCGridKind.face].geometry
+        vertices = self.grids[ArakawaCGridKind.node].geometry
+        print("Got", len(polygons), "polygons")
+        print("Got", len(vertices), "vertices")
+
+        j_size, i_size = self.node.shape
+        xx, yy = numpy.meshgrid(numpy.arange(i_size - 1), numpy.arange(j_size - 1) * i_size)
+        bottom_left_indexes = (xx + yy).flatten()
+        print(bottom_left_indexes)
+        offsets = numpy.array([0, 1, i_size + 1, i_size])
+        print(offsets)
+        polygon_vertex_indexes = bottom_left_indexes[:, None].repeat(4, axis=1) + offsets
+        print(polygon_vertex_indexes)
+
+        return triangulate.triangulate(
+            vertices,
+            polygons,
+            polygon_vertex_indexes,
+        )
+
+    def make_artist(
+        self,
+        axes: Axes,
+        data_array: DataArrayOrName | tuple[DataArrayOrName, ...],
+    ) -> Artist:
+        data_array = utils.name_to_data_array(self.dataset, data_array)
+
+        if isinstance(data_array, xarray.DataArray):
+            grid_kind = self.get_grid_kind(data_array)
+            if grid_kind is ArakawaCGridKind.face:
+                return plot.make_polygon_scalar_artist(
+                    axes, self, self.grids[grid_kind], data_array)
+
+            if grid_kind is ArakawaCGridKind.node:
+                return plot.make_node_scalar_artist(
+                    axes, self, self.grids[grid_kind], data_array)
+
+        else:
+            grid_kinds = tuple(self.get_grid_kind(d) for d in data_array)
+            if grid_kinds == (ArakawaCGridKind.face, ArakawaCGridKind.face):
+                return plot.make_polygon_vector_artist(
+                    axes, self, self.grids[ArakawaCGridKind.face], data_array)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(
+        self,
+        axes: Axes,
+    ) -> Artist:
+        grid = self.grids[ArakawaCGridKind.face]
+        collection = plot.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
 
 
 def c_mask_from_centres(

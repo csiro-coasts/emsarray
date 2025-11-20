@@ -250,11 +250,11 @@ def test_polygons_no_bounds():
     dataset = make_dataset(
         j_size=10, i_size=20,
         include_bounds=False, corner_size=3)
-    polygons = dataset.ems.polygons
-    print(type(dataset.ems))
+    face_grid = dataset.ems.grids['face']
+    polygons = face_grid.geometry
 
     # Should be one item for every cell in the shape
-    assert len(polygons) == 10 * 20
+    assert face_grid.size == len(polygons) == 10 * 20
 
     assert_geometries_equal(
         polygons[0],
@@ -274,10 +274,11 @@ def test_polygons_with_bounds() -> None:
     dataset = make_dataset(
         j_size=10, i_size=20,
         include_bounds=True, corner_size=3)
-    polygons = dataset.ems.polygons
+    face_grid = dataset.ems.grids['face']
+    polygons = face_grid.geometry
 
     # Should be one item for every cell in the shape
-    assert len(polygons) == 10 * 20
+    assert face_grid.size == len(polygons) == 10 * 20
 
     assert_geometries_equal(
         polygons[0],
@@ -295,7 +296,8 @@ def test_polygons_with_bounds() -> None:
 
 def test_holes() -> None:
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
-    only_polygons = dataset.ems.polygons[dataset.ems.mask]
+    face_grid = dataset.ems.grids['face']
+    only_polygons = face_grid.geometry[face_grid.mask]
 
     # The grid is 10*20 minus a 5x5 box removed from a corner
     assert len(only_polygons) == 10 * 20 - (5 * 5)
@@ -350,7 +352,8 @@ def test_bounds_river(
     plot_geometry(dataset, tmp_path / 'river.png', extent=(-0.05, 0.75, -0.05, 0.75))
 
     convention: ShocSimple = dataset.ems
-    polygons = convention.wind(xarray.DataArray(convention.polygons)).values
+    face_grid = convention.grids['face']
+    polygons = face_grid.wind(xarray.DataArray(face_grid.geometry)).values
     assert numpy.all(polygons[:, 3:] != None)  # noqa: E711
     assert numpy.all(polygons[:3, :3] == None)  # noqa: E711
     assert numpy.all(polygons[-3:, :3] == None)  # noqa: E711
@@ -380,7 +383,7 @@ def test_face_centres() -> None:
         for i in range(dataset.sizes['i']):
             lon = lons[j, i]
             lat = lats[j, i]
-            linear_index = convention.ravel_index((j, i))
+            linear_index = convention.ravel_index((CFGridKind.face, j, i))
             numpy.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
 
@@ -389,7 +392,7 @@ def test_selector_for_index() -> None:
     convention: ShocSimple = dataset.ems
 
     # Shoc simple only has a single face grid
-    index = (3, 4)
+    index = (CFGridKind.face, 3, 4)
     selector = {'j': 3, 'i': 4}
     assert selector == convention.selector_for_index(index)
 
@@ -405,7 +408,7 @@ def test_ravel_index() -> None:
     convention: ShocSimple = dataset.ems
 
     for linear_index, (j, i) in enumerate(itertools.product(range(5), range(7))):
-        index = (j, i)
+        index = (CFGridKind.face, j, i)
         assert convention.ravel_index(index) == linear_index
         assert convention.wind_index(linear_index) == index
         assert convention.wind_index(linear_index, grid_kind=CFGridKind.face) == index
@@ -466,10 +469,11 @@ def test_drop_geometry(datasets: pathlib.Path) -> None:
 def test_values() -> None:
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
     eta = dataset.data_vars["eta"].isel(time=0)
-    values = dataset.ems.ravel(eta)
+    grid = dataset.ems.get_grid(eta)
+    values = grid.ravel(eta)
 
     # There should be one value per cell polygon
-    assert len(values) == len(dataset.ems.polygons)
+    assert grid.size == len(values) == len(grid.geometry)
 
     # The values should be in a specific order
     assert numpy.allclose(values, eta.values.ravel(), equal_nan=True)
@@ -497,9 +501,10 @@ def test_plot_on_figure() -> None:
 def test_make_polygon_memory_usage() -> None:
     j_size, i_size = 1000, 2000
     dataset = make_dataset(j_size=j_size, i_size=i_size)
+    face_grid = dataset.ems.grids['face']
 
     with track_peak_memory_usage() as tracker:
-        assert len(dataset.ems.polygons) == j_size * i_size
+        assert face_grid.size == len(face_grid.geometry) == j_size * i_size
 
     logger.info("current memory usage: %d, peak memory usage: %d", tracker.current, tracker.peak)
 

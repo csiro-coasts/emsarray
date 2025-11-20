@@ -15,20 +15,25 @@ from collections.abc import Hashable, Iterable, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy
 import shapely
 import xarray
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import utils
+from emsarray import utils, plot
 from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )
-from emsarray.types import Bounds, Pathish
+from emsarray.operations import triangulate
+from emsarray.types import Bounds, DataArrayOrName, Pathish
 
 from ._base import DimensionConvention, Specificity
+
+if TYPE_CHECKING:
+    from matplotlib.artists import Artist
+    from matplotlib.axes import Axes
 
 logger = logging.getLogger(__name__)
 
@@ -1219,7 +1224,8 @@ class UGrid(DimensionConvention[UGridKind]):
         """
         # Find all faces that intersect the clip geometry
         logger.info("Making clip mask")
-        face_indexes = self.strtree.query(clip_geometry, predicate='intersects')
+        face_grid = self.grids[UGridKind.face]
+        face_indexes = face_grid.strtree.query(clip_geometry, predicate='intersects')
         logger.debug("Found %d intersecting faces, adding size %d buffer...", len(face_indexes), buffer)
 
         # Include all the neighbours of the intersecting faces
@@ -1399,3 +1405,43 @@ class UGrid(DimensionConvention[UGridKind]):
         dataset = super().drop_geometry()
         dataset.attrs.pop('Conventions', None)
         return dataset
+
+    def make_artist(
+        self,
+        axes: Axes,
+        data_array: DataArrayOrName | tuple[DataArrayOrName, ...],
+    ) -> Artist:
+        data_array = utils.name_to_data_array(self.dataset, data_array)
+        if isinstance(data_array, xarray.DataArray):
+            grid_kind = self.get_grid_kind(data_array)
+            if grid_kind is UGridKind.face:
+                return plot.make_polygon_scalar_artist(axes, self, self.grids[UGridKind.face], data_array)
+
+            if grid_kind is UGridKind.node:
+                return plot.make_node_scalar_artist(axes, self, self.grids[UGridKind.node], data_array)
+        else:
+            grid_kinds = tuple(self.get_grid_kind(d) for d in data_array)
+            if grid_kinds == (UGridKind.face, UGridKind.face):
+                return plot.make_polygon_vector_artist(axes, self, self.grids[UGridKind.face], data_array)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(
+        self,
+        axes: Axes,
+    ) -> Artist:
+        grid = self.grids[UGridKind.face]
+        collection = plot.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
+
+    def triangulate(self) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+        vertices = self.grids[UGridKind.node].geometry
+        polygons = self.grids[UGridKind.face].geometry
+        polygon_vertex_indexes = self.topology.face_node_array
+        return triangulate.triangulate(vertices, polygons, polygon_vertex_indexes)

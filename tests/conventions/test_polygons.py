@@ -6,6 +6,7 @@ import xarray
 from shapely import Polygon
 
 from emsarray.exceptions import InvalidGeometryWarning
+from emsarray.conventions.ugrid import UGridKind
 
 
 def make_ugrid_from_polygons(polygons: list[Polygon]) -> xarray.Dataset:
@@ -104,16 +105,17 @@ def make_ugrid_with_bad_polygons() -> xarray.Dataset:
 
 def test_bad_polygons():
     dataset = make_ugrid_with_bad_polygons()
-    with pytest.warns(InvalidGeometryWarning, match=re.escape('Dropping invalid geometry at indices [1 2]')):
-        dataset.ems.polygons
+    grid = dataset.ems.grids['face']
+    with pytest.warns(InvalidGeometryWarning, match=re.escape('Dropping invalid UGridKind.face geometry at indices [1 2]')):
+        grid.geometry
 
-    assert dataset.ems.polygons[0] is not None
-    assert dataset.ems.polygons[1] is None
-    assert dataset.ems.polygons[2] is None
+    assert grid.geometry[0] is not None
+    assert grid.geometry[1] is None
+    assert grid.geometry[2] is None
 
-    for i, polygon in enumerate(dataset.ems._make_polygons()):
+    for i, polygon in enumerate(dataset.ems._make_geometry(UGridKind.face)):
         assert polygon is not None
         if polygon.is_valid:
-            assert dataset.ems.polygons[i] is not None
+            assert grid.geometry[i] is not None
         else:
-            assert dataset.ems.polygons[i] is None
+            assert grid.geometry[i] is None
