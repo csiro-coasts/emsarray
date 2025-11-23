@@ -42,14 +42,6 @@ class NonIntersectingPoints(ValueError):
     def __post_init__(self) -> None:
         super().__init__(f"{self.points[0].wkt} does not intersect the dataset geometry")
 
-    @property
-    @utils.deprecated(
-        "NonIntersectingPoints.indices has been renamed to NonIntersectingPoints.indexes",
-        DeprecationWarning,
-    )
-    def indices(self) -> numpy.ndarray:
-        return self.indexes
-
 
 def _dataframe_to_dataset(
     dataframe: pandas.DataFrame,

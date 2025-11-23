@@ -2,12 +2,10 @@
 # dependencies that are used for type hints.
 from __future__ import annotations
 
-import importlib.metadata
 from collections.abc import Callable, Iterable
 from typing import Any, Literal
 
 import numpy
-import packaging.version
 import xarray
 
 from emsarray import conventions
@@ -37,12 +35,6 @@ __all___ = ['CAN_PLOT', 'plot_on_figure', 'polygons_to_collection']
 
 
 _requires_plot = requires_extra(extra='plot', import_error=IMPORT_EXCEPTION)
-
-if CAN_PLOT:
-    CARTOPY_VERSION = packaging.version.Version(importlib.metadata.version('cartopy'))
-else:
-    CARTOPY_VERSION = packaging.version.Version('0')
-CARTOPY_0_23 = CARTOPY_VERSION >= packaging.version.Version('0.23')
 
 
 def add_coast(axes: GeoAxes, **kwargs: Any) -> None:
@@ -86,8 +78,6 @@ def add_gridlines(axes: GeoAxes, **kwargs: Any) -> gridliner.Gridliner:
         'draw_labels': ['left', 'bottom'],
         **kwargs,
     }
-    if not CARTOPY_0_23:
-        kwargs['auto_update'] = True
     return axes.gridlines(**kwargs)
 
 
