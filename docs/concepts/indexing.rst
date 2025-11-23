@@ -16,7 +16,7 @@ As each geometry convention may define a different number of grids,
 each convention has a different method of indexing data in these grids.
 These are the *convention native indexes*.
 Each :class:`~.conventions.Convention` implementation
-has its own :data:`~.conventions._base.Index` type.
+has its own :type:`~.conventions.Index` type.
 
 :mod:`CF grid datasets <.conventions.grid>` have only one grid - faces.
 Each face can be indexed using two numbers *x* and *y*.

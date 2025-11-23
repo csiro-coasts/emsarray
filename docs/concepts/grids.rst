@@ -19,7 +19,7 @@ from one face to another.
 These edges represent another grid.
 Some conventions also define variables on face vertices, called *nodes*.
 Nodes represent a third grid.
-This is represented by the :data:`~.conventions._base.GridKind` type variable.
+This is represented by the :type:`~.conventions.GridKind` type variable.
 
 Each of the faces, edges, and nodes define an area, line, or point.
 These areas, lines, or points exist at some geographic location.
