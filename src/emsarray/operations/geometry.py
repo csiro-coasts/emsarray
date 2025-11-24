@@ -7,7 +7,7 @@ import os
 import pathlib
 from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
-from typing import IO, Any, Generic, TypeVar
+from typing import IO, Any
 
 import geojson
 import shapefile
@@ -16,10 +16,8 @@ import xarray
 
 from emsarray.types import Pathish
 
-T = TypeVar('T')
 
-
-class _dumpable_iterator(Generic[T], list):
+class _dumpable_iterator[T](list):
     """
     Wrap an iterator / generator so it can be used in `json.dumps()`.
     No guarantees that it works for anything else!

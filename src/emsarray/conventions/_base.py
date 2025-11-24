@@ -6,7 +6,7 @@ import logging
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy
 import shapely
@@ -38,39 +38,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-#: Some type that can enumerate the different :ref:`grid types <grids>`
-#: present in a dataset.
-#: This can be an :class:`enum.Enum` listing each different kind of grid.
-#:
-#: :data:`Index` values will be included in the feature properties
-#: of exported geometry from :mod:`emsarray.operations.geometry`.
-#: If the index type includes the grid kind,
-#: the grid kind needs to be JSON serializable.
-#: The easiest way to achieve this is to make your GridKind type subclass :class:`str`:
-#:
-#: .. code-block:: python
-#:
-#:     class MyGridKind(str, enum.Enum):
-#:         face = 'face'
-#:         edge = 'edge'
-#:         node = 'node'
-#:
-#: For cases where the convention only supports a single grid,
-#: a singleton enum can be used.
-#:
-#: More esoteric cases involving datasets with a potentially unbounded numbers of grids
-#: can use a type that supports this instead.
-GridKind = TypeVar("GridKind")
-
-#: An :ref:`index <indexing>` to a specific point on a grid in this convention.
-#: For conventions with :ref:`multiple grids <grids>` (e.g. cells, edges, and nodes),
-#: this should be a tuple whos first element is :data:`.GridKind`.
-#: For conventions with a single grid, :data:`.GridKind` is not required.
-Index = TypeVar("Index")
-
-
 @dataclasses.dataclass
-class SpatialIndexItem(Generic[Index]):
+class SpatialIndexItem[Index]:
     """Information about an item in the :class:`~shapely.strtree.STRtree`
     spatial index for a dataset.
 
@@ -124,7 +93,7 @@ class Specificity(enum.IntEnum):
     HIGH = 30
 
 
-class Convention(abc.ABC, Generic[GridKind, Index]):
+class Convention[GridKind, Index](abc.ABC):
     """
     Each supported geometry convention represents data differently.
     The :class:`Convention` class abstracts these differences away,
@@ -1749,7 +1718,7 @@ class Convention(abc.ABC, Generic[GridKind, Index]):
             hash_attributes(hash, data_array.attrs)
 
 
-class DimensionConvention(Convention[GridKind, Index]):
+class DimensionConvention[GridKind, Index](Convention[GridKind, Index]):
     """
     A Convention subclass where different grid kinds
     are always defined on unique sets of dimension.

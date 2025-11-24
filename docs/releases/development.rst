@@ -18,3 +18,9 @@ Next release (in development)
   ``spatial_index()``, ``get_grid_kind_and_size()``,
   and ``NonIntersectingPoints.indices``
   (:pr:`202`).
+* Use `PEP 695 <https://peps.python.org/pep-0695/>`_ style type parameters.
+  This drops the `Index` and `GridKind` type variables
+  which were exported in `emsarray.conventions`,
+  which is a backwards incompatible change
+  but is difficult to add meaningful backwards compatible support
+  (:issue:`109`, :pr:`203`)
