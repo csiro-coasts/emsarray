@@ -23,4 +23,4 @@ Next release (in development)
   which were exported in `emsarray.conventions`,
   which is a backwards incompatible change
   but is difficult to add meaningful backwards compatible support
-  (:issue:`109`, :pr:`203`)
+  (:issue:`109`, :pr:`204`)
