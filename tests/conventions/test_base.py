@@ -38,7 +38,12 @@ class SimpleGridIndex:
 
 class SimpleGrid(Grid[SimpleGridKind, SimpleGridIndex]):
     @cached_property
-    def shape(self) -> tuple[int, ...]:
+    def size(self) -> int:
+        dataset = self.convention.dataset
+        return dataset.sizes['y'] * dataset.sizes['x']
+
+    @cached_property
+    def shape(self) -> tuple[int, int]:
         dataset = self.convention.dataset
         return (dataset.sizes['y'], dataset.sizes['x'])
 

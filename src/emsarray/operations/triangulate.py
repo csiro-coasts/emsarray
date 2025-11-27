@@ -51,6 +51,8 @@ import shapely
 import xarray
 from shapely.geometry import LineString, MultiPoint, Polygon
 
+from emsarray import conventions
+
 type Vertex = tuple[float, float]
 type VertexTriangle = tuple[Vertex, Vertex, Vertex]
 type IndexTriangle = tuple[int, int, int]
@@ -85,14 +87,8 @@ def triangulate_dataset(
         `cell_indexes` is a numpy list of length T.
         Each entry indicates which polygon from the dataset a triangle is a part of.
     """
-    polygon_grid = next(
-        grid for grid in dataset.ems.grids.values()
-        if issubclass(grid.geometry_type, shapely.Polygon))
-    polygons = polygon_grid.geometry
-    vertices = find_unique_vertices(polygons)
-    polygon_vertex_indexes = polygons_to_vertex_indexes(polygons, vertices)
-
-    return triangulate(vertices, polygons, polygon_vertex_indexes)
+    convention = cast(conventions.Convention, dataset.ems)
+    return convention.triangulate()
 
 
 def find_unique_vertices(

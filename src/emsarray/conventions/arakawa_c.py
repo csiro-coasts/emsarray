@@ -10,7 +10,7 @@ import enum
 import logging
 from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Self, cast
+from typing import TYPE_CHECKING, Any, Self, cast
 
 import numpy
 import xarray
@@ -24,8 +24,8 @@ from emsarray.types import DataArrayOrName, Pathish
 from ._base import DimensionConvention, DimensionIndex, Specificity
 
 if TYPE_CHECKING:
-    from matplotlib.artist import Artist
     from matplotlib.axes import Axes
+    from emsarray.plot import GridArtist
 
 logger = logging.getLogger(__name__)
 
@@ -260,7 +260,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
         if grid_kind is ArakawaCGridKind.left:
             return self._make_left_edges()
         if grid_kind is ArakawaCGridKind.back:
-            return self._make_left_edges()
+            return self._make_back_edges()
         if grid_kind is ArakawaCGridKind.node:
             return self._make_nodes()
         raise ValueError(f"Invalid grid kind {grid_kind}")
@@ -425,9 +425,10 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
     def make_artist(
         self,
         axes: Axes,
-        data_array: DataArrayOrName | tuple[DataArrayOrName, ...],
-    ) -> Artist:
-        data_array = utils.name_to_data_array(self.dataset, data_array)
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> GridArtist:
+        data_array = utils.name_to_data_array(self.dataset, variable)
 
         if isinstance(data_array, xarray.DataArray):
             grid_kind = self.get_grid_kind(data_array)
@@ -450,7 +451,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
     def plot_geometry(
         self,
         axes: Axes,
-    ) -> Artist:
+    ) -> GridArtist:
         grid = self.grids[ArakawaCGridKind.face]
         collection = plot.PolygonScalarCollection.from_grid(
             grid,
