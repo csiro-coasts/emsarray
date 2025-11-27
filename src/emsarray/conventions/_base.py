@@ -271,7 +271,7 @@ class Grid[GridKind, Index](abc.ABC):
         pass
 
     def __repr__(self) -> str:
-        return '<Grid: {self.grid_kind} {self.shape}>'
+        return f'<Grid: {self.grid_kind} {self.size}>'
 
 
 class Convention[GridKind, Index](abc.ABC):

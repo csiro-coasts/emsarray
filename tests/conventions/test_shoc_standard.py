@@ -12,6 +12,7 @@ from matplotlib.figure import Figure
 from numpy.testing import assert_equal
 from shapely.geometry.polygon import Polygon, orient
 
+from emsarray import plot
 from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.arakawa_c import (
     ArakawaCGridKind, c_mask_from_centres
@@ -547,15 +548,77 @@ def test_values():
 
 
 @pytest.mark.matplotlib
-def test_plot_on_figure():
+def test_plot_face_grid(tmp_path) -> None:
     # Not much to test here, mostly that it doesn't throw an error
-    dataset = make_dataset(j_size=10, i_size=20)
-    surface_temp = dataset.data_vars["temp"].isel(k_centre=-1, record=0)
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+    dataset = dataset.isel(record=0)
 
     figure = Figure()
-    dataset.ems.plot_on_figure(figure, surface_temp)
+    dataset.ems.plot_on_figure(figure, 'eta')
 
+    # One for the plot, one for the colorbar
     assert len(figure.axes) == 2
+    axes = figure.axes[0]
+    assert any(
+        isinstance(artist, plot.PolygonScalarCollection)
+        for artist in axes.get_children()
+    )
+
+    figure.savefig(tmp_path / 'face_grid.png')
+
+
+@pytest.mark.matplotlib
+def test_plot_face_grid_pair(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+    latest_surface = dataset.isel(k_centre=-1, record=-1)
+
+    figure = Figure()
+    # Plotting these two as the components of a vector makes zero sense,
+    # however they are defined on the correct grid so it should technically work...
+    dataset.ems.plot_on_figure(figure, (latest_surface['temp'], latest_surface['eta']))
+
+    # Only one axes this time, vectors don't get a colorbar
+    assert len(figure.axes) == 1
+    axes = figure.axes[0]
+    assert any(
+        isinstance(artist, plot.PolygonVectorQuiver)
+        for artist in axes.get_children()
+    )
+
+    figure.savefig(tmp_path / 'face_grid_pair.png')
+
+
+@pytest.mark.matplotlib
+def test_plot_node_grid(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+
+    figure = Figure()
+    dataset.ems.plot_on_figure(figure, dataset['flag'].isel(record=0, k_centre=-1))
+
+    # One for the plot, one for the colorbar
+    assert len(figure.axes) == 2
+    axes = figure.axes[0]
+    assert any(
+        isinstance(artist, plot.NodeTriMesh)
+        for artist in axes.get_children()
+    )
+
+    figure.savefig(tmp_path / 'node_grid.png')
+
+
+@pytest.mark.matplotlib
+def test_plot_geometry(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+
+    figure = Figure()
+    dataset.ems.plot_on_figure(figure)
+
+    assert len(figure.axes) == 1
+
+    figure.savefig(tmp_path / 'geometry.png')
 
 
 def test_make_clip_mask():

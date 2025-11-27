@@ -13,6 +13,7 @@ from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import Polygon, box
 
+from emsarray import plot
 from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.ugrid import (
     Mesh2DTopology, NoEdgeDimensionException, UGrid, UGridKind,
@@ -246,11 +247,29 @@ def make_dataset(
             "long_name": "Temperature",
         },
     )
+    u = xarray.DataArray(
+        data=numpy.random.normal(0, 1, (time_size, depth_size, cell_size)),
+        dims=[time_dimension, depth_dimension, face_dimension],
+        name="u",
+        attrs={
+            "units": "meter per second",
+            "standard_name": "eastward_sea_water_velocity",
+        },
+    )
+    v = xarray.DataArray(
+        data=numpy.random.normal(0, 1, (time_size, depth_size, cell_size)),
+        dims=[time_dimension, depth_dimension, face_dimension],
+        name="v",
+        attrs={
+            "units": "meter per second",
+            "standard_name": "northward_sea_water_velocity",
+        },
+    )
 
     dataset = xarray.Dataset(
         data_vars={var.name: var for var in [
             mesh, face_node_connectivity, node_x, node_y,
-            t, z, botz, eta, temp,
+            t, z, botz, eta, temp, u, v,
         ]},
         attrs={
             'title': "COMPAS defalt version",
@@ -636,7 +655,7 @@ def test_values():
 
 
 @pytest.mark.matplotlib
-def test_plot_on_figure():
+def test_plot_face_grid(tmp_path) -> None:
     # Not much to test here, mostly that it doesn't throw an error
     dataset = make_dataset(width=3)
     surface_temp = dataset.data_vars["temp"].isel(Mesh2_layers=-1, record=0)
@@ -644,7 +663,67 @@ def test_plot_on_figure():
     figure = Figure()
     dataset.ems.plot_on_figure(figure, surface_temp)
 
+    # One for the plot, one for the colorbar
     assert len(figure.axes) == 2
+    axes = figure.axes[0]
+    assert any(
+        isinstance(artist, plot.PolygonScalarCollection)
+        for artist in axes.get_children()
+    )
+
+    figure.savefig(tmp_path / 'face_grid.png')
+
+
+@pytest.mark.matplotlib
+def test_plot_face_grid_pair(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(width=3)
+    latest_surface = dataset.isel(Mesh2_layers=-1, record=-1)
+
+    figure = Figure()
+    dataset.ems.plot_on_figure(figure, (latest_surface['u'], latest_surface['v']))
+
+    # Only one axes this time, vectors don't get a colorbar
+    assert len(figure.axes) == 1
+    axes = figure.axes[0]
+    assert any(
+        isinstance(artist, plot.PolygonVectorQuiver)
+        for artist in axes.get_children()
+    )
+
+    figure.savefig(tmp_path / 'face_grid_pair.png')
+
+
+@pytest.mark.matplotlib
+def test_plot_node_grid(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(width=3)
+
+    figure = Figure()
+    dataset.ems.plot_on_figure(figure, 'Mesh2_node_x')
+
+    # One for the plot, one for the colorbar
+    assert len(figure.axes) == 2
+    axes = figure.axes[0]
+    assert any(
+        isinstance(artist, plot.NodeTriMesh)
+        for artist in axes.get_children()
+    )
+
+    figure.savefig(tmp_path / 'node_grid.png')
+
+
+@pytest.mark.matplotlib
+def test_plot_geometry(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(width=3)
+
+    figure = Figure()
+    dataset.ems.plot_on_figure(figure)
+
+    assert len(figure.axes) == 1
+
+    figure.savefig(tmp_path / 'geometry.png')
 
 
 @pytest.mark.parametrize(

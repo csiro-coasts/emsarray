@@ -677,6 +677,8 @@ def make_node_scalar_artist(
     convention: 'conventions.Convention',
     grid: 'conventions.Grid',
     data_array: xarray.DataArray | None = None,
+    *,
+    add_colorbar: bool | None = None,
     **kwargs: Any,
 ) -> NodeTriMesh:
     trimesh = NodeTriMesh.from_grid(
@@ -685,6 +687,15 @@ def make_node_scalar_artist(
         **kwargs,
     )
     axes.add_collection(trimesh)
+
+    if add_colorbar is None:
+        add_colorbar = data_array is not None
+
+    if add_colorbar:
+        if data_array is not None:
+            units = data_array.attrs.get('units')
+        axes.figure.colorbar(trimesh, ax=axes, location='right', label=units)
+
     return trimesh
 
 
@@ -718,4 +729,13 @@ class NodeTriMesh(TriMesh, GridArtist):
 
     @staticmethod
     def ravel_data_array(grid: 'conventions.Grid', data_array: xarray.DataArray) -> numpy.ndarray:
-        return cast(numpy.ndarray, grid.ravel(data_array))
+        flattened = grid.ravel(data_array)
+
+        if len(flattened.dims) > 1:
+            extra_dimensions = ", ".join(map(str, set(data_array.dims) & set(flattened.dims)))
+            raise ValueError(
+                "Node data array has too many dimensions - did you forget to "
+                "select a single timestep or a single depth layer? "
+                f"Extra dimensions: {extra_dimensions}.")
+
+        return cast(numpy.ndarray, flattened.values)

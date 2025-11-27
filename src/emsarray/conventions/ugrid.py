@@ -32,7 +32,6 @@ from emsarray.types import Bounds, DataArrayOrName, Pathish
 from ._base import DimensionConvention, Specificity
 
 if TYPE_CHECKING:
-    from matplotlib.artists import Artist
     from matplotlib.axes import Axes
 
 logger = logging.getLogger(__name__)
@@ -1409,9 +1408,11 @@ class UGrid(DimensionConvention[UGridKind]):
     def make_artist(
         self,
         axes: Axes,
-        data_array: DataArrayOrName | tuple[DataArrayOrName, ...],
-    ) -> Artist:
-        data_array = utils.name_to_data_array(self.dataset, data_array)
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> 'plot.GridArtist':
+        data_array = utils.name_to_data_array(self.dataset, variable)
+
         if isinstance(data_array, xarray.DataArray):
             grid_kind = self.get_grid_kind(data_array)
             if grid_kind is UGridKind.face:
@@ -1419,6 +1420,7 @@ class UGrid(DimensionConvention[UGridKind]):
 
             if grid_kind is UGridKind.node:
                 return plot.make_node_scalar_artist(axes, self, self.grids[UGridKind.node], data_array)
+
         else:
             grid_kinds = tuple(self.get_grid_kind(d) for d in data_array)
             if grid_kinds == (UGridKind.face, UGridKind.face):
@@ -1429,7 +1431,7 @@ class UGrid(DimensionConvention[UGridKind]):
     def plot_geometry(
         self,
         axes: Axes,
-    ) -> Artist:
+    ) -> 'plot.GridArtist':
         grid = self.grids[UGridKind.face]
         collection = plot.PolygonScalarCollection.from_grid(
             grid,
