@@ -6,12 +6,13 @@ import pathlib
 import numpy
 import pandas
 import pytest
+import shapely
 import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_equal
 from shapely.geometry.polygon import Polygon, orient
 
-from emsarray.conventions import get_dataset_convention
+from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.arakawa_c import (
     ArakawaCGridKind, c_mask_from_centres
 )
@@ -229,15 +230,38 @@ def test_varnames():
     assert dataset.ems.time_coordinate.name == 't'
 
 
-def test_polygons():
-    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
-    face_grid = dataset.ems.grids['face']
+def test_grids():
+    dataset = make_dataset(j_size=10, i_size=20)
+    grids = dataset.ems.grids
+    assert grids.keys() == {
+        ArakawaCGridKind.face,
+        ArakawaCGridKind.back,
+        ArakawaCGridKind.left,
+        ArakawaCGridKind.node,
+    }
+
+
+def test_get_grid() -> None:
+    dataset = make_dataset(j_size=10, i_size=20)
+    convention: ShocStandard = dataset.ems
+
+    assert convention.get_grid(dataset['temp']) is convention.grids['face']
+    assert convention.get_grid(dataset['u1']) is convention.grids['left']
+    assert convention.get_grid(dataset['u2']) is convention.grids['back']
+    assert convention.get_grid(dataset['x_grid']) is convention.grids['node']
+
+
+def test_face_grid() -> None:
+    j_size, i_size = 10, 20
+    dataset = make_dataset(j_size=j_size, i_size=i_size)
+    face_grid: DimensionGrid = dataset.ems.grids['face']
+    assert face_grid.shape == (j_size, i_size)
+    assert face_grid.size == j_size * i_size
+    assert isinstance(face_grid.geometry, numpy.ndarray)
+    assert face_grid.geometry_type is shapely.Polygon
 
     polygons = face_grid.geometry
-    # Should be one item for every cell in the shape
-    assert face_grid.size == polygons.size == 10 * 20
-
-    polygon_grid = polygons.reshape((10, 20))
+    polygon_grid = face_grid.wind(xarray.DataArray(polygons)).values
 
     # Check some specific polygons
     actual = polygon_grid[1, 1]
@@ -249,6 +273,60 @@ def test_polygons():
     actual = polygon_grid[-2, -6]
     expected = orient(Polygon([(2.2, 1.4), (2.3, 1.5), (2.4, 1.4), (2.3, 1.3), (2.2, 1.4)]))
     assert actual.equals_exact(expected, 1e-6)
+
+
+def test_left_grid() -> None:
+    j_size, i_size = 10, 20
+    dataset = make_dataset(j_size=j_size, i_size=i_size)
+    left_grid: DimensionGrid = dataset.ems.grids['left']
+    assert left_grid.shape == (j_size, i_size + 1)
+    assert left_grid.size == j_size * (i_size + 1)
+    assert isinstance(left_grid.geometry, numpy.ndarray)
+    assert left_grid.geometry_type is shapely.LineString
+
+    left_edges = left_grid.geometry
+    left_edges_grid = left_grid.wind(xarray.DataArray(left_edges)).values
+
+    # Check some specific polygons
+    actual = left_edges_grid[1, 1]
+    expected = shapely.LineString([(0.2, 2.0), (0.3, 2.1)])
+    assert actual.equals_exact(expected, 1e-6)
+
+    actual = left_edges_grid[-2, -6]
+    expected = shapely.LineString([(2.3, 1.3), (2.4, 1.4)])
+    assert actual.equals_exact(expected, 1e-6)
+
+
+def test_back_grid() -> None:
+    j_size, i_size = 11, 7
+    dataset = make_dataset(j_size=j_size, i_size=i_size)
+    back_grid: DimensionGrid = dataset.ems.grids['back']
+    assert back_grid.shape == (j_size + 1, i_size)
+    assert back_grid.size == (j_size + 1) * i_size
+    assert isinstance(back_grid.geometry, numpy.ndarray)
+    assert back_grid.geometry_type is shapely.LineString
+
+    back_edges = back_grid.geometry
+    back_edges_grid = back_grid.wind(xarray.DataArray(back_edges)).values
+
+    # Check some specific polygons
+    actual = back_edges_grid[1, 1]
+    expected = shapely.LineString([(0.2, 0.7), (0.3, 0.6)])
+    assert actual.equals_exact(expected, 1e-6)
+
+    actual = back_edges_grid[-2, -6]
+    expected = shapely.LineString([(1.1, 1.6), (1.2, 1.5)])
+    assert actual.equals_exact(expected, 1e-6)
+
+
+def test_node_grid() -> None:
+    j_size, i_size = 11, 7
+    dataset = make_dataset(j_size=j_size, i_size=i_size)
+    node_grid: DimensionGrid = dataset.ems.grids['node']
+    assert node_grid.shape == (j_size + 1, i_size + 1)
+    assert node_grid.size == (j_size + 1) * (i_size + 1)
+    assert isinstance(node_grid.geometry, numpy.ndarray)
+    assert node_grid.geometry_type is shapely.Point
 
 
 def test_face_centres():

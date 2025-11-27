@@ -5,13 +5,14 @@ import pathlib
 import numpy
 import pandas
 import pytest
+import shapely
 import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import Polygon
 from shapely.testing import assert_geometries_equal
 
-from emsarray.conventions import get_dataset_convention
+from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.grid import (
     CFGrid1D, CFGrid1DTopology, CFGridKind, CFGridTopology
 )
@@ -245,6 +246,22 @@ def test_varnames():
     dataset = make_dataset(width=11, height=7, depth=5)
     assert dataset.ems.depth_coordinate.name == 'depth'
     assert dataset.ems.time_coordinate.name == 'time'
+
+
+def test_grids():
+    dataset = make_dataset(width=11, height=7, depth=5)
+    grids = dataset.ems.grids
+    assert grids.keys() == {CFGridKind.face}
+
+
+def test_face_grid() -> None:
+    width, height = 11, 7
+    dataset = make_dataset(width=width, height=height, depth=5)
+    face_grid: DimensionGrid = dataset.ems.grids['face']
+    assert face_grid.shape == (height, width)
+    assert face_grid.size == width * height
+    assert isinstance(face_grid.geometry, numpy.ndarray)
+    assert face_grid.geometry_type is shapely.Polygon
 
 
 def test_polygons_no_bounds():
@@ -500,6 +517,7 @@ def test_topology():
         0.1 * numpy.array([[i - 0.5, i + 0.5] for i in range(11)]))
 
 
+@pytest.mark.memory_usage
 def test_make_polygon_memory_usage() -> None:
     width, height = 2000, 1000
     dataset = make_dataset(width=width, height=height)

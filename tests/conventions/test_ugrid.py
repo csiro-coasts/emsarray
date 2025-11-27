@@ -7,12 +7,13 @@ import geojson
 import numpy
 import pandas
 import pytest
+import shapely
 import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import Polygon, box
 
-from emsarray.conventions import get_dataset_convention
+from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.ugrid import (
     Mesh2DTopology, NoEdgeDimensionException, UGrid, UGridKind,
     _get_start_index, buffer_faces, mask_from_face_indexes
@@ -358,9 +359,35 @@ def test_varnames():
     assert dataset.ems.time_coordinate.name == 't'
 
 
-def test_polygons():
+def test_grids_with_edges():
+    dataset = make_dataset(width=3, make_edges=True)
+    assert dataset.ems.grids.keys() \
+        == {UGridKind.face, UGridKind.edge, UGridKind.node}
+
+
+def test_grids_without_edges():
+    dataset = make_dataset(width=3, make_edges=False)
+    assert dataset.ems.grids.keys() \
+        == {UGridKind.face, UGridKind.node}
+
+
+def test_get_grid() -> None:
+    dataset = make_dataset(width=3, make_edges=True)
+    convention: UGrid = dataset.ems
+
+    assert convention.get_grid(dataset['temp']) is convention.grids[UGridKind.face]
+    assert convention.get_grid(dataset['u1']) is convention.grids[UGridKind.edge]
+    assert convention.get_grid(dataset['Mesh2_node_x']) is convention.grids[UGridKind.node]
+
+
+def test_face_grid() -> None:
     dataset = make_dataset(width=3)
-    face_grid = dataset.ems.grids['face']
+    face_grid: DimensionGrid = dataset.ems.grids['face']
+    assert face_grid.shape == (dataset.sizes['nMesh2_face'],)
+    assert face_grid.size == dataset.sizes['nMesh2_face']
+    assert isinstance(face_grid.geometry, numpy.ndarray)
+    assert face_grid.geometry_type is shapely.Polygon
+
     polygons = face_grid.geometry
 
     # Should be one item for every face
@@ -382,6 +409,40 @@ def test_polygons():
     assert square.equals_exact(Polygon([
         (node_x[-6], node_y[-6]), (node_x[-2], node_y[-2]), (node_x[-1], node_y[-1]), (node_x[-5], node_y[-5])
     ]), 1e-6)
+
+
+def test_edge_grid() -> None:
+    dataset = make_dataset(width=3, make_edges=True)
+    edge_grid: DimensionGrid = dataset.ems.grids['edge']
+    assert edge_grid.shape == (dataset.sizes['nMesh2_edge'],)
+    assert edge_grid.size == dataset.sizes['nMesh2_edge']
+    assert isinstance(edge_grid.geometry, numpy.ndarray)
+    assert edge_grid.geometry_type is shapely.LineString
+
+    for edge_index in range(edge_grid.size):
+        edge = edge_grid.geometry[edge_index]
+        node_indexes = dataset.ems.topology.edge_node_array[edge_index]
+        node_xs = dataset.ems.topology.node_x[node_indexes]
+        node_ys = dataset.ems.topology.node_y[node_indexes]
+
+        assert edge.equals_exact(shapely.LineString(numpy.c_[node_xs, node_ys]))
+
+
+
+def test_node_grid() -> None:
+    dataset = make_dataset(width=3)
+    node_grid: DimensionGrid = dataset.ems.grids['node']
+    assert node_grid.shape == (dataset.sizes['nMesh2_node'],)
+    assert node_grid.size == dataset.sizes['nMesh2_node']
+    assert isinstance(node_grid.geometry, numpy.ndarray)
+    assert node_grid.geometry_type is shapely.Point
+
+    for node_index in range(node_grid.size):
+        node = node_grid.geometry[node_index]
+        node_x = dataset.ems.topology.node_x[node_index]
+        node_y = dataset.ems.topology.node_y[node_index]
+
+        assert node.equals_exact(shapely.Point([node_x, node_y]))
 
 
 def test_face_centres_from_variables():

@@ -13,13 +13,14 @@ import pathlib
 import numpy
 import pandas
 import pytest
+import shapely
 import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose
 from shapely.geometry import Polygon
 from shapely.testing import assert_geometries_equal
 
-from emsarray.conventions import get_dataset_convention
+from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.grid import CFGrid2DTopology, CFGridKind
 from emsarray.conventions.shoc import ShocSimple
 from emsarray.exceptions import NoSuchCoordinateError
@@ -244,6 +245,22 @@ def test_manual_coordinate_names():
     assert topology.longitude_name == 'e'
     xarray.testing.assert_equal(topology.latitude, dataset['n'])
     xarray.testing.assert_equal(topology.longitude, dataset['e'])
+
+
+def test_grids():
+    dataset = make_dataset(j_size=10, i_size=20)
+    grids = dataset.ems.grids
+    assert grids.keys() == {CFGridKind.face}
+
+
+def test_face_grid() -> None:
+    width, height = 11, 7
+    dataset = make_dataset(j_size=height, i_size=width)
+    face_grid: DimensionGrid = dataset.ems.grids['face']
+    assert face_grid.shape == (height, width)
+    assert face_grid.size == width * height
+    assert isinstance(face_grid.geometry, numpy.ndarray)
+    assert face_grid.geometry_type is shapely.Polygon
 
 
 def test_polygons_no_bounds():
@@ -499,6 +516,7 @@ def test_plot_on_figure() -> None:
     assert len(figure.axes) == 2
 
 
+@pytest.mark.memory_usage
 def test_make_polygon_memory_usage() -> None:
     j_size, i_size = 1000, 2000
     dataset = make_dataset(j_size=j_size, i_size=i_size)
