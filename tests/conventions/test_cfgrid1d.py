@@ -499,6 +499,7 @@ def test_topology():
         0.1 * numpy.array([[i - 0.5, i + 0.5] for i in range(11)]))
 
 
+@pytest.mark.memory_usage
 def test_make_polygon_memory_usage() -> None:
     width, height = 2000, 1000
     dataset = make_dataset(width=width, height=height)
