@@ -494,6 +494,7 @@ def test_plot_on_figure() -> None:
     assert len(figure.axes) == 2
 
 
+@pytest.mark.memory_usage
 def test_make_polygon_memory_usage() -> None:
     j_size, i_size = 1000, 2000
     dataset = make_dataset(j_size=j_size, i_size=i_size)
