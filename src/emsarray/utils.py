@@ -834,11 +834,13 @@ def splice_tuple(t: tuple, index: int, values: Sequence) -> tuple:
 
 
 @overload
-def name_to_data_array(dataset: xarray.Dataset, data_array: tuple[DataArrayOrName, ...]) -> tuple[xarray.DataArray, ...]: ...
+def name_to_data_array(dataset: xarray.Dataset, data_array: tuple[DataArrayOrName, ...]) -> tuple[xarray.DataArray, ...]:
+    ...
 
 
 @overload
-def name_to_data_array(dataset: xarray.Dataset, data_array: DataArrayOrName) -> xarray.DataArray: ...
+def name_to_data_array(dataset: xarray.Dataset, data_array: DataArrayOrName) -> xarray.DataArray:
+    ...
 
 
 def name_to_data_array(

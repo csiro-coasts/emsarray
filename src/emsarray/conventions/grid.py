@@ -17,7 +17,7 @@ import xarray
 from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import masking, utils, plot
+from emsarray import masking, plot, utils
 from emsarray.exceptions import ConventionViolationWarning
 from emsarray.types import Bounds, DataArrayOrName, Pathish
 
@@ -25,7 +25,6 @@ from ._base import DimensionConvention, Specificity
 
 if TYPE_CHECKING:
     # Import these optional dependencies only during type checking
-    from matplotlib.artist import Artist
     from matplotlib.axes import Axes
 
 
@@ -349,7 +348,6 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind]):
         )
         axes.add_collection(collection)
         return collection
-
 
 
 # 1D coordinate grids

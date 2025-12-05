@@ -10,7 +10,7 @@ import enum
 import logging
 from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Self, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy
 import shapely
@@ -26,6 +26,7 @@ from ._base import DimensionConvention, Specificity
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
+
     from emsarray.plot import GridArtist
 
 logger = logging.getLogger(__name__)

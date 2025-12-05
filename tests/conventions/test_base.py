@@ -1,16 +1,15 @@
 import dataclasses
 import enum
 import pathlib
-from typing import Any
 from collections.abc import Hashable
 from functools import cached_property
+from typing import Any
 
 import numpy
 import pandas
 import pytest
 import xarray
 from matplotlib import pyplot
-from matplotlib.artist import Artist
 from matplotlib.axes import Axes
 from shapely.geometry import LineString, Point, Polygon, box
 from shapely.geometry.base import BaseGeometry
@@ -183,7 +182,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
 
         raise ValueError("I don't know how to plot this")
 
-    def plot_geometry(self, axes: Axes) -> GridArtist:
+    def plot_geometry(self, axes: Axes) -> plot.GridArtist:
         grid = self.grids[SimpleGridKind.face]
         collection = plot.PolygonScalarCollection.from_grid(
             grid,

@@ -22,7 +22,7 @@ import shapely
 import xarray
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import utils, plot
+from emsarray import plot, utils
 from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )

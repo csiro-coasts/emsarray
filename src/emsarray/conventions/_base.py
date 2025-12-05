@@ -17,14 +17,11 @@ from shapely.geometry.base import BaseGeometry
 from shapely.strtree import STRtree
 
 from emsarray import plot, utils
-from emsarray.exceptions import InvalidPolygonWarning, NoSuchCoordinateError
+from emsarray.exceptions import InvalidGeometryWarning, NoSuchCoordinateError
 from emsarray.operations import depth, point_extraction, triangulate
 from emsarray.operations.cache import hash_attributes, hash_int, hash_string
 from emsarray.plot import (
-    _requires_plot,
-    animate_on_figure,
-    make_plot_title,
-    plot_on_figure,
+    _requires_plot, animate_on_figure, make_plot_title, plot_on_figure
 )
 from emsarray.state import State
 from emsarray.types import Bounds, DataArrayOrName, Pathish
@@ -32,8 +29,8 @@ from emsarray.types import Bounds, DataArrayOrName, Pathish
 if TYPE_CHECKING:
     # Import these optional dependencies only during type checking
     from cartopy.crs import CRS
-    from matplotlib.axes import Axes
     from matplotlib.animation import FuncAnimation
+    from matplotlib.axes import Axes
     from matplotlib.figure import Figure
 
     from emsarray.plot import GridArtist
@@ -2031,7 +2028,7 @@ class DimensionConvention[GridKind](Convention[GridKind, DimensionIndex[GridKind
             grid_kind: DimensionGrid(
                 convention=self,
                 grid_kind=grid_kind,
-                dimensions = self.grid_dimensions[grid_kind],
+                dimensions=self.grid_dimensions[grid_kind],
             )
             for grid_kind in self.grid_kinds
         }
