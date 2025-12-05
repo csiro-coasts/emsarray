@@ -13,7 +13,9 @@ In other cases, you might want to override some default parameters.
 Convention instances can be instantiated directly in this case.
 Refer to each Convention implementation for details.
 """
-from ._base import Convention, DimensionConvention, Specificity
+from ._base import (
+    Convention, DimensionConvention, DimensionGrid, Grid, Specificity
+)
 from ._registry import get_dataset_convention, register_convention
 from ._utils import open_dataset
 from .arakawa_c import ArakawaC
@@ -23,6 +25,7 @@ from .ugrid import UGrid
 
 __all__ = [
     "Convention", "DimensionConvention",
+    "Grid", "DimensionGrid",
     "Specificity",
     "get_dataset_convention", "register_convention",
     "open_dataset",

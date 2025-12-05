@@ -782,6 +782,43 @@ def make_polygons_with_holes(
     return out
 
 
+def make_linestrings_with_holes(
+    points: numpy.ndarray,
+    *,
+    out: numpy.ndarray | None = None,
+) -> numpy.ndarray:
+    if out is None:
+        out = numpy.full(points.shape[0], None, dtype=object)
+
+    complete_row_indexes = numpy.flatnonzero(numpy.isfinite(points).all(axis=(1, 2)))
+    complete_points = points[complete_row_indexes].reshape((complete_row_indexes.size * points.shape[1], 2))
+
+    shapely.linestrings(
+        complete_points,
+        indices=complete_row_indexes.repeat(points.shape[1]),
+        out=out)
+
+    return out
+
+
+def make_points_with_holes(
+    points: numpy.ndarray,
+    *,
+    out: numpy.ndarray | None = None,
+) -> numpy.ndarray:
+    if out is None:
+        out = numpy.full(points.shape[0], None, dtype=object)
+
+    complete_row_indexes = numpy.flatnonzero(numpy.isfinite(points).all(axis=1))
+
+    shapely.points(
+        points[complete_row_indexes],
+        indices=complete_row_indexes,
+        out=out)
+
+    return out
+
+
 def deprecated(message: str, category: type[Warning] = DeprecationWarning) -> Callable:
     def decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
@@ -816,20 +853,21 @@ def name_to_data_array(
     dataset : xarray.Dataset
         The dataset to check data arrays against
     data_array : Hashable or xarray.DataArray
-        A data array or the name of a data array in the dataset
+        A data array or the name of a data array in the dataset.
 
     Returns
     -------
     xarray.DataArray
-        The data array passed in, extracted from the dataset if necessary
+        The data array passed in, extracted from the dataset if necessary.
     """
     if isinstance(data_array, xarray.DataArray):
         check_data_array_dimensions_match(dataset, data_array)
         return data_array
+
     else:
         if data_array not in dataset.variables:
             raise ValueError(f"Data array {data_array!r} is not in the dataset")
-        return dataset[data_array]
+        return dataset[cast(Hashable, data_array)]
 
 
 def data_array_to_name(dataset: xarray.Dataset, data_array: DataArrayOrName) -> Hashable:

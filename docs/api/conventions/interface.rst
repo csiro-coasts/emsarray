@@ -21,8 +21,12 @@ the :class:`~emsarray.conventions.Convention` interface.
 .. autoclass:: emsarray.conventions.DimensionConvention
 
    .. autoattribute:: grid_dimensions
-   .. automethod:: unpack_index
-   .. automethod:: pack_index
+
+.. autoclass:: emsarray.conventions.Grid
+   :members:
+
+.. autoclass:: emsarray.conventions.DimensionGrid
+   :members: dimensions
 
 .. type:: GridKind
 

@@ -104,22 +104,28 @@ def extract_points(
         point_dimension = utils.find_unused_dimension(dataset, 'point')
 
     # Find the indexer for each given point
-    indexes = numpy.array([convention.get_index_for_point(point) for point in points])
+    grid = convention.default_grid
+    indexes: list[tuple[int, int]] = []
+    missing = []
+    for point_index, point in enumerate(points):
+        hits = grid.strtree.query(point, 'intersects')
+        if len(hits) > 0:
+            indexes.append((point_index, grid.wind_index(hits[0])))
+        else:
+            missing.append(point_index)
 
-    if missing_points == 'error':
-        out_of_bounds = numpy.flatnonzero(numpy.equal(indexes, None))  # type: ignore
-        if len(out_of_bounds):
-            raise NonIntersectingPoints(
-                indexes=out_of_bounds,
-                points=[points[i] for i in out_of_bounds])
+    if missing_points == 'error' and len(missing) > 0:
+        raise NonIntersectingPoints(
+            indexes=numpy.array(missing),
+            points=[points[i] for i in missing])
 
     point_ds = convention.select_indexes(
-        [index.index for index in indexes if index is not None],
+        [index[1] for index in indexes],
         index_dimension=point_dimension,
         drop_geometry=True)
 
     # Number the points
-    point_indexes = [i for i, index in enumerate(indexes) if index is not None]
+    point_indexes = [i for i, index in indexes]
     point_ds = point_ds.assign_coords({
         point_dimension: ([point_dimension], point_indexes),
     })
