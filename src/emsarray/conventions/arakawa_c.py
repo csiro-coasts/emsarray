@@ -10,7 +10,7 @@ import enum
 import logging
 from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import cast
+from typing import TYPE_CHECKING, Any, Self, cast
 
 import numpy
 import shapely
@@ -18,11 +18,15 @@ import xarray
 from shapely.geometry.base import BaseGeometry
 from xarray.core.dataset import DatasetCoordinates
 
-from emsarray import masking, utils
+from emsarray import masking, plot, utils
 from emsarray.operations import triangulate
-from emsarray.types import Pathish
+from emsarray.types import DataArrayOrName, Pathish
 
 from ._base import DimensionConvention, Specificity
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from emsarray.plot import GridArtist
 
 logger = logging.getLogger(__name__)
 
@@ -426,6 +430,46 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
             polygons,
             polygon_vertex_indexes,
         )
+
+    def make_artist(
+        self,
+        axes: Axes,
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> GridArtist:
+        data_array = utils.name_to_data_array(self.dataset, variable)
+
+        if isinstance(data_array, xarray.DataArray):
+            grid_kind = self.get_grid_kind(data_array)
+            if grid_kind is ArakawaCGridKind.face:
+                return plot.make_polygon_scalar_collection(
+                    axes, self.grids[grid_kind], data_array, **kwargs)
+
+            if grid_kind is ArakawaCGridKind.node:
+                return plot.make_node_scalar_artist(
+                    axes, self.grids[grid_kind], data_array, **kwargs)
+
+        else:
+            grid_kinds = tuple(self.get_grid_kind(d) for d in data_array)
+            if grid_kinds == (ArakawaCGridKind.face, ArakawaCGridKind.face):
+                return plot.make_polygon_vector_quiver(
+                    axes, self.grids[ArakawaCGridKind.face], data_array, **kwargs)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(
+        self,
+        axes: Axes,
+    ) -> GridArtist:
+        grid = self.grids[ArakawaCGridKind.face]
+        collection = plot.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
 
 
 def c_mask_from_centres(

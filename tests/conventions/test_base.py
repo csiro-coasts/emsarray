@@ -1,6 +1,7 @@
 import dataclasses
 import enum
 import pathlib
+from typing import Any
 from collections.abc import Hashable
 from functools import cached_property
 
@@ -9,10 +10,12 @@ import pandas
 import pytest
 import xarray
 from matplotlib import pyplot
+from matplotlib.artist import Artist
+from matplotlib.axes import Axes
 from shapely.geometry import LineString, Point, Polygon, box
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import masking, utils
+from emsarray import masking, plot, utils
 from emsarray.conventions import Convention, Grid
 from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.types import DataArrayOrName, Pathish
@@ -531,79 +534,3 @@ def test_face_centres():
     assert len(face_centres) == len(polygons)
     assert polygons[i] is None
     numpy.testing.assert_equal(face_centres[i], [numpy.nan, numpy.nan])
-
-
-@pytest.mark.matplotlib
-def test_make_poly_collection():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    patches = convention.make_poly_collection(cmap='plasma', edgecolor='black')
-    assert len(patches.get_paths()) == len(convention.polygons[convention.mask])
-    assert patches.get_cmap().name == 'plasma'
-    # Colours get transformed in to RGBA arrays
-    numpy.testing.assert_equal(patches.get_edgecolor(), [[0., 0., 0., 1.0]])
-
-
-def test_make_poly_collection_data_array():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    patches = convention.make_poly_collection(data_array='botz')
-    assert len(patches.get_paths()) == len(convention.polygons[convention.mask])
-
-    values = convention.ravel(dataset.data_vars['botz'])[convention.mask]
-    numpy.testing.assert_equal(patches.get_array(), values)
-    assert patches.get_clim() == (numpy.nanmin(values), numpy.nanmax(values))
-
-
-def test_make_poly_collection_data_array_and_array():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    array = numpy.random.standard_normal(len(convention.polygons[convention.mask]))
-
-    with pytest.raises(TypeError):
-        # Passing both array and data_array is a TypeError
-        convention.make_poly_collection(data_array='botz', array=array)
-
-
-def test_make_poly_collection_data_array_and_clim():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    # You can override the default clim if you want
-    patches = convention.make_poly_collection(data_array='botz', clim=(-12, -8))
-    assert patches.get_clim() == (-12, -8)
-
-
-def test_make_poly_collection_data_array_dimensions():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    with pytest.raises(ValueError):
-        # temp needs subsetting first, so this should raise an error
-        convention.make_poly_collection(data_array='temp')
-
-    # One way to avoid this is to isel the data array
-    convention.make_poly_collection(data_array=dataset.data_vars['temp'].isel(z=0, t=0))
-
-    # Another way to avoid this is to isel the dataset
-    dataset_0 = dataset.isel(z=0, t=0)
-    convention = SimpleConvention(dataset_0)
-    convention.make_poly_collection(data_array='temp')

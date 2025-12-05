@@ -20,6 +20,7 @@ from numpy.testing import assert_allclose
 from shapely.geometry import Polygon
 from shapely.testing import assert_geometries_equal
 
+from emsarray import plot
 from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.grid import CFGrid2DTopology, CFGridKind
 from emsarray.conventions.shoc import ShocSimple
@@ -505,15 +506,50 @@ def test_topology_with_missing_variable_standard_name() -> None:
 
 
 @pytest.mark.matplotlib
-def test_plot_on_figure() -> None:
+def test_make_artist_scalar(tmp_path: pathlib.Path) -> None:
     # Not much to test here, mostly that it doesn't throw an error
     dataset = make_dataset(j_size=10, i_size=20)
     surface_temp = dataset.data_vars["temp"].isel(k=-1, time=0)
 
     figure = Figure()
-    dataset.ems.plot_on_figure(figure, surface_temp)
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(axes, surface_temp, cmap='Oranges')
+    axes.autoscale()
 
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.PolygonScalarCollection)
+    # It should have made a colorbar also
     assert len(figure.axes) == 2
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.get_cmap().name == 'Oranges'
+
+    figure.savefig(tmp_path / 'scalar.png')
+
+
+@pytest.mark.matplotlib
+def test_make_artist_vector(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(j_size=10, i_size=20)
+    # These are not really a vector pair, but they do have the right shape...
+    u, v = dataset['longitude'], dataset['latitude']
+
+    figure = Figure()
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(axes, (u, v), scale=40)
+    axes.autoscale()
+
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.PolygonVectorQuiver)
+    # Only one axes this time, vectors don't get a colorbar
+    assert len(figure.axes) == 1
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.scale == 40
+
+    figure.savefig(tmp_path / 'vector.png')
 
 
 @pytest.mark.memory_usage

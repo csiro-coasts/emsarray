@@ -6,14 +6,16 @@ import pathlib
 import numpy
 import pandas
 import pytest
+import shapely
 import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_equal
-from shapely.geometry.polygon import Polygon, orient
+from shapely.geometry.polygon import orient
 
-from emsarray.conventions import get_dataset_convention
+from emsarray import plot
+from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.arakawa_c import (
-    ArakawaCGridKind, ArakawaCIndex, c_mask_from_centres
+    ArakawaCGridKind, c_mask_from_centres
 )
 from emsarray.conventions.shoc import ShocStandard
 from emsarray.operations import geometry
@@ -154,6 +156,22 @@ def make_dataset(
             "long_name": "I component of current at back face",
         }
     )
+    xx, yy = numpy.meshgrid(
+        numpy.linspace(-5, 5, i_size),
+        numpy.linspace(-5, 5, j_size),
+    )
+    uav = xarray.DataArray(
+        data=numpy.sin(xx) + numpy.sin(yy),
+        dims=wet_mask.data_vars["face_mask"].dims,
+        name="uav",
+        attrs={"units": "metres per second", "long_name": "Eastward component of current"}
+    )
+    vav = xarray.DataArray(
+        data=numpy.cos(xx) + numpy.cos(yy),
+        dims=wet_mask.data_vars["face_mask"].dims,
+        name="vav",
+        attrs={"units": "metres per second", "long_name": "Eastward component of current"}
+    )
     flag = xarray.DataArray(
         data=numpy.random.randint(0, 256, (time_size, k_size, j_size + 1, i_size + 1)),
         dims=["record", "k_centre", *wet_mask.data_vars["node_mask"].dims],
@@ -170,6 +188,8 @@ def make_dataset(
             "temp": temp,
             "u1": u1,
             "u2": u2,
+            "uav": uav,
+            "vav": vav,
             "flag": flag,
         },
         attrs={
@@ -441,7 +461,7 @@ def test_select_index_face() -> None:
     face = convention.select_index((ArakawaCGridKind.face, 3, 4))
 
     assert set(face.variables.keys()) == {
-        'botz', 'eta', 'temp',
+        'botz', 'eta', 'temp', 'uav', 'vav',
     }
     assert face.sizes == {'record': 4, 'k_centre': 5}
 
@@ -452,7 +472,7 @@ def test_select_index_face_keep_geometry() -> None:
     face = convention.select_index((ArakawaCGridKind.face, 3, 4), drop_geometry=False)
 
     assert set(face.variables.keys()) == {
-        'botz', 'eta', 'temp',
+        'botz', 'eta', 'temp', 'uav', 'vav',
         'x_centre', 'y_centre',
     }
     assert face.sizes == {'record': 4, 'k_centre': 5}
@@ -546,15 +566,85 @@ def test_values():
 
 
 @pytest.mark.matplotlib
-def test_plot_on_figure():
-    # Not much to test here, mostly that it doesn't throw an error
-    dataset = make_dataset(j_size=10, i_size=20)
-    surface_temp = dataset.data_vars["temp"].isel(k_centre=-1, record=0)
+def test_make_artist_face_scalar(tmp_path: pathlib.Path) -> None:
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+    surface_temp = dataset.data_vars["temp"].isel(record=0, k_centre=-1)
 
     figure = Figure()
-    dataset.ems.plot_on_figure(figure, surface_temp)
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(axes, surface_temp, cmap='Oranges')
+    axes.autoscale()
 
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.PolygonScalarCollection)
+    # It should have made a colorbar also
     assert len(figure.axes) == 2
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.get_cmap().name == 'Oranges'
+
+    figure.savefig(tmp_path / 'face_scalar.png')
+
+
+@pytest.mark.matplotlib
+def test_make_artist_face_vector(tmp_path: pathlib.Path) -> None:
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+
+    figure = Figure()
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(
+        axes, ('uav', 'vav'),
+        scale=20)
+    axes.autoscale()
+
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.PolygonVectorQuiver)
+    # Only one axes this time, vectors don't get a colorbar
+    assert len(figure.axes) == 1
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.scale == 20
+
+    figure.savefig(tmp_path / 'face_vector.png')
+
+
+@pytest.mark.matplotlib
+def test_make_artist_node_scalar(tmp_path: pathlib.Path) -> None:
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+    latest_surface = dataset.isel(record=0, k_centre=-1)
+
+    figure = Figure()
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(
+        axes, latest_surface['flag'],
+        cmap='Blues')
+    axes.autoscale()
+
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.NodeTriMesh)
+    # It should have made a colorbar also
+    assert len(figure.axes) == 2
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.get_cmap().name == 'Blues'
+
+    figure.savefig(tmp_path / 'node.png')
+
+
+@pytest.mark.matplotlib
+def test_plot_geometry(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+
+    figure = Figure()
+    dataset.ems.plot_on_figure(figure)
+
+    assert len(figure.axes) == 1
+
+    figure.savefig(tmp_path / 'geometry.png')
 
 
 def test_make_clip_mask():
