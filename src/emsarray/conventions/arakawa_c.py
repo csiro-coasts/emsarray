@@ -19,6 +19,7 @@ from shapely.geometry.base import BaseGeometry
 from xarray.core.dataset import DatasetCoordinates
 
 from emsarray import masking, utils
+from emsarray.operations import triangulate
 from emsarray.types import Pathish
 
 from ._base import DimensionConvention, Specificity
@@ -404,6 +405,27 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
 
     def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
+
+    def triangulate(self) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+        polygons = self.grids[ArakawaCGridKind.face].geometry
+        vertices = self.grids[ArakawaCGridKind.node].geometry
+        print("Got", len(polygons), "polygons")
+        print("Got", len(vertices), "vertices")
+
+        j_size, i_size = self.node.shape
+        xx, yy = numpy.meshgrid(numpy.arange(i_size - 1), numpy.arange(j_size - 1) * i_size)
+        bottom_left_indexes = (xx + yy).flatten()
+        print(bottom_left_indexes)
+        offsets = numpy.array([0, 1, i_size + 1, i_size])
+        print(offsets)
+        polygon_vertex_indexes = bottom_left_indexes[:, None].repeat(4, axis=1) + offsets
+        print(polygon_vertex_indexes)
+
+        return triangulate.triangulate(
+            vertices,
+            polygons,
+            polygon_vertex_indexes,
+        )
 
 
 def c_mask_from_centres(

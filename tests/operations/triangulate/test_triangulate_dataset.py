@@ -15,8 +15,7 @@ from emsarray.operations.triangulate import (
 def test_triangulate_dataset_cfgrid1d(datasets):
     dataset = emsarray.open_dataset(datasets / 'cfgrid1d.nc')
     topology = dataset.ems.topology
-    dataset.ems.polygons
-    vertices, triangles, cell_indexes = triangulate_dataset(dataset)
+    vertices, triangles, cell_indexes = dataset.ems.triangulate()
 
     # A vertex at the intersection of every cell
     assert len(vertices) == (topology.latitude.size + 1) * (topology.longitude.size + 1)
@@ -32,7 +31,8 @@ def test_triangulate_dataset_cfgrid1d(datasets):
 
 def test_triangulate_dataset_cfgrid2d(datasets):
     dataset = emsarray.open_dataset(datasets / "cfgrid2d.nc")
-    vertices, triangles, cell_indexes = triangulate_dataset(dataset)
+    face_grid = dataset.ems.grids['face']
+    vertices, triangles, cell_indexes = dataset.ems.triangulate()
     topology = dataset.ems.topology
 
     # There is a hole in one corner, taking out 6 vertices from the expected count
@@ -42,7 +42,7 @@ def test_triangulate_dataset_cfgrid2d(datasets):
     assert len(triangles) == 2 * (topology.size - 6)
 
     # Shoc cells are quadrilaterals, so they each have two triangles
-    only_polygons = dataset.ems.polygons[dataset.ems.mask]
+    only_polygons = face_grid.geometry[face_grid.mask]
     assert len(triangles) == 2 * len(only_polygons)
 
     check_triangulation(dataset, vertices, triangles, cell_indexes)
@@ -50,13 +50,14 @@ def test_triangulate_dataset_cfgrid2d(datasets):
 
 def test_triangulate_dataset_shoc_standard(datasets):
     dataset = emsarray.open_dataset(datasets / 'shoc_standard.nc')
-    vertices, triangles, cell_indexes = triangulate_dataset(dataset)
+    face_grid = dataset.ems.grids['face']
+    vertices, triangles, cell_indexes = dataset.ems.triangulate()
 
     # There is no good way of calculating the number of vertices, as the
     # geometry is quite complicated in shoc datasets with wet cells
 
     # Shoc cells are quadrilaterals, so they each have two triangles
-    only_polygons = dataset.ems.polygons[dataset.ems.mask]
+    only_polygons = face_grid.geometry[face_grid.mask]
     assert len(triangles) == 2 * len(only_polygons)
 
     check_triangulation(dataset, vertices, triangles, cell_indexes)
@@ -64,8 +65,9 @@ def test_triangulate_dataset_shoc_standard(datasets):
 
 def test_triangulate_dataset_ugrid(datasets):
     dataset = emsarray.open_dataset(datasets / "ugrid_mesh2d.nc")
+    face_grid = dataset.ems.grids['face']
     topology = dataset.ems.topology
-    vertices, triangles, cell_indexes = triangulate_dataset(dataset)
+    vertices, triangles, cell_indexes = dataset.ems.triangulate()
 
     # The vertices should be identical to the ugrid nodes
     assert len(vertices) == topology.node_count
@@ -75,7 +77,7 @@ def test_triangulate_dataset_ugrid(datasets):
     # Therefore, the number of triangles per polygon is len(coords) - 3.
     expected_triangle_count = sum(
         len(polygon.exterior.coords) - 3
-        for polygon in dataset.ems.polygons
+        for polygon in face_grid.geometry
     )
     assert len(triangles) == expected_triangle_count
 
@@ -92,10 +94,11 @@ def check_triangulation(
     Check the triangulation of a dataset by reconstructing all polygons.
     These checks are independent of the specific convention.
     """
+    face_grid = dataset.ems.grids[dataset.ems.default_grid_kind]
     # Check that the cell indexes are within bounds.
     assert len(cell_indexes) == len(triangles)
     assert min(cell_indexes) >= 0
-    assert max(cell_indexes) <= len(dataset.ems.polygons)
+    assert max(cell_indexes) <= face_grid.size
 
     # For each cell in the dataset, reconstruct its polygon from the triangles
     # and check that it matches
@@ -103,7 +106,7 @@ def check_triangulation(
     for triangle, cell_index in zip(triangles, cell_indexes):
         cell_triangles[cell_index].append(triangle)
 
-    for index, polygon in enumerate(dataset.ems.polygons):
+    for index, polygon in enumerate(face_grid.geometry):
         if polygon is None:
             assert index not in cell_triangles
             continue
@@ -118,29 +121,6 @@ def check_triangulation(
         assert polygon.equals(reconstructed_polygon)
 
 
-def test_triangulate_polygons_by_length():
-    hexagon_template = numpy.array([[-2, 0], [-1, -1], [1, -1], [2, 0], [1, 1], [-1, 1], [-2, 0]])
-    polygons = shapely.polygons([
-        hexagon_template + (0, 0),
-        hexagon_template + (3, 1),
-        hexagon_template + (6, 0),
-        hexagon_template + (0, 2),
-        hexagon_template + (6, 2),
-    ])
-    polygon_triangles = _triangulate_polygons_by_length(polygons)
-
-    # Shape is (# polygons, # triangles, # vertices, # coords).
-    # Each hexagon can be decomposed in to 4 triangles,
-    # each triangle has three vertices,
-    # and each vertex has two coordinates.
-    assert polygon_triangles.shape == (len(polygons), 4, 3, 2)
-
-    # Reconstruct each polygon and check it equals itself.
-    for polygon, triangles in zip(polygons, polygon_triangles):
-        reconstructed_polygon = shapely.unary_union(shapely.polygons(triangles))
-        assert polygon.equals(reconstructed_polygon)
-
-
 def test_triangulate_convex_polygon():
     # These coordinates are carefully chosen to produce a polygon that:
     # * is not convex
@@ -149,11 +129,18 @@ def test_triangulate_convex_polygon():
     coords = [(0, 0), (3, 0), (3, 3), (2, 3), (2, 2), (1, 1), (1, 3), (0, 1.5)]
     for offset in range(len(coords)):
         polygon = Polygon(coords[offset:] + coords[:offset + 1])
+        indexes = list(range(len(coords)))
+        indexes = indexes[offset:] + indexes[:offset]
         assert polygon.is_valid
         assert polygon.is_simple
 
-        triangles = _triangulate_concave_polygon(polygon)
+        triangles = _triangulate_concave_polygon(polygon, indexes)
+        print(triangles)
         assert len(triangles) == len(coords) - 2
 
-        union = shapely.union_all(shapely.polygons(numpy.array(triangles)))
+        triangle_coords = numpy.array([
+            [coords[index] for index in tri]
+            for tri in triangles
+        ])
+        union = shapely.union_all(shapely.polygons(triangle_coords))
         assert union.equals(polygon)

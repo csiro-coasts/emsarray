@@ -18,7 +18,7 @@ from shapely.strtree import STRtree
 
 from emsarray import utils
 from emsarray.exceptions import InvalidPolygonWarning, NoSuchCoordinateError
-from emsarray.operations import depth, point_extraction
+from emsarray.operations import depth, point_extraction, triangulate
 from emsarray.operations.cache import hash_attributes, hash_int, hash_string
 from emsarray.plot import (
     _requires_plot, animate_on_figure, make_plot_title, plot_on_figure,
@@ -1910,6 +1910,47 @@ class Convention[GridKind, Index](abc.ABC):
 
             # Hash dataset attributes
             hash_attributes(hash, data_array.attrs)
+
+    def triangulate(self) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+        """
+        Triangulates the polygons in the dataset.
+        Subclasses may have improved implementations.
+
+        This requires the dataset to have a grid with polygonal geometry.
+        If there is an additional grid corresponding to the vertices of the polygons
+        then subclasses should use this information to inform the triangulation.
+
+        Returns
+        -------
+        tuple of vertices, triangles, and `cell_indexes`
+            A tuple of three numpy arrays is returned,
+            containing vertices, triangles, and cell indexes respectively.
+
+            `vertices` is a numpy array of shape (V, 2)
+            where V is the number of unique vertices in the dataset.
+            The vertex coordinates are in (x, y) or (lon, lat) order.
+            If the dataset has a vertex grid associated with the polygons
+            then this array replicates that data.
+
+            `triangles` is a numpy array of shape (T, 3)
+            where T is the number of triangles in the dataset.
+            Each triangle is a set of three vertex indexes.
+
+            `cell_indexes` is a numpy list of length T.
+            Each entry indicates which polygon from the dataset a triangle is a part of.
+
+        See also
+        --------
+        :func:`~emsarray.operations.triangulate.triangulate`
+        """
+        grid = self.default_grid
+        if not issubclass(grid.geometry_type, shapely.Polygon):
+            raise ValueError("Can not triangulate a dataset that does not have polygonal geometry")
+        polygons = grid.geometry
+        vertices = triangulate.find_unique_vertices(polygons)
+        polygon_vertex_indexes = triangulate.polygons_to_vertex_indexes(polygons, vertices)
+
+        return triangulate.triangulate(vertices, polygons, polygon_vertex_indexes)
 
 
 type DimensionIndex[GridKind] = tuple[GridKind, *tuple[int, ...]]
