@@ -454,8 +454,7 @@ def plot_geometry(
     axes.set_aspect(aspect='equal', adjustable='datalim')
     axes.gridlines(draw_labels=['left', 'bottom'], linestyle='dashed')
 
-    axes.add_collection(dataset.ems.make_poly_collection(
-        edgecolors='black', linewidth=0.5, facecolors='lightcyan'))
+    dataset.ems.plot_geometry(axes)
     axes.scatter(dataset.ems.face_centres[:, 0], dataset.ems.face_centres[:, 1], c='red')
 
     if title is not None:
