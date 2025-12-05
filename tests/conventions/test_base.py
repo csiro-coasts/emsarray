@@ -13,9 +13,9 @@ from shapely.geometry import LineString, Point, Polygon, box
 from shapely.geometry.base import BaseGeometry
 
 from emsarray import masking, utils
-from emsarray.conventions import Convention
+from emsarray.conventions import Convention, Grid
 from emsarray.exceptions import NoSuchCoordinateError
-from emsarray.types import Pathish
+from emsarray.types import DataArrayOrName, Pathish
 
 
 class SimpleGridKind(str, enum.Enum):
@@ -34,6 +34,59 @@ class SimpleGridIndex:
         return f'({self.y}, {self.x})'
 
 
+class SimpleGrid(Grid[SimpleGridKind, SimpleGridIndex]):
+    @cached_property
+    def size(self) -> int:
+        dataset = self.convention.dataset
+        return dataset.sizes['y'] * dataset.sizes['x']
+
+    @cached_property
+    def shape(self) -> tuple[int, int]:
+        dataset = self.convention.dataset
+        return (dataset.sizes['y'], dataset.sizes['x'])
+
+    def ravel_index(self, index: SimpleGridIndex) -> int:
+        return int(numpy.ravel_multi_index((index.y, index.x), self.shape))
+
+    def wind_index(
+        self,
+        linear_index: int,
+    ) -> SimpleGridIndex:
+        y, x = tuple(map(int, numpy.unravel_index(linear_index, self.shape)))
+        return SimpleGridIndex(y, x)
+
+    def ravel(
+        self,
+        data_array: DataArrayOrName,
+        *,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        data_array = utils.name_to_data_array(self.convention.dataset, data_array)
+        return utils.ravel_dimensions(
+            data_array, ['y', 'x'],
+            linear_dimension=linear_dimension)
+
+    def wind(
+        self,
+        data_array: xarray.DataArray,
+        *,
+        axis: int | None = None,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        if axis is not None:
+            linear_dimension = data_array.dims[axis]
+        elif linear_dimension is None:
+            linear_dimension = data_array.dims[-1]
+
+        return utils.wind_dimension(
+            data_array,
+            dimensions=['y', 'x'], sizes=self.shape,
+            linear_dimension=linear_dimension)
+
+    def __repr__(self) -> str:
+        return f'<SimpleGrid: {self.shape}>'
+
+
 class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     grid_kinds = frozenset(SimpleGridKind)
     default_grid_kind = SimpleGridKind.face
@@ -48,8 +101,8 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         return (y, x)
 
     @cached_property
-    def grid_size(self) -> dict[SimpleGridKind, int]:
-        return {SimpleGridKind.face: int(numpy.prod(self.shape))}
+    def grids(self) -> dict[SimpleGridKind, Grid[SimpleGridKind, SimpleGridIndex]]:
+        return {SimpleGridKind.face: SimpleGrid(self, SimpleGridKind.face)}
 
     def get_grid_kind(self, data_array: xarray.DataArray) -> SimpleGridKind:
         if set(data_array.dims) >= {'x', 'y'}:
@@ -59,17 +112,8 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     def get_all_geometry_names(self) -> list[Hashable]:
         return ['x', 'y']
 
-    def wind_index(
-        self,
-        index: int,
-        *,
-        grid_kind: SimpleGridKind | None = None,
-    ) -> SimpleGridIndex:
-        y, x = map(int, numpy.unravel_index(index, self.shape))
-        return SimpleGridIndex(y, x)
-
-    def ravel_index(self, indexes: SimpleGridIndex) -> int:
-        return int(numpy.ravel_multi_index((indexes.y, indexes.x), self.shape))
+    def ravel_index(self, index: SimpleGridIndex) -> int:
+        return self.grids[SimpleGridKind.face].ravel_index(index)
 
     def selector_for_indexes(
         self,
@@ -86,39 +130,10 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
             'y': (index_dimension, index_array[:, 1]),
         })
 
-    def ravel(
-        self,
-        data_array: xarray.DataArray,
-        *,
-        linear_dimension: Hashable | None = None,
-    ) -> xarray.DataArray:
-        self.get_grid_kind(data_array)
-        return utils.ravel_dimensions(
-            data_array, ['y', 'x'],
-            linear_dimension=linear_dimension)
-
-    def wind(
-        self,
-        data_array: xarray.DataArray,
-        *,
-        grid_kind: SimpleGridKind | None = None,
-        axis: int | None = None,
-        linear_dimension: Hashable | None = None,
-    ) -> xarray.DataArray:
-        if axis is not None:
-            linear_dimension = data_array.dims[axis]
-        elif linear_dimension is None:
-            linear_dimension = data_array.dims[-1]
-
-        return utils.wind_dimension(
-            data_array,
-            dimensions=['y', 'x'], sizes=self.shape,
-            linear_dimension=linear_dimension)
-
     def drop_geometry(self) -> xarray.Dataset:
         return self.dataset
 
-    def _make_polygons(self) -> numpy.ndarray:
+    def _make_geometry(self, grid_kind: SimpleGridKind) -> numpy.ndarray:
         height, width = self.shape
         # Each polygon is a box from (x, y, x+1, y+1),
         # however the polygons around the edge are masked out with None.
@@ -144,6 +159,37 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
 
     def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
+
+    def make_artist(
+        self,
+        axes: Axes,
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> plot.GridArtist:
+        data_array = utils.name_to_data_array(self.dataset, variable)
+        if isinstance(data_array, xarray.DataArray):
+            grid_kind = self.get_grid_kind(data_array)
+            if grid_kind is SimpleGridKind.face:
+                return plot.make_polygon_scalar_collection(
+                    axes, self.grids[SimpleGridKind.face], data_array, **kwargs)
+        elif isinstance(data_array, tuple):
+            grid_kinds = tuple(self.get_grid_kind(d) for d in data_array)
+            if grid_kinds == (SimpleGridKind.face, SimpleGridKind.face):
+                return plot.make_polygon_vector_artist(
+                    axes, self.grids[SimpleGridKind.face], data_array, **kwargs)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(self, axes: Axes) -> GridArtist:
+        grid = self.grids[SimpleGridKind.face]
+        collection = plot.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
 
 
 def test_time_coordinate_with_units(datasets: pathlib.Path) -> None:
@@ -312,10 +358,11 @@ def test_mask():
         'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
     })
     convention = SimpleConvention(dataset)
+    grid = convention.grids[SimpleGridKind.face]
     top_bottom = [False] * 20
     middle = [False] + [True] * 18 + [False]
     numpy.testing.assert_equal(
-        convention.mask,
+        grid.mask,
         numpy.array(top_bottom + middle * 8 + top_bottom),
     )
 
@@ -353,6 +400,7 @@ def test_strtree():
         'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
     })
     convention = SimpleConvention(dataset)
+    grid = convention.grids[SimpleGridKind.face]
 
     line = LineString([(-1, -1), (1.5, 1.5), (1.5, 2.5), (3.9, 3.9)])
     expected_intersections = {convention.ravel_index(index) for index in [
@@ -360,7 +408,7 @@ def test_strtree():
         SimpleGridIndex(3, 2), SimpleGridIndex(3, 3)]}
 
     # Query the spatial index
-    items = convention.strtree.query(line, predicate='intersects')
+    items = grid.strtree.query(line, predicate='intersects')
     assert set(items) == expected_intersections
 
 
@@ -425,8 +473,9 @@ def test_select_point():
     # The underlying implementation does this, and the individual methods are
     # tested in detail elsewhere
     point = Point(3.5, 5.5)
-    # TODO Fix this
-    index = ...
+    grid = convention.grids['face']
+    hits = grid.strtree.query(point, 'intersects')
+    index = grid.wind_index(hits[0])
     expected = convention.select_index(index)
     actual = convention.select_point(point)
     assert actual == expected
@@ -468,7 +517,7 @@ def test_face_centres():
     })
     convention = SimpleConvention(dataset)
 
-    polygons = convention.polygons
+    polygons = convention.grids['face'].geometry
     face_centres = convention.face_centres
 
     # Check a valid cell has a centre matching the polygon centroid

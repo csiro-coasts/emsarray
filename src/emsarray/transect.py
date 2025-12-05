@@ -287,11 +287,14 @@ class Transect:
         """
         segments = []
 
+        grid = self.convention.grids[self.convention.default_grid_kind]
+        polygons = grid.geometry
+
         # Find all the cell polygons that intersect the line
-        intersecting_indexes = self.convention.strtree.query(self.line, predicate='intersects')
+        intersecting_indexes = grid.strtree.query(self.line, predicate='intersects')
 
         for linear_index in intersecting_indexes:
-            polygon = self.convention.polygons[linear_index]
+            polygon = polygons[linear_index]
             for intersection in self._intersect_polygon(polygon):
                 # The line will have two ends.
                 # The intersection starts and ends at these points.

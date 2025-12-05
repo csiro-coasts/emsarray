@@ -41,8 +41,10 @@ class _dumpable_iterator[T](list):
         raise NotImplementedError("Can't get the length of a _dumpable_iterator")
 
 
-def to_geojson(
+def to_geojson[GridKind](
     dataset: xarray.Dataset,
+    *,
+    grid_kind: GridKind | None = None,
 ) -> geojson.FeatureCollection:
     """Make a ``geojson.FeatureCollection`` out of the cells in this dataset,
     one feature per cell.
@@ -69,19 +71,24 @@ def to_geojson(
     --------
     :func:`.write_geojson`
     """
+    if grid_kind is None:
+        grid_kind = dataset.ems.default_grid_kind
+    grid = dataset.ems.grids[grid_kind]
     return geojson.FeatureCollection(_dumpable_iterator(
-        geojson.Feature(geometry=polygon, properties={
+        geojson.Feature(geometry=shape, properties={
             'linear_index': i,
             'index': dataset.ems.wind_index(i),
         })
-        for i, polygon in enumerate(dataset.ems.polygons)
-        if polygon is not None
+        for i, shape in enumerate(grid.geometry)
+        if shape is not None
     ))
 
 
-def write_geojson(
+def write_geojson[GridKind](
     dataset: xarray.Dataset,
     path: Pathish,
+    *,
+    grid_kind: GridKind | None = None,
 ) -> None:
     """
     Export the geometry of this dataset to a GeoJSON file
@@ -102,7 +109,7 @@ def write_geojson(
     :func:`.to_geojson`
     """
     with open(path, 'w') as f:
-        json.dump(to_geojson(dataset), f)
+        json.dump(to_geojson(dataset, grid_kind=grid_kind), f)
 
 
 @contextmanager
@@ -124,10 +131,11 @@ def _maybe_open(path_or_file: Pathish | IO, mode: str) -> Generator[IO, None, No
             yield f
 
 
-def write_shapefile(
+def write_shapefile[GridKind](
     dataset: xarray.Dataset,
     target: Pathish | None = None,
     *,
+    grid_kind: GridKind | None = None,
     shp: Pathish | IO | None = None,
     shx: Pathish | IO | None = None,
     dbf: Pathish | IO | None = None,
@@ -153,20 +161,25 @@ def write_shapefile(
     **kwargs
         An extra keyword arguments are passed on to the shapefile.Writer instance.
     """
+    if grid_kind is None:
+        grid_kind = dataset.ems.default_grid_kind
+    grid = dataset.ems.grids[grid_kind]
+    geometry_name = grid.geometry_type.__name__.lower()
+
     target = str(target) if isinstance(target, pathlib.Path) else target
     with shapefile.Writer(target, shp=shp, shx=shx, dbf=dbf, **kwargs) as writer:
         writer.field('name', 'C')
         writer.field('linear_index', 'N')
         writer.field('index', 'C')
-        for i, polygon in enumerate(dataset.ems.polygons):
-            if polygon is None:
+        for i, shape in enumerate(grid.geometry):
+            if shape is None:
                 continue
             writer.record(
-                name=f'polygon{i}',
+                name=f'{geometry_name}{i}',
                 linear_index=i,
                 index=json.dumps(dataset.ems.wind_index(i)),
             )
-            writer.shape(polygon.__geo_interface__)
+            writer.shape(shape.__geo_interface__)
 
         # Write the projection file also, if we can find a filename for it...
         if prj is None:
@@ -177,16 +190,27 @@ def write_shapefile(
                 prj_file.write(dataset.ems.data_crs.to_wkt())
 
 
-def _to_multipolygon(dataset: xarray.Dataset) -> shapely.MultiPolygon:
-    return shapely.MultiPolygon([
-        p for p in dataset.ems.polygons
-        if p is not None
-    ])
+def _to_collection[GridKind](
+    dataset: xarray.Dataset,
+    grid_kind: GridKind | None = None,
+) -> shapely.BaseGeometry:
+    if grid_kind is None:
+        grid_kind = dataset.ems.default_grid_kind
+    grid = dataset.ems.grids[grid_kind]
+    collection_types = {
+        shapely.Polygon: shapely.MultiPolygon,
+        shapely.LineString: shapely.MultiLineString,
+        shapely.Point: shapely.MultiPoint,
+    }
+    collection_type = collection_types.get(grid.geometry_type, shapely.GeometryCollection)
+    return collection_type(grid.geometry[grid.mask])
 
 
-def write_wkt(
+def write_wkt[GridKind](
     dataset: xarray.Dataset,
     path: Pathish,
+    *,
+    grid_kind: GridKind | None = None,
 ) -> None:
     """
     Export the geometry of this dataset as a ``MultiPolygon``
@@ -199,13 +223,16 @@ def write_wkt(
     path : str or pathlib.Path
         The path where the geometry should be written to.
     """
+
     with open(path, 'w') as f:
-        f.write(shapely.to_wkt(_to_multipolygon(dataset)))
+        f.write(shapely.to_wkt(_to_collection(dataset, grid_kind)))
 
 
-def write_wkb(
+def write_wkb[GridKind](
     dataset: xarray.Dataset,
     path: Pathish,
+    *,
+    grid_kind: GridKind | None = None,
 ) -> None:
     """
     Export the geometry of this dataset as a ``MultiPolygon``
@@ -219,4 +246,4 @@ def write_wkb(
         The path where the geometry should be written to.
     """
     with open(path, 'wb') as f:
-        f.write(shapely.to_wkb(_to_multipolygon(dataset)))
+        f.write(shapely.to_wkb(_to_collection(dataset, grid_kind)))

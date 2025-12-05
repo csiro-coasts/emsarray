@@ -358,16 +358,43 @@ def test_varnames():
     assert dataset.ems.time_coordinate.name == 't'
 
 
-def test_polygons():
+def test_grids_with_edges():
+    dataset = make_dataset(width=3, make_edges=True)
+    assert dataset.ems.grids.keys() \
+        == {UGridKind.face, UGridKind.edge, UGridKind.node}
+
+
+def test_grids_without_edges():
+    dataset = make_dataset(width=3, make_edges=False)
+    assert dataset.ems.grids.keys() \
+        == {UGridKind.face, UGridKind.node}
+
+
+def test_get_grid() -> None:
+    dataset = make_dataset(width=3, make_edges=True)
+    convention: UGrid = dataset.ems
+
+    assert convention.get_grid(dataset['temp']) is convention.grids[UGridKind.face]
+    assert convention.get_grid(dataset['u1']) is convention.grids[UGridKind.edge]
+    assert convention.get_grid(dataset['Mesh2_node_x']) is convention.grids[UGridKind.node]
+
+
+def test_face_grid() -> None:
     dataset = make_dataset(width=3)
-    polygons = dataset.ems.polygons
+    face_grid: DimensionGrid = dataset.ems.grids['face']
+    assert face_grid.shape == (dataset.sizes['nMesh2_face'],)
+    assert face_grid.size == dataset.sizes['nMesh2_face']
+    assert isinstance(face_grid.geometry, numpy.ndarray)
+    assert face_grid.geometry_type is shapely.Polygon
+
+    polygons = face_grid.geometry
 
     # Should be one item for every face
     assert len(polygons) == dataset.sizes['nMesh2_face']
 
     # There should be no empty polygons
     assert all(poly is not None for poly in polygons)
-    assert all(dataset.ems.mask)
+    assert all(face_grid.mask)
 
     topology = dataset.ems.topology
 
@@ -383,9 +410,44 @@ def test_polygons():
     ]), 1e-6)
 
 
+def test_edge_grid() -> None:
+    dataset = make_dataset(width=3, make_edges=True)
+    edge_grid: DimensionGrid = dataset.ems.grids['edge']
+    assert edge_grid.shape == (dataset.sizes['nMesh2_edge'],)
+    assert edge_grid.size == dataset.sizes['nMesh2_edge']
+    assert isinstance(edge_grid.geometry, numpy.ndarray)
+    assert edge_grid.geometry_type is shapely.LineString
+
+    for edge_index in range(edge_grid.size):
+        edge = edge_grid.geometry[edge_index]
+        node_indexes = dataset.ems.topology.edge_node_array[edge_index]
+        node_xs = dataset.ems.topology.node_x[node_indexes]
+        node_ys = dataset.ems.topology.node_y[node_indexes]
+
+        assert edge.equals_exact(shapely.LineString(numpy.c_[node_xs, node_ys]))
+
+
+
+def test_node_grid() -> None:
+    dataset = make_dataset(width=3)
+    node_grid: DimensionGrid = dataset.ems.grids['node']
+    assert node_grid.shape == (dataset.sizes['nMesh2_node'],)
+    assert node_grid.size == dataset.sizes['nMesh2_node']
+    assert isinstance(node_grid.geometry, numpy.ndarray)
+    assert node_grid.geometry_type is shapely.Point
+
+    for node_index in range(node_grid.size):
+        node = node_grid.geometry[node_index]
+        node_x = dataset.ems.topology.node_x[node_index]
+        node_y = dataset.ems.topology.node_y[node_index]
+
+        assert node.equals_exact(shapely.Point([node_x, node_y]))
+
+
 def test_face_centres_from_variables():
     dataset = make_dataset(width=3, make_face_coordinates=True)
     convention: UGrid = dataset.ems
+    face_grid = dataset.ems.grids['face']
 
     face_centres = convention.face_centres
     lons = dataset['Mesh2_face_x'].values
@@ -393,18 +455,19 @@ def test_face_centres_from_variables():
     for face in range(dataset.sizes['nMesh2_face']):
         lon = lons[face]
         lat = lats[face]
-        linear_index = convention.ravel_index((UGridKind.face, face))
+        linear_index = face_grid.ravel_index((UGridKind.face, face))
         numpy.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
 
 def test_face_centres_from_centroids():
     dataset = make_dataset(width=3, make_face_coordinates=False)
     convention: UGrid = dataset.ems
+    face_grid = dataset.ems.grids['face']
 
     face_centres = convention.face_centres
     for face in range(dataset.sizes['nMesh2_face']):
         linear_index = convention.ravel_index((UGridKind.face, face))
-        polygon = convention.polygons[linear_index]
+        polygon = face_grid.geometry[linear_index]
         lon, lat = polygon.centroid.coords[0]
         numpy.testing.assert_equal(face_centres[linear_index], [lon, lat])
 
@@ -434,9 +497,10 @@ def test_selector_for_index(index, selector):
 
 def test_make_geojson_geometry():
     dataset = make_dataset(width=3)
+    face_grid = dataset.ems.grids['face']
     feature_collection = geometry.to_geojson(dataset)
     features = list(iter(feature_collection.features))
-    assert len(features) == len(dataset.ems.polygons)
+    assert len(features) == face_grid.size == len(face_grid.geometry)
     out = json.dumps(feature_collection)
     assert isinstance(out, str)
 
@@ -670,6 +734,7 @@ def test_mask_from_face_indexes_with_edges():
 
 def test_apply_clip_mask(tmp_path):
     dataset = make_dataset(width=5)
+    face_grid = dataset.ems.grids['face']
     topology = Mesh2DTopology(dataset)
 
     # Sketch this out and number the faces, edges, and nodes, if you want to verify
@@ -680,6 +745,7 @@ def test_apply_clip_mask(tmp_path):
     # Clip it!
     mask = mask_from_face_indexes(numpy.array(face_indexes), topology)
     clipped = dataset.ems.apply_clip_mask(mask, tmp_path)
+    clipped_face_grid = clipped.ems.grids['face']
 
     assert isinstance(clipped.ems, UGrid)
 
@@ -699,9 +765,9 @@ def test_apply_clip_mask(tmp_path):
     assert_equal(clipped.data_vars['u1'].values, dataset.data_vars['u1'].values[:, :, edge_indexes])
 
     # Check that the new geometry matches the relevant polygons in the old geometry
-    assert len(clipped.ems.polygons) == len(face_indexes)
-    original_polys = [dataset.ems.polygons[index] for index in face_indexes]
-    for original_poly, clipped_poly in zip(original_polys, clipped.ems.polygons):
+    assert clipped_face_grid.size == len(face_indexes)
+    original_polys = [face_grid.geometry[index] for index in face_indexes]
+    for original_poly, clipped_poly in zip(original_polys, clipped_face_grid.geometry):
         assert original_poly.equals_exact(clipped_poly, 1e-6)
 
 
@@ -864,6 +930,7 @@ def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
     dataset = xarray.open_dataset(datasets / 'ugrid_mesh2d_one_indexed.nc')
     convention: UGrid = dataset.ems
     topology = convention.topology
+    face_grid = convention.grids['face']
 
     assert topology.has_valid_face_node_connectivity
     assert topology.face_node_connectivity.attrs['start_index'] == 1
@@ -874,16 +941,16 @@ def test_one_based_indexing(datasets: pathlib.Path, tmp_path: pathlib.Path):
     assert_equal(topology.face_node_array[0], [0, 9, 8])
     assert_equal(topology.face_node_array, topology.face_node_connectivity.values - 1)
 
-    assert len(convention.polygons) == topology.face_count
+    assert face_grid.size == len(face_grid.geometry) == topology.face_count
 
     clipped = convention.clip(box(0.1, 0.1, 4, 4), work_dir=tmp_path)
     clipped.to_netcdf(tmp_path / 'clipped.nc')
+    clipped_face_grid = clipped.ems.grids['face']
 
     assert isinstance(clipped.ems, UGrid)
     assert clipped.ems.topology.face_count == 6
     assert clipped.ems.topology.face_node_connectivity.attrs['start_index'] == 1
-
-    assert len(clipped.ems.polygons) == 6
+    assert clipped_face_grid.size == 6
 
 
 def test_get_start_index():
@@ -978,9 +1045,10 @@ def test_has_valid_face_edge_connectivity():
 @pytest.mark.memory_usage
 def test_make_polygons_memory_usage():
     dataset = make_dataset(width=600, height=600)
+    face_grid = dataset.ems.grids['face']
 
     with track_peak_memory_usage() as tracker:
-        assert len(dataset.ems.polygons) == dataset.ems.topology.face_count
+        assert len(face_grid.geometry) == dataset.ems.topology.face_count
 
     logger.info("current memory usage: %d, peak memory usage: %d", tracker.current, tracker.peak)
 
