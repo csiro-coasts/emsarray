@@ -26,6 +26,7 @@ from emsarray import utils
 from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )
+from emsarray.operations import triangulate
 from emsarray.types import Bounds, Pathish
 
 from ._base import DimensionConvention, Specificity
@@ -1407,3 +1408,15 @@ class UGrid(DimensionConvention[UGridKind]):
         dataset = super().drop_geometry()
         dataset.attrs.pop('Conventions', None)
         return dataset
+
+    def make_triangulation(self) -> triangulate.Triangulation:
+        vertices = self.grids[UGridKind.node].geometry
+        polygons = self.grids[UGridKind.face].geometry
+        polygon_vertex_indexes = self.topology.face_node_array
+        vertex_coordinates, triangles, face_indexes = triangulate.triangulate(vertices, polygons, polygon_vertex_indexes)
+        return triangulate.Triangulation[UGridKind](
+            vertices=vertex_coordinates,
+            triangles=triangles,
+            face_indexes=face_indexes,
+            face_grid_kind=UGridKind.face,
+            vertex_grid_kind=UGridKind.node)
