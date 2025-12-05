@@ -3,17 +3,14 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 
-import xarray
-
 import emsarray
 from emsarray.cli import BaseCommand, CommandException
 from emsarray.operations import geometry
-from emsarray.types import Pathish
 
 logger = logging.getLogger(__name__)
 
-Writer = Callable[[xarray.Dataset, Pathish], None]
-format_writers: dict[str, Writer] = {
+
+format_writers: dict[str, Callable] = {
     'geojson': geometry.write_geojson,
     'shapefile': geometry.write_shapefile,
     'wkt': geometry.write_wkt,
@@ -46,6 +43,14 @@ class Command(BaseCommand):
                 "The output format will be guessed using the output extension by default"
             ))
 
+        parser.add_argument(
+            "-g", "--grid-kind", type=str,
+            default=None,
+            help=(
+                "Grid kind to export. Will export the default grid if not specified."
+            ),
+        )
+
     def guess_format(self, output_path: Path) -> str:
         extension = output_path.suffix
         if extension in {'.json', '.geojson'}:
@@ -69,13 +74,31 @@ class Command(BaseCommand):
             output_format = self.guess_format(output_path)
             logger.debug("Guessed output format as %r", output_format)
 
-        count = dataset.ems.polygons[dataset.ems.mask].size
-        logger.debug("Dataset contains %d polygons", count)
+        if options.grid_kind is None:
+            grid_kind = dataset.ems.default_grid_kind
+        else:
+            grid_kind_names = {str(grid_kind): grid_kind for grid_kind in dataset.ems.grid_kinds}
+            try:
+                grid_kind = grid_kind_names[options.grid_kind]
+            except KeyError:
+                grid_kind_choices = ", ".join(grid_kind_names.keys())
+                raise CommandException(
+                    f"Unknown grid kind {options.grid_kind!r}. "
+                    f"Valid choices are: {grid_kind_choices}."
+                )
 
         try:
             writer = format_writers[output_format]
         except KeyError:
             raise CommandException(f"Unknown output format {output_format!r}")
 
+        grid = dataset.ems.grids[grid_kind]
+        geometries = grid.geometry[grid.mask]
+        count = geometries.size
+
+        logger.debug("Grid kind: %s", grid_kind)
+        logger.debug("Geometry type: %s", grid.geometry_type.__name__)
+        logger.debug("Geometry count: %d", count)
         logger.debug("Exporting geometry as %r", output_format)
-        writer(dataset, output_path)
+
+        writer(dataset, output_path, grid_kind=grid_kind)
