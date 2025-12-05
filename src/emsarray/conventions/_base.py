@@ -1,5 +1,4 @@
 import abc
-import dataclasses
 import enum
 import hashlib
 import logging
@@ -33,43 +32,6 @@ if TYPE_CHECKING:
     from matplotlib.quiver import Quiver
 
 logger = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass
-class SpatialIndexItem[Index]:
-    """Information about an item in the :class:`~shapely.strtree.STRtree`
-    spatial index for a dataset.
-
-    See Also
-    --------
-    Convention.spatial_index
-    """
-
-    #: The linear index of this cell
-    linear_index: int
-
-    #: The native index of this cell
-    index: Index
-
-    #: The geographic shape of this cell
-    polygon: Polygon
-
-    def __repr__(self) -> str:
-        items = {
-            'index': f'{self.index}/{self.linear_index}',
-            'polygon': self.polygon.wkt,
-        }
-        item_str = ' '.join(f'{key}: {value}' for key, value in items.items())
-        return f'<{type(self).__name__} {item_str}>'
-
-    def __lt__(self, other: Any) -> bool:
-        if not isinstance(other, SpatialIndexItem):
-            return NotImplemented
-
-        # SpatialIndexItems are only for cells / polygons, so we only need to
-        # compare the linear indexes. The polygon attribute is not orderable,
-        # so comparing on that is going to be unpleasant.
-        return self.linear_index < other.linear_index
 
 
 class Specificity(enum.IntEnum):
@@ -1179,44 +1141,6 @@ class Convention[GridKind, Index](abc.ABC):
             hits = dataset.ems.strtree.query(geometry, predicate='intersects')
         """
         return STRtree(self.polygons)
-
-    def get_index_for_point(
-        self,
-        point: Point,
-    ) -> SpatialIndexItem[Index] | None:
-        """
-        Find the index for a :class:`~shapely.Point` in the dataset.
-
-        Parameters
-        ----------
-        point : shapely.Point
-            The geographic point to query
-
-        Returns
-        -------
-        :class:`SpatialIndexItem`, optional
-            The :class:`SpatialIndexItem` for the point queried.
-            This indicates the polygon that intersected the point
-            and the index of that polygon in the dataset.
-
-            If the point does not intersect the dataset, None is returned.
-
-        Notes
-        -----
-        In the case where the point intersects multiple cells
-        the cell with the lowest linear index is returned.
-        This can happen if the point is exactly one of the cell vertices,
-        or falls on a cell edge,
-        or if the geometry of the dataset contains overlapping polygons.
-        """
-        hits = numpy.sort(self.strtree.query(point, predicate='intersects'))
-        if len(hits) > 0:
-            linear_index = hits[0]
-            return SpatialIndexItem(
-                linear_index=linear_index,
-                index=self.wind_index(linear_index),
-                polygon=self.polygons[linear_index])
-        return None
 
     def selector_for_index(self, index: Index) -> xarray.Dataset:
         """

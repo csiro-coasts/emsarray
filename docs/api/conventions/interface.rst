@@ -24,9 +24,6 @@ the :class:`~emsarray.conventions.Convention` interface.
    .. automethod:: unpack_index
    .. automethod:: pack_index
 
-.. autoclass:: emsarray.conventions.SpatialIndexItem
-   :members:
-
 .. type:: GridKind
 
     Some type that can enumerate the different :ref:`grid types <grids>`
