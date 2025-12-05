@@ -447,7 +447,6 @@ def test_edge_grid() -> None:
         assert edge.equals_exact(shapely.LineString(numpy.c_[node_xs, node_ys]))
 
 
-
 def test_node_grid() -> None:
     dataset = make_dataset(width=3)
     node_grid: DimensionGrid = dataset.ems.grids['node']

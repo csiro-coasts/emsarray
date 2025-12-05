@@ -13,6 +13,7 @@ import geojson
 import shapefile
 import shapely
 import xarray
+from shapely.geometry.base import BaseGeometry
 
 from emsarray.types import Pathish
 
@@ -193,7 +194,7 @@ def write_shapefile[GridKind](
 def _to_collection[GridKind](
     dataset: xarray.Dataset,
     grid_kind: GridKind | None = None,
-) -> shapely.BaseGeometry:
+) -> BaseGeometry:
     if grid_kind is None:
         grid_kind = dataset.ems.default_grid_kind
     grid = dataset.ems.grids[grid_kind]

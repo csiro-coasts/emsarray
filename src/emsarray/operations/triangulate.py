@@ -281,7 +281,7 @@ def triangulate(
     # Check that we have handled each triangle we expected.
     assert current_triangle == total_triangles
 
-    not_empty_vertices = numpy.flatnonzero(vertices != None)
+    not_empty_vertices = numpy.flatnonzero(vertices != None)  # noqa: E711
     vertex_coords = numpy.full(shape=(len(vertices), 2), fill_value=numpy.nan)
     vertex_coords[not_empty_vertices] = shapely.get_coordinates(vertices)
 
@@ -314,7 +314,6 @@ def _triangulate_polygons_by_length(
     #     [pvi[0], pvi[n], pvi[n+1]]
     #     for n in range(vertex_count)
     # ]
-    polygon_count = polygon_vertex_indexes.shape[0]
     vertex_count = polygon_vertex_indexes.shape[1]
     triangle_count = vertex_count - 2
     v0 = polygon_vertex_indexes[:, :1].repeat(triangle_count, axis=1)

@@ -6,10 +6,7 @@ import xarray
 from shapely.geometry import Polygon
 
 import emsarray
-from emsarray.operations.triangulate import (
-    _triangulate_concave_polygon, _triangulate_polygons_by_length,
-    triangulate_dataset
-)
+from emsarray.operations.triangulate import _triangulate_concave_polygon
 
 
 def test_triangulate_dataset_cfgrid1d(datasets):

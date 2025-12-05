@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable, Iterable
-from typing import Any, Literal, Self, TypeVar, cast
+from typing import Any, Literal, Self, cast
 
 import numpy
 import shapely
@@ -25,7 +25,7 @@ try:
     from matplotlib.collections import PolyCollection, TriMesh
     from matplotlib.figure import Figure
     from matplotlib.quiver import Quiver
-    from matplotlib.tri import TriContourSet, Triangulation
+    from matplotlib.tri import Triangulation, TriContourSet
     CAN_PLOT = True
     IMPORT_EXCEPTION = None
 except ImportError as exc:
@@ -801,7 +801,6 @@ class PolygonTriContourSet(GridArtist, Artist):
             return setter
         raise AttributeError(name)
 
-
     @staticmethod
     def ravel_data_array(grid: 'conventions.Grid', data_array: xarray.DataArray) -> numpy.ndarray:
         flattened = grid.ravel(data_array)
@@ -812,7 +811,6 @@ class PolygonTriContourSet(GridArtist, Artist):
                 "did you forget to select a single time step or depth layer? "
                 f"Unexpected dimensions: {unexpected_dimensions}")
         return cast(numpy.ndarray, flattened.values[grid.mask])
-
 
 
 type UVDataArray = tuple[xarray.DataArray, xarray.DataArray]

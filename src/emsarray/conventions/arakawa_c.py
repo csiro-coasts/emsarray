@@ -10,7 +10,7 @@ import enum
 import logging
 from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Self, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy
 import shapely
@@ -26,7 +26,6 @@ from ._base import DimensionConvention, Specificity
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
-    from emsarray.plot import GridArtist
 
 logger = logging.getLogger(__name__)
 
@@ -433,10 +432,10 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
 
     def make_artist(
         self,
-        axes: Axes,
+        axes: 'Axes',
         variable: DataArrayOrName | tuple[DataArrayOrName, ...],
         **kwargs: Any,
-    ) -> GridArtist:
+    ) -> 'plot.GridArtist':
         data_array = utils.name_to_data_array(self.dataset, variable)
 
         if isinstance(data_array, xarray.DataArray):
@@ -459,8 +458,8 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
 
     def plot_geometry(
         self,
-        axes: Axes,
-    ) -> GridArtist:
+        axes: 'Axes',
+    ) -> 'plot.GridArtist':
         grid = self.grids[ArakawaCGridKind.face]
         collection = plot.PolygonScalarCollection.from_grid(
             grid,

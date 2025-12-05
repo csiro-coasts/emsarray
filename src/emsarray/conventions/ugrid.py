@@ -22,7 +22,7 @@ import shapely
 import xarray
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import utils, plot
+from emsarray import plot, utils
 from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )
@@ -1414,7 +1414,7 @@ class UGrid(DimensionConvention[UGridKind]):
 
     def make_artist(
         self,
-        axes: Axes,
+        axes: 'Axes',
         variable: DataArrayOrName | tuple[DataArrayOrName, ...],
         **kwargs: Any,
     ) -> 'plot.GridArtist':
@@ -1440,7 +1440,7 @@ class UGrid(DimensionConvention[UGridKind]):
 
     def plot_geometry(
         self,
-        axes: Axes,
+        axes: 'Axes',
     ) -> 'plot.GridArtist':
         grid = self.grids[UGridKind.face]
         collection = plot.PolygonScalarCollection.from_grid(
