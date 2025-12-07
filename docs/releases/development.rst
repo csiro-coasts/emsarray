@@ -24,3 +24,7 @@ Next release (in development)
   which is a backwards incompatible change
   but is difficult to add meaningful backwards compatible support
   (:issue:`109`, :pr:`204`)
+* Use default matplotlib colour map when plotting instead of "jet".
+  In practice this will usually be "viridis"
+  unless the user has changed their local defaults
+  (:pr:`206`).
