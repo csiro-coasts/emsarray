@@ -89,12 +89,6 @@ where = ["src"]
 mypkg = ["py.typed"]
 
 [tool.pytest.ini_options]
-addopts = [
-	# TODO Work around till the mpl-baseline-path ini option is included in the
-	# next pytest-mpl release.
-	"--mpl-baseline-path", "tests/baseline_images",
-]
-
 testpaths = ["tests"]
 filterwarnings = [
 	"error",
@@ -106,9 +100,7 @@ markers = [
 ]
 
 mpl-use-full-test-name = true
-# TODO This option will be included in the next version of pytest-mpl.
-# Till then, it is added using addopts above
-# mpl-baseline-path = "tests/baseline_images"
+mpl-baseline-path = "tests/baseline_images"
 
 [tool.mypy]
 python_version = "3.12"
