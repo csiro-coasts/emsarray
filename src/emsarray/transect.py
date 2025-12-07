@@ -8,7 +8,7 @@ import numpy
 import shapely
 import xarray
 from cartopy import crs
-from matplotlib import animation, colormaps, pyplot
+from matplotlib import animation, pyplot
 from matplotlib.artist import Artist
 from matplotlib.axes import Axes
 from matplotlib.collections import PolyCollection
@@ -558,7 +558,7 @@ class Transect:
         trim_nans: bool = True,
         clamp_to_surface: bool = True,
         bathymetry: xarray.DataArray | None = None,
-        cmap: str | Colormap = 'jet',
+        cmap: str | Colormap | None = None,
         clim: tuple[float, float] | None = None,
         ocean_floor_colour: str = 'black',
         landmarks: list[Landmark] | None = None,
@@ -620,7 +620,7 @@ class Transect:
         trim_nans: bool = True,
         clamp_to_surface: bool = True,
         bathymetry: xarray.DataArray | None = None,
-        cmap: str | Colormap = 'jet',
+        cmap: str | Colormap | None = None,
         clim: tuple[float, float] | None = None,
         ocean_floor_colour: str = 'black',
         landmarks: list[Landmark] | None = None,
@@ -717,7 +717,7 @@ class Transect:
         trim_nans: bool = True,
         clamp_to_surface: bool = True,
         bathymetry: xarray.DataArray | None = None,
-        cmap: str | Colormap = 'jet',
+        cmap: str | Colormap | None = None,
         clim: tuple[float, float] | None = None,
         ocean_floor_colour: str = 'black',
         landmarks: list[Landmark] | None = None,
@@ -774,8 +774,7 @@ class Transect:
         if title is not None:
             axes.set_title(title)
 
-        if isinstance(cmap, str):
-            cmap = colormaps[cmap].copy()
+        cmap = pyplot.get_cmap(cmap).copy()
         cmap.set_bad(ocean_floor_colour)
 
         # Find a min/max from the data if clim isn't provided and the data array is not empty.
