@@ -101,6 +101,7 @@ markers = [
 
 mpl-use-full-test-name = true
 mpl-baseline-path = "tests/baseline_images"
+mpl-default-style = "default"
 
 [tool.mypy]
 python_version = "3.12"
