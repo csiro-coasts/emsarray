@@ -130,7 +130,7 @@ def add_landmarks(
         # Plot the temperature
         temperature = dataset.ems.make_poly_collection(
             dataset['temp'].isel(time=0, k=-1),
-            cmap='jet', edgecolor='face', zorder=0)
+            cmap='viridis', edgecolor='face', zorder=0)
         axes.add_collection(temperature)
         figure.colorbar(temperature, label='°C')
 
@@ -321,7 +321,7 @@ def plot_on_figure(
     if scalar is not None:
         # Plot a scalar variable on the polygons using a colour map
         collection = convention.make_poly_collection(
-            scalar, cmap='jet', edgecolor='face')
+            scalar, edgecolor='face')
         axes.add_collection(collection)
         units = scalar.attrs.get('units')
         figure.colorbar(collection, ax=axes, location='right', label=units)
@@ -437,7 +437,7 @@ def animate_on_figure(
         # Plot a scalar variable on the polygons using a colour map
         scalar_values = convention.ravel(scalar).values[:, convention.mask]
         collection = convention.make_poly_collection(
-            cmap='jet', edgecolor='face',
+            edgecolor='face',
             clim=(numpy.nanmin(scalar_values), numpy.nanmax(scalar_values)))
         axes.add_collection(collection)
         collection.set_animated(True)

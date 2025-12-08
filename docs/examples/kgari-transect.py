@@ -4,7 +4,7 @@ from matplotlib import pyplot
 import emsarray
 from emsarray import plot, transect
 
-dataset_url = 'https://thredds.nci.org.au/thredds/dodsC/fx3/model_data/gbr4_bgc_GBR4_H2p0_B2p0_Chyd_Dcrt.ncml'
+dataset_url = 'https://thredds.nci.org.au/thredds/dodsC/fx3/gbr4_H4p0_ABARRAr2_OBRAN2020_FG2Gv3_Dhnd/gbr4_simple_2022-10-31.nc'
 dataset = emsarray.open_dataset(dataset_url).isel(time=-1)
 dataset = dataset.ems.select_variables(['botz', 'temp'])
 
@@ -34,7 +34,9 @@ figure = transect.plot(
     dataset, line, dataset['temp'],
     figsize=(7.9, 3),
     bathymetry=dataset['botz'],
-    landmarks=landmarks)
+    landmarks=landmarks,
+    title="Temperature",
+    cmap='Oranges_r')
 figure.savefig('kgari-transect.png')
 
 # Plot the path of the transect
@@ -43,14 +45,15 @@ axes = figure.add_subplot(projection=dataset.ems.data_crs)
 axes.set_aspect(aspect='equal', adjustable='datalim')
 axes.set_title('Transect path')
 axes.add_collection(dataset.ems.make_poly_collection(
-    dataset['botz'], cmap='Blues_r', edgecolor='face',
+    dataset['botz'], cmap='Blues', clim=(0, 2000), edgecolor='face',
     linewidth=0.5, zorder=0))
+axes = figure.axes[0]
+axes.set_extent(plot.bounds_to_extent(line.envelope.buffer(0.2).bounds))
+axes.plot(*line.coords.xy, zorder=2, c='orange', linewidth=4)
+
 plot.add_coast(axes, zorder=1)
 plot.add_gridlines(axes)
 plot.add_landmarks(axes, landmarks)
-axes = figure.axes[0]
-axes.set_extent(plot.bounds_to_extent(line.envelope.buffer(0.2).bounds))
-axes.plot(*line.coords.xy, zorder=2)
 figure.savefig('kgari-path.png')
 
 pyplot.show(block=True)

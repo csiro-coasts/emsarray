@@ -184,7 +184,7 @@ pytest==9.0.1
     #   pytest-mpl
 pytest-cov==7.0.0
     # via emsarray (pyproject.toml)
-pytest-mpl==0.17.0
+pytest-mpl==0.18.0
     # via emsarray (pyproject.toml)
 python-dateutil==2.9.0.post0
     # via
