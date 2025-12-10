@@ -6,6 +6,7 @@ as they are intended as quick and simple ways of exploring a dataset.
 Consult the :ref:`examples gallery <examples>`
 for demonstrations on making more customised plots.
 """
+
 from collections.abc import Callable, Iterable
 from typing import Any, Literal
 
@@ -17,18 +18,18 @@ from matplotlib import animation
 from matplotlib.artist import Artist
 from matplotlib.figure import Figure
 
-from emsarray import conventions
-from emsarray.types import Landmark
+from emsarray import conventions, utils
+from emsarray.types import DataArrayOrName, Landmark
 
 from . import shortcuts
+from .artists import GridArtist
+from .utils import make_plot_title
 
 
 def plot_on_figure(
     figure: Figure,
     convention: 'conventions.Convention',
-    *,
-    scalar: xarray.DataArray | None = None,
-    vector: tuple[xarray.DataArray, xarray.DataArray] | None = None,
+    *variables: DataArrayOrName | tuple[DataArrayOrName, ...],
     title: str | None = None,
     projection: cartopy.crs.Projection | None = None,
     landmarks: Iterable[Landmark] | None = None,
@@ -73,28 +74,28 @@ def plot_on_figure(
     axes: GeoAxes = figure.add_subplot(projection=projection)
     axes.set_aspect(aspect='equal', adjustable='datalim')
 
-    if scalar is None and vector is None:
-        # Plot the polygon shapes for want of anything else to draw
-        collection = convention.make_poly_collection()
-        axes.add_collection(collection)
-        if title is None:
+    data_arrays = [
+        utils.names_to_data_arrays(convention.dataset, v)
+        for v in variables
+    ]
+
+    if title is None:
+        if len(variables) == 0:
             title = 'Geometry'
 
-    if scalar is not None:
-        # Plot a scalar variable on the polygons using a colour map
-        collection = convention.make_poly_collection(
-            scalar, edgecolor='face')
-        axes.add_collection(collection)
-        units = scalar.attrs.get('units')
-        figure.colorbar(collection, ax=axes, location='right', label=units)
+        if len(variables) == 1:
+            data_array = data_arrays[0]
+            if isinstance(data_array, xarray.DataArray):
+                title = make_plot_title(convention.dataset, data_array)
 
-    if vector is not None:
-        # Plot a vector variable using a quiver
-        quiver = convention.make_quiver(axes, *vector)
-        axes.add_collection(quiver)
-
-    if title:
+    if title is not None:
         axes.set_title(title)
+
+    for data_array in data_arrays:
+        convention.make_artist(axes, data_array)
+
+    if len(variables) == 0:
+        convention.plot_geometry(axes)
 
     if landmarks:
         shortcuts.add_landmarks(axes, landmarks)
@@ -105,20 +106,12 @@ def plot_on_figure(
 
     axes.autoscale()
 
-    # Work around for gridline positioning issues
-    # https://github.com/SciTools/cartopy/issues/2245#issuecomment-1732313921
-    layout_engine = figure.get_layout_engine()
-    if layout_engine is not None:
-        layout_engine.execute(figure)
-
 
 def animate_on_figure(
     figure: Figure,
     convention: 'conventions.Convention',
-    *,
     coordinate: xarray.DataArray,
-    scalar: xarray.DataArray | None = None,
-    vector: tuple[xarray.DataArray, xarray.DataArray] | None = None,
+    *variables: DataArrayOrName | tuple[DataArrayOrName, ...],
     title: str | Callable[[Any], str] | None = None,
     projection: cartopy.crs.Projection | None = None,
     landmarks: Iterable[Landmark] | None = None,
@@ -141,16 +134,10 @@ def animate_on_figure(
         This is used to build the polygons and vector quivers.
     coordinate : :class:`xarray.DataArray`
         The coordinate values to vary across frames in the animation.
-    scalar : :class:`xarray.DataArray`, optional
+    variables : :class:`xarray.DataArray` or tuple of :class:`xarray.DataArray`.
         The data to plot as an :class:`xarray.DataArray`.
         This will be passed to :meth:`.Convention.make_poly_collection`.
         It should have horizontal dimensions appropriate for this convention,
-        and a dimension matching the ``coordinate`` parameter.
-    vector : tuple of :class:`numpy.ndarray`, optional
-        The *u* and *v* components of a vector field
-        as a tuple of :class:`xarray.DataArray`.
-        These will be passed to :meth:`.Convention.make_quiver`.
-        These should have horizontal dimensions appropriate for this convention,
         and a dimension matching the ``coordinate`` parameter.
     title : str or callable, optional
         The title for each frame of animation.
@@ -192,42 +179,25 @@ def animate_on_figure(
     axes.set_aspect(aspect='equal', adjustable='datalim')
     axes.title.set_animated(True)
 
-    collection = None
-    if scalar is not None:
-        # Plot a scalar variable on the polygons using a colour map
-        scalar_values = convention.ravel(scalar).values[:, convention.mask]
-        collection = convention.make_poly_collection(
-            edgecolor='face',
-            clim=(numpy.nanmin(scalar_values), numpy.nanmax(scalar_values)))
-        axes.add_collection(collection)
-        collection.set_animated(True)
-        units = scalar.attrs.get('units')
-        figure.colorbar(collection, ax=axes, location='right', label=units)
+    data_arrays = utils.name_to_data_array(convention.dataset, variables)
+    coordinate_dim = coordinate.dims[0]
+    artists: list[GridArtist] = []
+    for data_array in data_arrays:
+        current_variable: xarray.DataArray | tuple[xarray.DataArray, ...]
+        if isinstance(data_array, xarray.DataArray):
+            current_variable = data_array.isel({coordinate_dim: 0})
+        else:
+            current_variable = tuple(v.isel({coordinate_dim: 0}) for v in data_array)
 
-    quiver = None
-    if vector is not None:
-        # Plot a vector variable using a quiver
-        vector_u_values, vector_v_values = (
-            convention.ravel(vec).values
-            for vec in vector)
-        # Quivers must start with some data.
-        # Vector arrows are scaled using this initial data.
-        # Find the absolute maximum value in all directions for initial data
-        # to make the autoscaling behave across all frames.
-        coordinate_dim = coordinate.dims[0]
-        initial_u, initial_v = (
-            abs(vec).max(dim=str(coordinate_dim), skipna=True)
-            for vec in vector)
-        quiver = convention.make_quiver(axes, initial_u, initial_v)
-        quiver.set_animated(True)
-        axes.add_collection(quiver)
+        artist = convention.make_artist(axes, current_variable, animated=True)
+        artists.append(artist)
 
     if landmarks:
         shortcuts.add_landmarks(axes, landmarks)
     if coast:
         shortcuts.add_coast(axes)
     if gridlines:
-        gridliner = shortcuts.add_gridlines(axes)
+        shortcuts.add_gridlines(axes)
 
     axes.autoscale()
 
@@ -247,35 +217,40 @@ def animate_on_figure(
         coordinate_callable = title.format
     else:
         coordinate_callable = title
+    axes.set_title(coordinate_callable(coordinate[0]))
 
     def animate(index: int) -> Iterable[Artist]:
+        if index > 0:
+            figure.set_layout_engine('none')
+
         changes: list[Artist] = []
         coordinate_value = coordinate.values[index]
-        axes.title.set_text(coordinate_callable(coordinate_value))
+        frame_title = coordinate_callable(coordinate_value)
+        axes.title.set_text(frame_title)
         changes.append(axes.title)
-        if gridlines:
-            changes.extend(gridliner.xline_artists)
-            changes.extend(gridliner.yline_artists)
 
-        if collection is not None:
-            collection.set_array(scalar_values[index])
-            changes.append(collection)
-
-        if quiver is not None:
-            quiver.set_UVC(vector_u_values[index], vector_v_values[index])
-            changes.append(quiver)
+        for data_array, artist in zip(data_arrays, artists):
+            current_variable: xarray.DataArray | tuple[xarray.DataArray, ...]
+            if isinstance(data_array, xarray.DataArray):
+                current_variable = data_array.isel({coordinate_dim: index})
+            else:
+                current_variable = tuple(v.isel({coordinate_dim: index}) for v in data_array)
+            artist.set_data_array(current_variable)
+            changes.append(artist)
 
         return changes
 
     # Draw the figure to force everything to compute its size,
-    # for vectors to be initializes, etc.
+    # for vectors to be initialized, etc.
     figure.draw_without_rendering()
 
     # Set the first frame of data
     animate(0)
 
     # Make the animation
+    # blit=True makes things much faster, but means that things outside of the axes can not be animated.
+    # This includes the title.
     return animation.FuncAnimation(
         figure, animate, frames=coordinate_indexes,
-        interval=interval, repeat=repeat_arg, blit=True,
+        interval=interval, repeat=repeat_arg,
         init_func=lambda: animate(0))

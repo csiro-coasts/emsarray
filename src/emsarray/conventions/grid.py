@@ -9,7 +9,7 @@ import warnings
 from collections.abc import Hashable, Sequence
 from contextlib import suppress
 from functools import cached_property
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy
 import shapely
@@ -17,11 +17,15 @@ import xarray
 from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import masking, utils
+from emsarray import masking, plot, utils
 from emsarray.exceptions import ConventionViolationWarning
-from emsarray.types import Bounds, Pathish
+from emsarray.types import Bounds, DataArrayOrName, Pathish
 
 from ._base import DimensionConvention, Specificity
+
+if TYPE_CHECKING:
+    # Import these optional dependencies only during type checking
+    from matplotlib.axes import Axes
 
 
 class CFGridKind(str, enum.Enum):
@@ -313,9 +317,40 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind]):
     def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
 
+    def make_artist(
+        self,
+        axes: 'Axes',
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> 'plot.GridArtist':
+        grid = self.grids[CFGridKind.face]
+        data_array = utils.names_to_data_arrays(self.dataset, variable)
+
+        if isinstance(data_array, xarray.DataArray):
+            return plot.artists.make_polygon_scalar_collection(axes, grid, data_array, **kwargs)
+
+        if isinstance(data_array, tuple):
+            if len(data_array) == 2:
+                return plot.artists.make_polygon_vector_quiver(axes, grid, data_array, **kwargs)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(
+        self,
+        axes: 'Axes',
+    ) -> 'plot.GridArtist':
+        grid = self.grids[CFGridKind.face]
+        collection = plot.artists.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
+
 
 # 1D coordinate grids
-
 class CFGrid1DTopology(CFGridTopology):
     """
     Collects information about the topology of a gridded dataset

@@ -13,6 +13,7 @@ from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
 from shapely.geometry import box
 
+from emsarray import plot
 from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.ugrid import (
     Mesh2DTopology, NoEdgeDimensionException, UGrid, UGridKind,
@@ -246,11 +247,29 @@ def make_dataset(
             "long_name": "Temperature",
         },
     )
+    u = xarray.DataArray(
+        data=numpy.random.normal(0, 1, (time_size, depth_size, cell_size)),
+        dims=[time_dimension, depth_dimension, face_dimension],
+        name="u",
+        attrs={
+            "units": "meter per second",
+            "standard_name": "eastward_sea_water_velocity",
+        },
+    )
+    v = xarray.DataArray(
+        data=numpy.random.normal(0, 1, (time_size, depth_size, cell_size)),
+        dims=[time_dimension, depth_dimension, face_dimension],
+        name="v",
+        attrs={
+            "units": "meter per second",
+            "standard_name": "northward_sea_water_velocity",
+        },
+    )
 
     dataset = xarray.Dataset(
         data_vars={var.name: var for var in [
             mesh, face_node_connectivity, node_x, node_y,
-            t, z, botz, eta, temp,
+            t, z, botz, eta, temp, u, v,
         ]},
         attrs={
             'title': "COMPAS defalt version",
@@ -637,15 +656,85 @@ def test_values():
 
 
 @pytest.mark.matplotlib
-def test_plot_on_figure():
-    # Not much to test here, mostly that it doesn't throw an error
+def test_make_artist_face_scalar(tmp_path: pathlib.Path) -> None:
     dataset = make_dataset(width=3)
     surface_temp = dataset.data_vars["temp"].isel(Mesh2_layers=-1, record=0)
 
     figure = Figure()
-    dataset.ems.plot_on_figure(figure, surface_temp)
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(axes, surface_temp, cmap='Oranges')
+    axes.autoscale()
 
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.artists.PolygonScalarCollection)
+    # It should have made a colorbar also
     assert len(figure.axes) == 2
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.get_cmap().name == 'Oranges'
+
+    figure.savefig(tmp_path / 'face_scalar.png')
+
+
+@pytest.mark.matplotlib
+def test_make_artist_face_vector(tmp_path: pathlib.Path) -> None:
+    dataset = make_dataset(width=3)
+    latest_surface = dataset.isel(Mesh2_layers=-1, record=-1)
+
+    figure = Figure()
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(
+        axes, (latest_surface['u'], latest_surface['v']),
+        scale=10)
+    axes.autoscale()
+
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.artists.PolygonVectorQuiver)
+    # Only one axes this time, vectors don't get a colorbar
+    assert len(figure.axes) == 1
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.scale == 10
+
+    figure.savefig(tmp_path / 'face_vector.png')
+
+
+@pytest.mark.matplotlib
+def test_make_artist_node_scalar(tmp_path: pathlib.Path) -> None:
+    dataset = make_dataset(width=3)
+
+    figure = Figure()
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(
+        axes, 'Mesh2_node_x',
+        cmap='Blues')
+    axes.autoscale()
+
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.artists.NodeTriMesh)
+    # It should have made a colorbar also
+    assert len(figure.axes) == 2
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.get_cmap().name == 'Blues'
+
+    figure.savefig(tmp_path / 'node.png')
+
+
+@pytest.mark.matplotlib(mock_coast=True)
+def test_plot_geometry(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(width=3)
+
+    figure = Figure()
+    dataset.ems.plot_on_figure(figure)
+
+    assert len(figure.axes) == 1
+
+    figure.savefig(tmp_path / 'geometry.png')
 
 
 @pytest.mark.parametrize(

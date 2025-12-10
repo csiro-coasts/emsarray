@@ -11,6 +11,7 @@ from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_equal
 from shapely.testing import assert_geometries_equal
 
+from emsarray import plot
 from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.grid import (
     CFGrid1D, CFGrid1DTopology, CFGridKind, CFGridTopology
@@ -125,10 +126,27 @@ def make_dataset(
             "long_name": "Temperature",
         },
     )
+    xx, yy = numpy.meshgrid(
+        numpy.linspace(-5, 5, width),
+        numpy.linspace(-5, 5, height),
+    )
+    u = xarray.DataArray(
+        data=numpy.sin(xx) + numpy.sin(yy),
+        dims=[latitude_name, longitude_name],
+        name="u",
+        attrs={"units": "metres per second", "long_name": "Eastward component of current"}
+    )
+    v = xarray.DataArray(
+        data=numpy.cos(xx) + numpy.cos(yy),
+        dims=[latitude_name, longitude_name],
+        name="v",
+        attrs={"units": "metres per second", "long_name": "Eastward component of current"}
+    )
 
     data_vars = [
         time, lat, lon, depth_var,
         botz, eta, temp,
+        u, v,
     ]
 
     if bounds:
@@ -382,15 +400,49 @@ def test_values():
 
 
 @pytest.mark.matplotlib
-def test_plot_on_figure():
+def test_make_artist_scalar(tmp_path: pathlib.Path):
     # Not much to test here, mostly that it doesn't throw an error
     dataset = make_dataset(width=3, height=5)
     surface_temp = dataset.data_vars["temp"].isel(depth=-1, time=0)
 
     figure = Figure()
-    dataset.ems.plot_on_figure(figure, surface_temp)
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(axes, surface_temp, cmap='Oranges')
+    axes.autoscale()
 
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.artists.PolygonScalarCollection)
+    # It should have made a colorbar also
     assert len(figure.axes) == 2
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.get_cmap().name == 'Oranges'
+
+    figure.savefig(tmp_path / 'scalar.png')
+
+
+@pytest.mark.matplotlib
+def test_make_artist_vector(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(width=30, height=50)
+    u, v = dataset['u'], dataset['v']
+
+    figure = Figure()
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(axes, (u, v), scale=40)
+    axes.autoscale()
+
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.artists.PolygonVectorQuiver)
+    # Only one axes this time, vectors don't get a colorbar
+    assert len(figure.axes) == 1
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.scale == 40
+
+    figure.savefig(tmp_path / 'vector.png')
 
 
 def test_make_clip_mask():

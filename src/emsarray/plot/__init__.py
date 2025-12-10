@@ -3,7 +3,8 @@ from typing import Any
 from emsarray.utils import RequiresExtraException, requires_extra
 
 try:
-    from . import utils
+    from . import artists, utils
+    from .artists import GridArtist
     from .base import animate_on_figure, plot_on_figure
     from .shortcuts import add_coast, add_gridlines, add_landmarks
     from .utils import (
@@ -36,6 +37,11 @@ __all__ = [
     # Export the utils module explicitly. Future utility methods may not be
     # exported using this public API, and instead be accessed using `plot.utils.some_method`
     'utils',
+
+    # We export the artists module itself, and only reexport the GridArtist base class.
+    # Specific artists must be imported from the artists module directly.
+    'artists',
+    'GridArtist',
 
     # Methods from .base
     'animate_on_figure', 'plot_on_figure',

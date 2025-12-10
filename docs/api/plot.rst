@@ -2,7 +2,7 @@
 emsarray.plot
 =============
 
-.. currentmodule:: emsarray.plot
+.. module:: emsarray.plot
 
 Plotting an entire figure
 =========================
@@ -36,3 +36,36 @@ Utilities
 .. autofunction:: polygons_to_collection
 .. autofunction:: bounds_to_extent
 .. autofunction:: make_plot_title
+
+Artist functions
+================
+
+.. module:: emsarray.plot.artists
+
+These functions will make a matplotlib :class:`~matplotlib.artist.Artist`
+that can plot variables directly from a support emsarray dataset.
+These functions and the associated artists can be imported from
+:mod:`emsarray.plot.artists`.
+
+.. autofunction:: make_polygon_scalar_collection
+.. autofunction:: make_polygon_vector_quiver
+.. autofunction:: make_polygon_contour
+.. autofunction:: make_node_scalar_artist
+
+Artists
+=======
+
+.. autoclass:: GridArtist
+   :members: set_data_array
+
+.. autoclass:: PolygonScalarCollection
+   :members: from_grid
+
+.. autoclass:: PolygonVectorQuiver
+   :members: from_grid
+
+.. autoclass:: PolygonTriContourSet
+   :members: from_grid
+
+.. autoclass:: NodeTriMesh
+   :members: from_grid

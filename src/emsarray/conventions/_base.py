@@ -29,9 +29,9 @@ if TYPE_CHECKING:
     from cartopy.crs import CRS
     from matplotlib.animation import FuncAnimation
     from matplotlib.axes import Axes
-    from matplotlib.collections import PolyCollection
     from matplotlib.figure import Figure
-    from matplotlib.quiver import Quiver
+
+    from emsarray.plot import GridArtist
 
 logger = logging.getLogger(__name__)
 
@@ -955,6 +955,7 @@ class Convention[GridKind, Index](abc.ABC):
     def plot_on_figure(
         self,
         figure: 'Figure',
+        *variables: DataArrayOrName | tuple[DataArrayOrName, ...],
         scalar: DataArrayOrName | None = None,
         vector: tuple[DataArrayOrName, DataArrayOrName] | None = None,
         title: str | None = None,
@@ -991,30 +992,37 @@ class Convention[GridKind, Index](abc.ABC):
         :func:`.plot.plot_on_figure` : The underlying implementation
         """
         if scalar is not None:
-            kwargs['scalar'] = utils.name_to_data_array(self.dataset, scalar)
+            warnings.warn(
+                (
+                    "The 'scalar' parameter to 'Convention.plot_on_figure() is deprecated. "
+                    "Pass the scalar variable as a positional argument instead."
+                ),
+                category=DeprecationWarning, stacklevel=2)
+            variables = variables + (scalar,)
 
         if vector is not None:
-            kwargs['vector'] = (
-                utils.name_to_data_array(self.dataset, vector[0]),
-                utils.name_to_data_array(self.dataset, vector[1]),
-            )
+            warnings.warn(
+                (
+                    "The 'vector' parameter to 'Convention.plot_on_figure() is deprecated. "
+                    "Pass the vector tuple as a positional argument instead."
+                ),
+                category=DeprecationWarning, stacklevel=2)
+            variables = variables + (vector,)
+
+        mapped_variables = [
+            utils.names_to_data_arrays(self.dataset, v)
+            for v in variables
+        ]
 
         if title is not None:
             kwargs['title'] = title
 
-        elif scalar is not None and vector is None:
-            # Make a title out of the scalar variable, but only if a title
-            # hasn't been supplied and we don't also have vectors to plot.
-            #
-            # We can't make a good name from vectors,
-            # as they are in two variables with names like
-            # 'u component of current' and 'v component of current'.
-            #
-            # Users can supply their own titles
-            # if this automatic behaviour is insufficient
-            kwargs['title'] = _plot.make_plot_title(self.dataset, kwargs['scalar'])
+        # Find a title if there is a single variable passed in
+        elif len(mapped_variables) == 1 and isinstance(mapped_variables[0], xarray.DataArray):
+            variable = mapped_variables[0]
+            kwargs['title'] = _plot.make_plot_title(self.dataset, variable)
 
-        _plot.plot_on_figure(figure, self, **kwargs)
+        _plot.plot_on_figure(figure, self, *mapped_variables, **kwargs)
 
     @_plot._requires_plot
     def plot(self, *args: Any, **kwargs: Any) -> None:
@@ -1039,6 +1047,7 @@ class Convention[GridKind, Index](abc.ABC):
     def animate_on_figure(
         self,
         figure: 'Figure',
+        *variables: DataArrayOrName | tuple[DataArrayOrName, ...],
         scalar: DataArrayOrName | None = None,
         vector: tuple[DataArrayOrName, DataArrayOrName] | None = None,
         coordinate: DataArrayOrName | None = None,
@@ -1090,26 +1099,33 @@ class Convention[GridKind, Index](abc.ABC):
         if len(coordinate.dims) != 1:
             raise ValueError("Coordinate variable must be one dimensional")
 
-        coordinate_dim = coordinate.dims[0]
-
         if scalar is not None:
-            scalar = utils.name_to_data_array(self.dataset, scalar)
-            if coordinate_dim not in scalar.dims:
-                raise ValueError("Scalar dimensions do not match coordinate axis to animate along")
-            kwargs['scalar'] = scalar
+            warnings.warn(
+                (
+                    "The 'scalar' parameter to 'Convention.animate_on_figure() is deprecated. "
+                    "Pass the scalar variable as a positional argument instead."
+                ),
+                category=DeprecationWarning, stacklevel=2)
+            variables = variables + (scalar,)
 
         if vector is not None:
-            vector = (
-                utils.name_to_data_array(self.dataset, vector[0]),
-                utils.name_to_data_array(self.dataset, vector[1]),
-            )
-            if not all(coordinate_dim in component.dims for component in vector):
-                raise ValueError("Vector dimensions do not match coordinate axis to animate along")
-            kwargs['vector'] = vector
+            warnings.warn(
+                (
+                    "The 'vector' parameter to 'Convention.animate_on_figure() is deprecated. "
+                    "Pass the vector tuple as a positional argument instead."
+                ),
+                category=DeprecationWarning, stacklevel=2)
+            variables = variables + (vector,)
+
+        mapped_variables = [
+            utils.name_to_data_array(self.dataset, v)
+            for v in variables
+        ]
 
         if title is not None:
             kwargs['title'] = title
-        elif scalar is not None and vector is None:
+
+        elif len(mapped_variables) == 1 and isinstance(mapped_variables[0], xarray.DataArray):
             # Make a title out of the scalar variable, but only if a title
             # hasn't been supplied and we don't also have vectors to plot.
             #
@@ -1117,166 +1133,129 @@ class Convention[GridKind, Index](abc.ABC):
             # as they are in two variables with names like
             # 'u component of current' and 'v component of current'.
             #
-            # Users can supply their own titles
-            # if this automatic behaviour is insufficient
+            # Users can supply their own titles if this automatic behaviour is insufficient
+            variable = mapped_variables[0]
             title_bits = []
-            if 'long_name' in scalar.attrs:
-                title_bits.append(str(scalar.attrs['long_name']))
-            elif scalar.name:
-                title_bits.append(str(scalar.name))
-
-            if 'long_name' in coordinate.attrs:
-                title_bits.append(str(coordinate.attrs['long_name']) + ': {}')
-            elif coordinate.name:
-                title_bits.append(str(coordinate.name) + ': {}')
+            variable_title = _plot.make_plot_title(self.dataset, variable)
+            if variable_title is not None:
+                title_bits.append(variable_title)
+            coordinate_title = _plot.make_plot_title(self.dataset, coordinate)
+            if coordinate_title is not None:
+                title_bits.append(coordinate_title + ': {}')
             else:
                 title_bits.append('{}')
+
             kwargs['title'] = '\n'.join(title_bits)
 
-        return _plot.animate_on_figure(figure, self, coordinate=coordinate, **kwargs)
+        return _plot.animate_on_figure(figure, self, coordinate, *mapped_variables, **kwargs)
+
+    @abc.abstractmethod
+    def make_artist(
+        self,
+        axes: 'Axes',
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> '_plot.GridArtist':
+        """
+        Make a matplotlib artists for the data array,
+        adding it to the Axes and returning the Artist.
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+            The axes to add the artist to.
+        variable : DataArrayOrName or tuple of DataArrayOrName
+            The data array, or tuple of data arrays, to make an artist for.
+            A sensible artist type is picked based on the data arrays passed in
+            and the grids they are defined on.
+        kwargs : any
+            Any extra kwargs are passed on to the artist
+            and can be used to style it.
+            The specific kwargs that are accepted depend on the artist that is used.
+
+        Returns
+        -------
+        emsarray.plot.GridArtist
+            The artist for the data array passed in.
+            The artist will already have been added to the axes.
+
+        See also
+        --------
+        :mod:`emsarray.plot` : For a list of all supported artists
+        """
+        pass
+
+    @abc.abstractmethod
+    def plot_geometry(
+        self,
+        axes: 'Axes',
+    ) -> 'GridArtist':
+        """
+        Plot the geometry of this dataset on the axes.
+        What this means is dependent on the dataset convention used.
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+
+        Returns
+        -------
+        emsarray.plot.GridArtist
+            The artists that will draw the geometry.
+        """
+        pass
 
     @_plot._requires_plot
     @utils.timed_func
+    @utils.deprecated(
+        "Convention.make_poly_collection() is deprecated. "
+        "Use Convention.make_artist() or emsarray.plot.make_polygon_scalar_collection instead."
+    )
     def make_poly_collection(
         self,
         data_array: DataArrayOrName | None = None,
         **kwargs: Any,
-    ) -> 'PolyCollection':
-        """
-        Make a :class:`~matplotlib.collections.PolyCollection`
-        from the geometry of this :class:`~xarray.Dataset`.
-        This can be used to make custom matplotlib plots from your data.
+    ) -> 'GridArtist':
+        grid = self.default_grid
 
-        If a :class:`~xarray.DataArray` is passed in,
-        the values of that are assigned to the PolyCollection `array` parameter.
-
-        Parameters
-        ----------
-        data_array : Hashable or :class:`xarray.DataArray`, optional
-            A data array, or the name of a data variable in this dataset. Optional.
-            If given, the data array is :meth:`ravelled <.ravel>`
-            and passed to :meth:`PolyCollection.set_array() <matplotlib.cm.ScalarMappable.set_array>`.
-            The data is used to colour the patches.
-            Refer to the matplotlib documentation for more information on styling.
-        **kwargs
-            Any keyword arguments are passed to the
-            :class:`~matplotlib.collections.PolyCollection` constructor.
-
-        Returns
-        -------
-        :class:`~matplotlib.collections.PolyCollection`
-            A PolyCollection constructed using the geometry of this dataset.
-
-        Example
-        -------
-
-        .. code-block:: python
-
-            import cartopy.crs as ccrs
-            import matplotlib.pyplot as plt
-            import emsarray
-
-            figure = plt.figure(figsize=(10, 8))
-            axes = plt.subplot(projection=ccrs.PlateCarree())
-            axes.set_aspect(aspect='equal', adjustable='datalim')
-
-            ds = emsarray.open_dataset("./tests/datasets/ugrid_mesh2d.nc")
-            ds = ds.isel(record=0, Mesh2_layers=-1)
-            patches = ds.ems.make_poly_collection('temp')
-            axes.add_collection(patches)
-            figure.colorbar(patches, ax=axes, location='right', label='meters')
-
-            axes.set_title("Depth")
-            axes.autoscale()
-            figure.show()
-        """
         if data_array is not None:
             if 'array' in kwargs:
                 raise TypeError(
                     "Can not pass both `data_array` and `array` to make_poly_collection"
                 )
 
-            data_array = utils.name_to_data_array(self.dataset, data_array)
-
-            data_array = self.ravel(data_array)
-            if len(data_array.dims) > 1:
-                raise ValueError(
-                    "Data array has too many dimensions - did you forget to "
-                    "select a single timestep or a single depth layer?")
-
-            values = data_array.values[self.mask]
-            kwargs['array'] = values
+            kwargs['data_array'] = utils.name_to_data_array(self.dataset, data_array)
             if 'clim' not in kwargs:
-                kwargs['clim'] = (numpy.nanmin(values), numpy.nanmax(values))
+                kwargs['clim'] = (numpy.nanmin(kwargs['data_array']), numpy.nanmax(kwargs['data_array']))
 
         if 'transform' not in kwargs:
             kwargs['transform'] = self.data_crs
 
-        return _plot.polygons_to_collection(self.polygons[self.mask], **kwargs)
+        return _plot.artists.PolygonScalarCollection(grid=grid, **kwargs)
 
     @_plot._requires_plot
+    @utils.deprecated(
+        "Convention.make_quiver() is deprecated. "
+        "Use Convention.make_artist() or plot.make_polygon_vector_quiver() instead."
+    )
     def make_quiver(
         self,
         axes: 'Axes',
         u: DataArrayOrName | None = None,
         v: DataArrayOrName | None = None,
         **kwargs: Any,
-    ) -> 'Quiver':
-        """
-        Make a :class:`matplotlib.quiver.Quiver` instance to plot vector data.
-
-        Parameters
-        ----------
-        axes : matplotlib.axes.Axes
-            The axes to make this quiver on.
-        u, v : xarray.DataArray or str, optional
-            The DataArrays or the names of DataArrays in this dataset
-            that make up the *u* and *v* components of the vector.
-            If omitted, a Quiver will be constructed with all components set to 0.
-        **kwargs
-            Any keyword arguments are passed on to the Quiver constructor.
-
-        Returns
-        -------
-        matplotlib.quiver.Quiver
-            A quiver instance that can be added to a plot
-        """
-        from matplotlib.quiver import Quiver
-
-        x, y = numpy.transpose(self.face_centres)
-
-        # A Quiver needs some values when being initialized.
-        # We don't always want to provide values to the quiver,
-        # sometimes preferring to fill them in later,
-        # so `u` and `v` are optional.
-        # If they are not provided, we set default quiver values of `numpy.nan`.
-        values: tuple[numpy.ndarray, numpy.ndarray] | tuple[float, float]
-        values = numpy.nan, numpy.nan
+    ) -> 'GridArtist':
+        grid = self.default_grid
 
         if u is not None and v is not None:
             u = utils.name_to_data_array(self.dataset, u)
             v = utils.name_to_data_array(self.dataset, v)
-
-            if u.dims != v.dims:
-                raise ValueError(
-                    "Vector data array dimensions must be identical!\n"
-                    f"u dimensions: {tuple(u.dims)}\n"
-                    f"v dimensions: {tuple(v.dims)}"
-                )
-
-            u, v = self.ravel(u), self.ravel(v)
-
-            if len(u.dims) > 1:
-                raise ValueError(
-                    "Vector data arrays have too many dimensions - did you forget to "
-                    "select a single timestep or a single depth layer?")
-
-            values = u.values, v.values
+            kwargs['data_array'] = (u, v)
 
         if 'transform' not in kwargs:
             kwargs['transform'] = self.data_crs
 
-        return Quiver(axes, x, y, *values, **kwargs)
+        return _plot.artists.PolygonVectorQuiver(grid=grid, **kwargs)
 
     def _validate_geometry(
         self,

@@ -10,7 +10,7 @@ import enum
 import logging
 from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy
 import shapely
@@ -18,11 +18,14 @@ import xarray
 from shapely.geometry.base import BaseGeometry
 from xarray.core.dataset import DatasetCoordinates
 
-from emsarray import masking, utils
+from emsarray import masking, plot, utils
 from emsarray.operations import triangulate
-from emsarray.types import Pathish
+from emsarray.types import DataArrayOrName, Pathish
 
 from ._base import DimensionConvention, Specificity
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
 
 logger = logging.getLogger(__name__)
 
@@ -405,6 +408,46 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
 
     def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
+
+    def make_artist(
+        self,
+        axes: 'Axes',
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> 'plot.GridArtist':
+        data_array = utils.names_to_data_arrays(self.dataset, variable)
+
+        if isinstance(data_array, xarray.DataArray):
+            grid_kind = self.get_grid_kind(data_array)
+            if grid_kind is ArakawaCGridKind.face:
+                return plot.artists.make_polygon_scalar_collection(
+                    axes, self.grids[grid_kind], data_array, **kwargs)
+
+            if grid_kind is ArakawaCGridKind.node:
+                return plot.artists.make_node_scalar_artist(
+                    axes, self.grids[grid_kind], data_array, **kwargs)
+
+        else:
+            grid_kinds = tuple(self.get_grid_kind(d) for d in data_array)
+            if grid_kinds == (ArakawaCGridKind.face, ArakawaCGridKind.face):
+                return plot.artists.make_polygon_vector_quiver(
+                    axes, self.grids[ArakawaCGridKind.face], data_array, **kwargs)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(
+        self,
+        axes: 'Axes',
+    ) -> 'plot.GridArtist':
+        grid = self.grids[ArakawaCGridKind.face]
+        collection = plot.artists.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
 
     def make_triangulation(self) -> triangulate.Triangulation:
         vertices = self.grids[ArakawaCGridKind.node].geometry

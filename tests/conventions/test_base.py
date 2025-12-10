@@ -3,16 +3,18 @@ import enum
 import pathlib
 from collections.abc import Hashable
 from functools import cached_property
+from typing import Any
 
 import numpy
 import pandas
 import pytest
 import xarray
 from matplotlib import pyplot
+from matplotlib.axes import Axes
 from shapely.geometry import LineString, Point, Polygon, box
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import masking, utils
+from emsarray import masking, plot, utils
 from emsarray.conventions import Convention, Grid
 from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.types import DataArrayOrName, Pathish
@@ -147,6 +149,37 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
             for y in range(self.shape[0])
             for x in range(self.shape[1])
         ], dtype=numpy.object_)
+
+    def make_artist(
+        self,
+        axes: Axes,
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> plot.GridArtist:
+        data_array = utils.names_to_data_arrays(self.dataset, variable)
+        if isinstance(data_array, xarray.DataArray):
+            grid_kind = self.get_grid_kind(data_array)
+            if grid_kind is SimpleGridKind.face:
+                return plot.artists.make_polygon_scalar_collection(
+                    axes, self.grids[SimpleGridKind.face], data_array, **kwargs)
+        elif isinstance(data_array, tuple):
+            grid_kinds = tuple(self.get_grid_kind(d) for d in data_array)
+            if grid_kinds == (SimpleGridKind.face, SimpleGridKind.face):
+                return plot.artists.make_polygon_vector_quiver(
+                    axes, self.grids[SimpleGridKind.face], data_array, **kwargs)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(self, axes: Axes) -> plot.GridArtist:
+        grid = self.grids[SimpleGridKind.face]
+        collection = plot.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
 
     def make_clip_mask(
         self,
