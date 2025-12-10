@@ -14,6 +14,15 @@ and have limited customisation options.
 Consult the :ref:`examples gallery <examples>`
 for demonstrations on making more customised plots.
 
+The :ref:`examples <examples>` section contains many worked examples on how to generate plots.
+:ref:`example-plot-with-clim` is a good place to start.
+
+Shortcuts
+=========
+
+These functions will generate an entire plot,
+but have limited customisation options.
+
 .. autofunction:: plot_on_figure
 .. autofunction:: animate_on_figure
 

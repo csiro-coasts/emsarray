@@ -26,14 +26,26 @@ Gallery
 
 .. list-table::
 
-   * - :ref:`example-kgari-transect`
+   * - :ref:`example-animated-plot`
 
-       .. image:: /_static/images/kgari-transect.png
+       .. image:: /_static/images/animated-plot.png
+          :width: 200
+          :class: no-scaled-link
+
+   * - :ref:`example-plot-set-extent`
+
+       .. image:: /_static/images/plot-set-extent.png
           :width: 200
           :class: no-scaled-link
 
    * - :ref:`example-plot-with-clim`
 
        .. image:: /_static/images/plot-with-clim.png
+          :width: 200
+          :class: no-scaled-link
+
+   * - :ref:`example-kgari-transect`
+
+       .. image:: /_static/images/kgari-transect.png
           :width: 200
           :class: no-scaled-link

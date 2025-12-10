@@ -40,6 +40,10 @@ def plot_on_figure(
     Plot a :class:`~xarray.DataArray`
     on a :mod:`matplotlib` :class:`~matplotlib.figure.Figure`.
 
+    This method is a shortcut for quickly generating simple plots.
+    It is not intended to be fully featured.
+    See the :ref:`examples <examples>` for more comprehensive plotting examples.
+
     Parameters
     ----------
     figure
@@ -47,13 +51,26 @@ def plot_on_figure(
     convention
         The :class:`~emsarray.conventions.Convention` instance of the dataset.
         This is used to build the polygons and vector quivers.
+    *variables : :class:`xarray.DataArray` or tuples of :class:`xarray.DataArray`
+        Any number of dataset variables to plot.
+        Scalar variables should be passed in directly,
+        while vector pairs should be passed in as a tuple.
+        These will be passed to :meth:`.Convention.make_artist`.
     scalar : :class:`xarray.DataArray`, optional
         The data to plot as an :class:`xarray.DataArray`.
-        This will be passed to :meth:`.Convention.make_poly_collection`.
+
+        .. deprecated:: 1.0.0
+
+            Pass in variables as positional arguments instead
+
     vector : tuple of :class:`numpy.ndarray`, optional
         The *u* and *v* components of a vector field
         as a tuple of :class:`xarray.DataArray`.
-        These will be passed to :meth:`.Convention.make_quiver`.
+
+        .. deprecated:: 1.0.0
+
+            Pass in variables as positional arguments instead
+
     title : str, optional
         The title of the plot. Optional.
     projection : :class:`~cartopy.crs.Projection`
@@ -125,6 +142,10 @@ def animate_on_figure(
     on a :mod:`matplotlib` :class:`~matplotlib.figure.Figure`
     as a :class:`~matplotlib.animation.FuncAnimation`.
 
+    This method is a shortcut for quickly generating simple plots.
+    It is not intended to be fully featured.
+    See the :ref:`examples <examples>` for more comprehensive plotting examples.
+
     Parameters
     ----------
     figure : :class:`matplotlib.figure.Figure`
@@ -134,11 +155,26 @@ def animate_on_figure(
         This is used to build the polygons and vector quivers.
     coordinate : :class:`xarray.DataArray`
         The coordinate values to vary across frames in the animation.
-    variables : :class:`xarray.DataArray` or tuple of :class:`xarray.DataArray`.
+    *variables : :class:`xarray.DataArray` or tuples of :class:`xarray.DataArray`
+        Any number of dataset variables to plot.
+        Scalar variables should be passed in directly,
+        while vector pairs should be passed in as a tuple.
+        These will be passed to :meth:`.Convention.make_artist`.
+    scalar : :class:`xarray.DataArray`, optional
         The data to plot as an :class:`xarray.DataArray`.
-        This will be passed to :meth:`.Convention.make_poly_collection`.
-        It should have horizontal dimensions appropriate for this convention,
-        and a dimension matching the ``coordinate`` parameter.
+
+        .. deprecated:: 1.0.0
+
+            Pass in variables as positional arguments instead
+
+    vector : tuple of :class:`numpy.ndarray`, optional
+        The *u* and *v* components of a vector field
+        as a tuple of :class:`xarray.DataArray`.
+
+        .. deprecated:: 1.0.0
+
+            Pass in variables as positional arguments instead
+
     title : str or callable, optional
         The title for each frame of animation.
         Optional, will default to the coordinate value for each frame.

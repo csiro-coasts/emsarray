@@ -66,7 +66,8 @@ class Grid[GridKind, Index](abc.ABC):
     @abc.abstractmethod
     def size(self) -> int:
         """
-        The linear size of :class:`DataArrays <xarray.DataArray>` on this grid,
+        The linear :attr:`~xarray.DataArray.size`
+        of :class:`DataArrays <xarray.DataArray>` on this grid,
         not accounting for other dimensions such as time or depth.
         """
         pass
@@ -100,6 +101,31 @@ class Grid[GridKind, Index](abc.ABC):
         The indexes returned when querying this STRtree correspond to the linear index of this grid.
         The indexes correspond with the geometry in :attr:`Grid.geometry`.
 
+        Example
+        -------
+
+        This example will find the linear index, native index, selector, and geometry
+        at a point.
+
+        .. code-block:: python
+
+            import emsarray
+            import shapely
+
+            dataset = emsarray.tutorial.open_dataset('gbr4')
+            point = shapely.Point(151.869, -23.386)
+            grid = dataset.ems.grids['face']
+            intersecting_indexes = grid.strtree.query(point, predicate="intersects")
+
+            if len(intersecting_indexes) == 0:
+                print("No intersecting geometry")
+
+            else:
+                linear_index = intersecting_indexes[0]
+                native_index = grid.wind_index(linear_index)
+                selector = dataset.ems.selector_for_index(native_index)
+                geometry = grid.geometry[linear_index]
+
         See also
         --------
         :attr:`Grid.geometry`
@@ -120,6 +146,11 @@ class Grid[GridKind, Index](abc.ABC):
 
     @cached_property
     def centroid(self) -> numpy.ndarray:
+        """
+        The centres of the geometry of this grid as a :class:`numpy.ndarray` of Shapely points.
+        Defaults to the :func:`shapely.centroid` of :attr:`Grid.geometry`,
+        but some conventions might have more specific ways of finding the centres.
+        """
         return self.convention.make_geometry_centroid(self.grid_kind)
 
     @abc.abstractmethod
@@ -221,7 +252,6 @@ class Grid[GridKind, Index](abc.ABC):
 
             dataset = emsarray.tutorial.open_dataset('kgari')
             grid = dataset.ems.default_grid
-            face_size = dataset.ems.grid_size[dataset.ems.default_grid_kind]
             flat_array = xarray.DataArray(
                 data=numpy.arange(grid.size),
                 dims=['index'],
@@ -257,6 +287,8 @@ class Grid[GridKind, Index](abc.ABC):
             )
             intersecting_cells.values[hits] = True
             intersecting_cells = grid.wind(intersecting_cells)
+
+            dataset.ems.plot(intersecting_cells)
 
         See Also
         --------
@@ -421,11 +453,16 @@ class Convention[GridKind, Index](abc.ABC):
 
         Notes
         -----
+        xarray will find all time variables and convert them to numpy datetimes when opening a dataset.
+
         The CF Conventions state that
         a time variable is defined by having a `units` attribute
         formatted according to the UDUNITS package [1]_.
 
-        xarray will find all time variables and convert them to numpy datetimes.
+        In practice, some datasets do not follow this conventions.
+        emsarray will first look for a time coordinate that conforms to the CF Conventions,
+        but if none are found it will fall back to picking a datetime variable
+        that has at least one `coordinate_type`: `time`, `standard_name`: `time`, or `axis`: `T` attribute set.
 
         References
         ----------
@@ -587,8 +624,8 @@ class Convention[GridKind, Index](abc.ABC):
     def ravel_index(self, index: Index) -> int:
         """Convert a convention native index to a linear index.
 
-        Each conventnion has a different native index type,
-        read the specific conventnion documentation for more information.
+        Each convention has a different native index type,
+        read the specific convention documentation for more information.
 
         Parameters
         ----------
@@ -639,10 +676,10 @@ class Convention[GridKind, Index](abc.ABC):
         *,
         grid_kind: GridKind | None = None,
     ) -> Index:
-        """Convert a linear index to a conventnion native index.
+        """Convert a linear index to a convention native index.
 
-        Each conventnion has a different native index type,
-        read the specific conventnion documentation for more information.
+        Each convention has a different native index type,
+        read the specific convention documentation for more information.
 
         Parameters
         ----------
@@ -688,7 +725,7 @@ class Convention[GridKind, Index](abc.ABC):
     @abc.abstractmethod
     def grid_kinds(self) -> frozenset[GridKind]:
         """
-        All of the :type:`grid kinds <.GridKind>` this dataset includes.
+        A set of the :type:`grid kinds <.GridKind>` this dataset includes.
         """
         pass
 
@@ -697,7 +734,7 @@ class Convention[GridKind, Index](abc.ABC):
     def default_grid_kind(self) -> GridKind:
         """
         The default :type:`grid kind <.GridKind>` for this dataset.
-        For most datasets this should be a face grid.
+        For most datasets this should be a polygon grid.
         """
         # TODO Deprecate this?
         pass
@@ -723,7 +760,19 @@ class Convention[GridKind, Index](abc.ABC):
         "use Convention.grids[grid_kind].size instead."
     )
     def grid_size(self) -> dict[GridKind, int]:
-        """The linear size of each grid kind."""
+        """
+        The linear size of each grid kind.
+
+        .. deprecated:: 1.0.0
+
+            Use :attr:`Grid.size` instead:
+
+            .. code-block:: python
+
+                dataset = xarray.open_dataset(...)
+                grid = dataset.ems.default_grid
+                grid.size
+        """
         return {grid_kind: grid.size for grid_kind, grid in self.grids.items()}
 
     @abc.abstractmethod
@@ -886,9 +935,9 @@ class Convention[GridKind, Index](abc.ABC):
 
         See Also
         --------
-        .utils.ravel_dimensions : A function that ravels some given dimensions in a dataset.
+        Grid.ravel : The actual implementation
         Convention.wind : The inverse operation.
-        Grid.ravel : A ravel operation for each grid kind in this dataset.
+        .utils.ravel_dimensions : A function that ravels some given dimensions in a dataset.
         """
         return self.get_grid(data_array).ravel(data_array)
 
@@ -944,12 +993,43 @@ class Convention[GridKind, Index](abc.ABC):
         """
         The coordinate reference system that coordinates in this dataset are
         defined in.
-        Used by :meth:`.Convention.make_poly_collection` and :meth:`.Convention.make_quiver`.
+        Used by plotting methods when creating :class:`Artists <matplotlib.artist.Artist>`.
         Defaults to :class:`cartopy.crs.PlateCarree`.
+
+        If your dataset uses a different coordinate reference system
+        this property can be set manually:
+
+        .. code-block:: python
+
+            dataset = emsarray.open_dataset(...)
+            dataset.ems.data_crs = pyproj.CRS('EPSG:32755')
         """
         # Lazily imported here as cartopy is an optional dependency
         from cartopy.crs import PlateCarree
         return PlateCarree()
+
+    @_plot._requires_plot
+    def plot(self, *args: Any, **kwargs: Any) -> None:
+        """Plot a data array and automatically display it.
+
+        This method is most useful when working in Jupyter notebooks
+        which display figures automatically.
+        This method is a wrapper around :meth:`.plot_on_figure`
+        that creates and shows a :class:`~matplotlib.figure.Figure` for you.
+        All arguments are passed on to :meth:`.plot_on_figure`,
+        refer to that function for details.
+
+        This method is a shortcut for quickly generating simple plots.
+        It is not intended to be fully featured.
+        See the :ref:`examples <examples>` for more comprehensive plotting examples.
+
+        See Also
+        --------
+        :meth:`.plot_on_figure`
+        """
+        from matplotlib import pyplot
+        self.plot_on_figure(pyplot.figure(), *args, **kwargs)
+        pyplot.show()
 
     @_plot._requires_plot
     def plot_on_figure(
@@ -972,23 +1052,41 @@ class Convention[GridKind, Index](abc.ABC):
         This method will only plot a single time step and depth layer.
         Callers are responsible for selecting a single slice before calling this method.
 
+        This method is a shortcut for quickly generating simple plots.
+        It is not intended to be fully featured.
+        See the :ref:`examples <examples>` for more comprehensive plotting examples.
+
         Parameters
         ----------
         figure : matplotlib.figure.Figure
             The :class:`~matplotlib.figure.Figure` instance to plot this on.
+        *variables : :class:`xarray.DataArray` or tuples of :class:`xarray.DataArray`
+            Any number of dataset variables to plot.
+            Scalar variables should be passed in directly,
+            while vector pairs should be passed in as a tuple.
+            These will be passed to :meth:`.Convention.make_artist`.
         scalar : DataArrayOrName
             The :class:`~xarray.DataArray` to plot,
             or the name of an existing DataArray in this Dataset.
+
+            .. deprecated:: 1.0.0
+
+                Pass in variables as positional arguments instead
         vector : tuple of DataArrayOrName
             A tuple of the *u* and *v* components of a vector.
             The components should be a :class:`~xarray.DataArray`,
             or the name of an existing DataArray in this Dataset.
+
+            .. deprecated:: 1.0.0
+
+                Pass in variables as positional arguments instead
         **kwargs
             Any extra keyword arguments are passed on to
             :meth:`emsarray.plot.plot_on_figure`
 
         See Also
         --------
+        :meth:`Convention.plot` : A shortcut that automatically displays the figure
         :func:`.plot.plot_on_figure` : The underlying implementation
         """
         if scalar is not None:
@@ -1025,25 +1123,6 @@ class Convention[GridKind, Index](abc.ABC):
         _plot.plot_on_figure(figure, self, *mapped_variables, **kwargs)
 
     @_plot._requires_plot
-    def plot(self, *args: Any, **kwargs: Any) -> None:
-        """Plot a data array and automatically display it.
-
-        This method is most useful when working in Jupyter notebooks
-        which display figures automatically.
-        This method is a wrapper around :meth:`.plot_on_figure`
-        that creates and shows a :class:`~matplotlib.figure.Figure` for you.
-        All arguments are passed on to :meth:`.plot_on_figure`,
-        refer to that function for details.
-
-        See Also
-        --------
-        :meth:`.plot_on_figure`
-        """
-        from matplotlib import pyplot
-        self.plot_on_figure(pyplot.figure(), *args, **kwargs)
-        pyplot.show()
-
-    @_plot._requires_plot
     def animate_on_figure(
         self,
         figure: 'Figure',
@@ -1057,16 +1136,36 @@ class Convention[GridKind, Index](abc.ABC):
         """
         Make an animated plot of a data array.
 
+        This method is a shortcut for quickly generating simple animations.
+        It is not intended to be fully featured.
+        See the :ref:`examples <examples>` for more comprehensive plotting examples.
+
         For real world examples, refer to the ``examples/animation.ipynb`` notebook.
 
         Parameters
         ----------
         figure : matplotlib.figure.Figure
             The :class:`matplotlib.figure.Figure` to plot the animation on
-        data_array : DataArrayOrName
-            The :class:`xarray.DataArray` to plot.
-            If a string is passed in,
-            the variable with that name is taken from :attr:`dataset`.
+        *variables : :class:`xarray.DataArray` or tuples of :class:`xarray.DataArray`
+            Any number of dataset variables to plot.
+            Scalar variables should be passed in directly,
+            while vector pairs should be passed in as a tuple.
+            These will be passed to :meth:`.Convention.make_artist`.
+        scalar : DataArrayOrName
+            The :class:`~xarray.DataArray` to plot,
+            or the name of an existing DataArray in this Dataset.
+
+            .. deprecated:: 1.0.0
+
+                Pass in variables as positional arguments instead
+        vector : tuple of DataArrayOrName
+            A tuple of the *u* and *v* components of a vector.
+            The components should be a :class:`~xarray.DataArray`,
+            or the name of an existing DataArray in this Dataset.
+
+            .. deprecated:: 1.0.0
+
+                Pass in variables as positional arguments instead
         coordinate : Hashable or xarray.DataArray, optional
             The coordinate to vary across the animation.
             Pass in either the name of a coordinate variable
@@ -1159,6 +1258,18 @@ class Convention[GridKind, Index](abc.ABC):
         """
         Make a matplotlib artists for the data array,
         adding it to the Axes and returning the Artist.
+        This method will pick a reasonable way of drawing the variable
+        based on the convention and the grid that the variable is defined on.
+        See the documentation on each convention for specific details.
+
+        For most conventions:
+
+        * scalar variables defined on a polygon grid will use
+          :func:`~emsarray.plot.make_polygon_scalar_collection`
+        * vector pairs defined on a polygon grid will use
+          :func:`~emsarray.plot.make_polygon_vector_quiver`
+        * scalar variables defined on a node grid will use
+          :func:`~emsarray.plot.make_node_scalar_artist`
 
         Parameters
         ----------
@@ -1168,7 +1279,7 @@ class Convention[GridKind, Index](abc.ABC):
             The data array, or tuple of data arrays, to make an artist for.
             A sensible artist type is picked based on the data arrays passed in
             and the grids they are defined on.
-        kwargs : any
+        kwargs : Any
             Any extra kwargs are passed on to the artist
             and can be used to style it.
             The specific kwargs that are accepted depend on the artist that is used.
@@ -1216,6 +1327,34 @@ class Convention[GridKind, Index](abc.ABC):
         data_array: DataArrayOrName | None = None,
         **kwargs: Any,
     ) -> 'GridArtist':
+        """
+        Make a :class:`~matplotlib.collections.PolyCollection`
+        from the geometry of this :class:`~xarray.Dataset`.
+
+        .. deprecated:: 1.0.0
+
+            Use :meth:`Convention.make_artist()` instead
+
+        If a :class:`~xarray.DataArray` is passed in,
+        the values of that are assigned to the PolyCollection `array` parameter.
+
+        Parameters
+        ----------
+        data_array : Hashable or :class:`xarray.DataArray`, optional
+            A data array, or the name of a data variable in this dataset. Optional.
+            If given, the data array is :meth:`ravelled <.ravel>`
+            and passed to :meth:`PolyCollection.set_array() <matplotlib.cm.ScalarMappable.set_array>`.
+            The data is used to colour the patches.
+            Refer to the matplotlib documentation for more information on styling.
+        **kwargs
+            Any keyword arguments are passed to the
+            :class:`~matplotlib.collections.PolyCollection` constructor.
+
+        Returns
+        -------
+        :class:`~matplotlib.collections.PolyCollection`
+            A PolyCollection constructed using the geometry of this dataset.
+        """
         grid = self.default_grid
 
         if data_array is not None:
@@ -1245,6 +1384,29 @@ class Convention[GridKind, Index](abc.ABC):
         v: DataArrayOrName | None = None,
         **kwargs: Any,
     ) -> 'GridArtist':
+        """
+        Make a :class:`matplotlib.quiver.Quiver` instance to plot vector data.
+
+        .. deprecated:: 1.0.0
+
+            Use :meth:`Convention.make_artist()` instead.
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+            The axes to make this quiver on.
+        u, v : xarray.DataArray or str, optional
+            The DataArrays or the names of DataArrays in this dataset
+            that make up the *u* and *v* components of the vector.
+            If omitted, a Quiver will be constructed with all components set to 0.
+        **kwargs
+            Any keyword arguments are passed on to the Quiver constructor.
+
+        Returns
+        -------
+        matplotlib.quiver.Quiver
+            A quiver instance that can be added to a plot
+        """
         grid = self.default_grid
 
         if u is not None and v is not None:
@@ -1313,7 +1475,7 @@ class Convention[GridKind, Index](abc.ABC):
 
     def make_geometry_centroid(self, grid_kind: GridKind) -> numpy.ndarray:
         """
-        Make geometry for the specified :type:`GridKind`.
+        Make geometry centroids for the specified :type:`GridKind`.
         This should normally be accessed via :attr:`Grid.centroid`,
         which stores a cached copy of the geometry for each grid.
         """
@@ -1374,7 +1536,7 @@ class Convention[GridKind, Index](abc.ABC):
         Returns minimum bounding region (minx, miny, maxx, maxy) of the entire dataset.
 
         This is equivalent to the bounds of the dataset :attr:`geometry`,
-        although specific conventons may have a simpler way of constructing this.
+        although specific conventions may have a simpler way of constructing this.
         """
         return cast(Bounds, self.geometry.bounds)
 
@@ -1384,37 +1546,6 @@ class Convention[GridKind, Index](abc.ABC):
         "Use dataset.ems.get_grid(data_array).strtree instead."
     )
     def strtree(self) -> STRtree:
-        """
-        A :class:`shapely.strtree.STRtree` spatial index of all cells in this dataset.
-        This allows for fast spatial lookups, querying which cells lie at
-        a point, or which cells intersect a geometry.
-
-        Querying the STRtree will return the linear indexes of any matching cells.
-        Use :attr:`polygons` to find the geometries associated with each index.
-        Use :meth:`wind_index()` to transform this back to a native index,
-        or :meth:`ravel` to linearise a variable.
-
-        Examples
-        --------
-
-        Find the indexes of all cells that intersect a line:
-
-        .. code-block:: python
-
-            dataset = emsarray.tutorial.open_dataset('austen')
-            geometry = shapely.linestring([
-                [146.9311523, -15.7076628],
-                [149.3261719, -19.0413488],
-                [152.2485352, -21.6778483],
-                [154.2480469, -24.2469646],
-                [155.1049805, -27.5082714],
-                [154.7753906, -31.2973280],
-                [153.3911133, -34.1072564],
-                [152.0947266, -36.0846213],
-                [150.6005859, -38.7712164],
-            ])
-            hits = dataset.ems.strtree.query(geometry, predicate='intersects')
-        """
         grid = self.grids[self.default_grid_kind]
         return grid.strtree
 

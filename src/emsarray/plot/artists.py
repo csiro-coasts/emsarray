@@ -13,7 +13,6 @@ from matplotlib.tri import Triangulation, TriContourSet
 from emsarray import conventions
 
 
-
 class GridArtist(Artist):
     """
     A matplotlib Artist subclass that knows what Grid it is associated with,
