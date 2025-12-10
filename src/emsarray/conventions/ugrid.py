@@ -1039,6 +1039,11 @@ class UGrid(DimensionConvention[UGridKind]):
     """
 
     default_grid_kind = UGridKind.face
+    geometry_types = {
+        UGridKind.face: shapely.Polygon,
+        UGridKind.edge: shapely.LineString,
+        UGridKind.node: shapely.Point,
+    }
 
     @classmethod
     def check_dataset(cls, dataset: xarray.Dataset) -> int | None:

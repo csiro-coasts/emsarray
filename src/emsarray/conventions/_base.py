@@ -62,6 +62,9 @@ class Grid[GridKind, Index](abc.ABC):
     #: The :type:`GridKind` this grid represents
     grid_kind: GridKind
 
+    #: A Shapely geometry class such as :class:`shapely.Polygon` or :class:`shapely.Point`.
+    geometry_type: type[BaseGeometry]
+
     @property
     @abc.abstractmethod
     def size(self) -> int:
@@ -86,13 +89,6 @@ class Grid[GridKind, Index](abc.ABC):
         :attr:`Grid.mask`
         """
         return self.convention.make_geometry(self.grid_kind)
-
-    @cached_property
-    def geometry_type(self) -> type[BaseGeometry]:
-        """
-        A Shapely geometry class, such as :class:`shapely.Polygon` or :class:`shapely.Point`.
-        """
-        return type(next(shape for shape in self.geometry if shape is not None))
 
     @cached_property
     def strtree(self) -> STRtree:
@@ -2186,7 +2182,9 @@ class DimensionConvention[GridKind](Convention[GridKind, DimensionIndex[GridKind
     are always defined on unique sets of dimension.
     This covers most conventions.
 
-    This subclass adds the abstract property :attr:`.grid_dimensions` that subclasses must define.
+    This subclass adds the abstract properties
+    :attr:`.grid_dimensions` and :attr:`.geometry_types`
+    that subclasses must define.
 
     Default implementations are provided for all abstract :class:`Grid` methods
     using :class:`DimensionGrid`.
@@ -2199,6 +2197,7 @@ class DimensionConvention[GridKind](Convention[GridKind, DimensionIndex[GridKind
                 convention=self,
                 grid_kind=grid_kind,
                 dimensions=self.grid_dimensions[grid_kind],
+                geometry_type=self.geometry_types[grid_kind],
             )
             for grid_kind in self.grid_kinds
         }
@@ -2219,6 +2218,21 @@ class DimensionConvention[GridKind](Convention[GridKind, DimensionIndex[GridKind
         This property may introspect the dataset
         to determine which dimensions are used.
         The property should be cached.
+        """
+        pass
+
+    @property
+    @abc.abstractmethod
+    def geometry_types(self) -> dict[GridKind, type[BaseGeometry]]:
+        """
+        The geometry type associated with a particular grid kind.
+
+        This is a mapping between :type:`grid kinds <GridKind>`
+        and shapely geometry types such as
+        :class:`~shapely.Polygon` and :class:`~shapely.Point`.
+
+        Users should use :attr:`Grid.geometry_type` instead of this property,
+        this is only used to construct the grids.
         """
         pass
 

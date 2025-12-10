@@ -192,6 +192,10 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind]):
 
     grid_kinds = frozenset(CFGridKind)
     default_grid_kind = CFGridKind.face
+    geometry_types = {
+        CFGridKind.face: shapely.Polygon,
+    }
+
     topology_class: type[Topology]
 
     def __init__(
