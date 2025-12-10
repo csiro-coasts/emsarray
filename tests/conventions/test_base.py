@@ -104,7 +104,7 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
 
     @cached_property
     def grids(self) -> dict[SimpleGridKind, Grid[SimpleGridKind, SimpleGridIndex]]:
-        return {SimpleGridKind.face: SimpleGrid(self, SimpleGridKind.face)}
+        return {SimpleGridKind.face: SimpleGrid(self, SimpleGridKind.face, Polygon)}
 
     def get_grid_kind(self, data_array: xarray.DataArray) -> SimpleGridKind:
         if set(data_array.dims) >= {'x', 'y'}:

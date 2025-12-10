@@ -158,6 +158,12 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
     """
     grid_kinds = frozenset(ArakawaCGridKind)
     default_grid_kind = ArakawaCGridKind.face
+    geometry_types = {
+        ArakawaCGridKind.face: shapely.Polygon,
+        ArakawaCGridKind.left: shapely.LineString,
+        ArakawaCGridKind.back: shapely.LineString,
+        ArakawaCGridKind.node: shapely.Point,
+    }
 
     coordinate_names: ArakawaCCoordinates
 
