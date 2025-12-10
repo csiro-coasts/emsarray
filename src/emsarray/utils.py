@@ -18,7 +18,7 @@ from collections.abc import (
     Callable, Hashable, Iterable, Mapping, MutableMapping, Sequence
 )
 from types import TracebackType
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, overload
 
 import cftime
 import netCDF4
@@ -868,6 +868,36 @@ def name_to_data_array(
         if data_array not in dataset.variables:
             raise ValueError(f"Data array {data_array!r} is not in the dataset")
         return dataset[cast(Hashable, data_array)]
+
+
+@overload
+def names_to_data_arrays(dataset: xarray.Dataset, data_array: Iterable[DataArrayOrName]) -> tuple[xarray.DataArray, ...]:
+    ...
+
+
+@overload
+def names_to_data_arrays(dataset: xarray.Dataset, data_array: DataArrayOrName) -> xarray.DataArray:
+    ...
+
+
+def names_to_data_arrays(
+    dataset: xarray.Dataset,
+    data_array: DataArrayOrName | Iterable[DataArrayOrName],
+) -> xarray.DataArray | tuple[DataArrayOrName, ...]:
+    # Typing this function is difficult. This function exists so that users can
+    # provide either a data array, the name of a data array, or an iterable of
+    # data arrays. Data array names only have to be Hashable, while data arrays
+    # and names of data arrays (i.e. strings) are iterable themselves, and
+    # tuples are hashable. Distinguishing between the cases is non trivial.
+    # We explicitly support lists and tuples, everything else is an error.
+    # The type signature says `Iterable` but that is only because mypy
+    # complains about overlapping type signatures if
+    # `tuple[DataArrayOrName, ...]` is used, as tuples are Hashable.
+    if isinstance(data_array, (list, tuple)):
+        return tuple(name_to_data_array(dataset, d) for d in data_array)
+
+    else:
+        return name_to_data_array(dataset, cast(DataArrayOrName, data_array))
 
 
 def data_array_to_name(dataset: xarray.Dataset, data_array: DataArrayOrName) -> Hashable:
