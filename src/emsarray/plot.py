@@ -46,6 +46,12 @@ def add_coast(axes: GeoAxes, **kwargs: Any) -> None:
     the land polygons are light grey and semi-transparent,
     and the coastlines are opaque dark grey.
 
+    This uses the :class:`GSHHS coastline feature <cartopy.feature.GSHHSFeature>`
+    which provides a reasonably accurate, reasonably detailed coast line
+    for large scale models.
+    Plots of smaller regions may find the resolution not suitable
+    and may need to source a more detailed coastline shape from elsewhere.
+
     Parameters
     ----------
     axes : :class:`matplotlib.axes.Axes`
@@ -65,7 +71,10 @@ def add_coast(axes: GeoAxes, **kwargs: Any) -> None:
 
 def add_gridlines(axes: GeoAxes, **kwargs: Any) -> gridliner.Gridliner:
     """
-    Add a :class:`~cartopy.mpl.gridliner.Gridliner` to the axes.
+    Add a :class:`~cartopy.mpl.gridliner.Gridliner` to the axes,
+    with labels on the bottom and left side of the axes.
+    For all available options consult the cartopy
+    :class:`Gridliner documentation <cartopy.mpl.gridliner.Gridliner>`.
 
     Parameters
     ----------
@@ -111,39 +120,7 @@ def add_landmarks(
 
     Examples
     --------
-    Draw a plot of a specific area with some landmarks:
-
-    .. code-block:: python
-
-        import emsarray.plot
-        import shapely
-        from matplotlib import pyplot
-
-        dataset = emsarray.tutorial.open_dataset('gbr4')
-
-        # set up the figure
-        figure = pyplot.figure()
-        axes = figure.add_subplot(projection=dataset.ems.data_crs)
-        axes.set_title("Sea surface temperature around Mackay")
-        axes.set_aspect('equal', adjustable='datalim')
-        emsarray.plot.add_coast(axes, zorder=1)
-
-        # Focus on the area of interest
-        axes.set_extent((148.245710, 151.544167, -19.870197, -21.986412))
-
-        # Plot the temperature
-        temperature = dataset.ems.make_artist(
-            axes, dataset['temp'].isel(time=0, k=-1),
-            cmap='viridis', edgecolor='face', zorder=0)
-
-        # Name key locations
-        emsarray.plot.add_landmarks(axes, [
-            ('The Percy Group', shapely.Point(150.270579, -21.658269)),
-            ('Whitsundays', shapely.Point(148.955319, -20.169076)),
-            ('Mackay', shapely.Point(149.192671, -21.146719)),
-        ])
-
-        figure.show()
+    :ref:`example-plot-set-extent`
     """
     outline = patheffects.withStroke(
         linewidth=outline_width, foreground=outline_color)
@@ -277,6 +254,10 @@ def plot_on_figure(
     Plot a :class:`~xarray.DataArray`
     on a :mod:`matplotlib` :class:`~matplotlib.figure.Figure`.
 
+    This method is a shortcut for quickly generating simple plots.
+    It is not intended to be fully featured.
+    See the :ref:`examples <examples>` for more comprehensive plotting examples.
+
     Parameters
     ----------
     figure
@@ -284,13 +265,26 @@ def plot_on_figure(
     convention
         The :class:`~emsarray.conventions.Convention` instance of the dataset.
         This is used to build the polygons and vector quivers.
+    *variables : :class:`xarray.DataArray` or tuples of :class:`xarray.DataArray`
+        Any number of dataset variables to plot.
+        Scalar variables should be passed in directly,
+        while vector pairs should be passed in as a tuple.
+        These will be passed to :meth:`.Convention.make_artist`.
     scalar : :class:`xarray.DataArray`, optional
         The data to plot as an :class:`xarray.DataArray`.
-        This will be passed to :meth:`.Convention.make_poly_collection`.
+
+        .. deprecated:: 1.0.0
+
+            Pass in variables as positional arguments instead
+
     vector : tuple of :class:`numpy.ndarray`, optional
         The *u* and *v* components of a vector field
         as a tuple of :class:`xarray.DataArray`.
-        These will be passed to :meth:`.Convention.make_quiver`.
+
+        .. deprecated:: 1.0.0
+
+            Pass in variables as positional arguments instead
+
     title : str, optional
         The title of the plot. Optional.
     projection : :class:`~cartopy.crs.Projection`
@@ -364,6 +358,10 @@ def animate_on_figure(
     on a :mod:`matplotlib` :class:`~matplotlib.figure.Figure`
     as a :class:`~matplotlib.animation.FuncAnimation`.
 
+    This method is a shortcut for quickly generating simple plots.
+    It is not intended to be fully featured.
+    See the :ref:`examples <examples>` for more comprehensive plotting examples.
+
     Parameters
     ----------
     figure : :class:`matplotlib.figure.Figure`
@@ -373,11 +371,26 @@ def animate_on_figure(
         This is used to build the polygons and vector quivers.
     coordinate : :class:`xarray.DataArray`
         The coordinate values to vary across frames in the animation.
-    variables : :class:`xarray.DataArray` or tuple of :class:`xarray.DataArray`.
+    *variables : :class:`xarray.DataArray` or tuples of :class:`xarray.DataArray`
+        Any number of dataset variables to plot.
+        Scalar variables should be passed in directly,
+        while vector pairs should be passed in as a tuple.
+        These will be passed to :meth:`.Convention.make_artist`.
+    scalar : :class:`xarray.DataArray`, optional
         The data to plot as an :class:`xarray.DataArray`.
-        This will be passed to :meth:`.Convention.make_poly_collection`.
-        It should have horizontal dimensions appropriate for this convention,
-        and a dimension matching the ``coordinate`` parameter.
+
+        .. deprecated:: 1.0.0
+
+            Pass in variables as positional arguments instead
+
+    vector : tuple of :class:`numpy.ndarray`, optional
+        The *u* and *v* components of a vector field
+        as a tuple of :class:`xarray.DataArray`.
+
+        .. deprecated:: 1.0.0
+
+            Pass in variables as positional arguments instead
+
     title : str or callable, optional
         The title for each frame of animation.
         Optional, will default to the coordinate value for each frame.
