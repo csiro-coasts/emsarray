@@ -44,8 +44,8 @@ figure = pyplot.figure(figsize=(5, 5), dpi=100)
 axes = figure.add_subplot(projection=dataset.ems.data_crs)
 axes.set_aspect(aspect='equal', adjustable='datalim')
 axes.set_title('Transect path')
-axes.add_collection(dataset.ems.make_poly_collection(
-    dataset['botz'], cmap='Blues', clim=(0, 2000), edgecolor='face',
+dataset.ems.make_artist(
+    axes, 'botz', cmap='Blues', clim=(0, 2000), edgecolor='face',
     linewidth=0.5, zorder=0))
 axes = figure.axes[0]
 axes.set_extent(plot.bounds_to_extent(line.envelope.buffer(0.2).bounds))
