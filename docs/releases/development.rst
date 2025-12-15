@@ -32,4 +32,4 @@ Next release (in development)
   It was getting unruly in size and was about to become larger again.
   The documentation has been updated to match the conceptual divisions.
   The new layout makes it easier to support matplotlib as an optional dependency
-  (:pr:`207`).
+  (:pr:`208`).
