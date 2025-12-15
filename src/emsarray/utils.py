@@ -736,7 +736,9 @@ def requires_extra[T](
     exception_class: type[RequiresExtraException] = RequiresExtraException,
 ) -> Callable[[T], T]:
     if import_error is None:
-        return lambda fn: fn
+        def noop(fn: T) -> T:
+            return fn
+        return noop
 
     def error_decorator(fn: T) -> T:
         @functools.wraps(fn)  # type: ignore
