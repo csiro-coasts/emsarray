@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Callable
 
 from emsarray.utils import RequiresExtraException, requires_extra
 
@@ -52,4 +52,5 @@ __all__ = [
 ]
 
 
-_requires_plot = requires_extra(extra='plot', import_error=IMPORT_EXCEPTION)
+type RequiresPlot[T] = Callable[[T], T]
+_requires_plot: RequiresPlot = requires_extra(extra='plot', import_error=IMPORT_EXCEPTION)
