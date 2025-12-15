@@ -22,7 +22,8 @@ function main() {
 
 	local package_path="$( get_package_path )"
 	local package_name="$( basename -- "$package_path")"
-	local package_version=$( get_package_version "$package_name" )
+	local package_version="$( get_package_version "$package_name" )"
+	local python_min_version="$( get_python_min_version )"
 
 	tmp_dir="$( mktemp -d --tmpdir "emsarray-conda-build.XXXXXXX" )"
 	files_to_clean+=( "$tmp_dir" )
@@ -30,7 +31,7 @@ function main() {
 
 	cp -R "$feedstock_path/recipe" "$tmp_dir/recipe"
 	recipe_path="$tmp_dir/recipe/meta.yaml"
-	update_recipe "$recipe_path" "$package_path" "$package_version"
+	update_recipe "$recipe_path" "$package_path" "$package_version" "$python_min_version"
 
 	cat "$recipe_path"
 
@@ -57,14 +58,30 @@ function get_package_version() {
 	echo "$package_version"
 }
 
+function get_python_min_version() {
+	local pyproject_path="$PROJECT/pyproject.toml"
+	local python_min_version="$( cat "$pyproject_path" \
+		| grep "requires-python" \
+		| sed 's!requires-python = "[>=]*\(.*\)".*$!\1!' )"
+
+	if [[ -z "$python_min_version" ]] ; then
+		echo "Could not find requires-python line in pyproject.toml"
+		exit 1
+	fi
+
+	echo "$python_min_version"
+}
+
 function update_recipe() {
 	local recipe_path="$1"
 	local package_path="$2"
 	local package_version="$3"
+	local python_min_version="$4"
 
 	sed \
-		-e 's!set version = ".*"!set version = "'"$package_version"'"!' \
-		-e 's!url: https://pypi.io/.*!url: "file://'"$package_path"'"!' \
+		-e 's!{% set version = .* %}!{% set version = "'"$package_version"'" %}!' \
+		-e 's!{% set python_min = .* %}!{% set python_min = "'"$python_min_version"'" %}!' \
+		-e 's!url: https://pypi.org/.*!url: "file://'"$package_path"'"!' \
 		-e '/sha256:/d' \
 		-i "$recipe_path"
 }
