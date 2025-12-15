@@ -28,3 +28,8 @@ Next release (in development)
   In practice this will usually be "viridis"
   unless the user has changed their local defaults
   (:pr:`206`).
+* Split the :mod:`emsarray.plot` module in to multiple files.
+  It was getting unruly in size and was about to become larger again.
+  The documentation has been updated to match the conceptual divisions.
+  The new layout makes it easier to support matplotlib as an optional dependency
+  (:pr:`207`).

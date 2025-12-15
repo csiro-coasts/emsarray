@@ -81,6 +81,7 @@ def matplotlib_backend(
 
     if mark.kwargs.get('mock_coast', False):
         monkeypatch.setattr(emsarray.plot, 'add_coast', lambda figure: None)
+        monkeypatch.setattr(emsarray.plot.shortcuts, 'add_coast', lambda figure: None)
 
     show_mock = mock.Mock(spec=matplotlib.pyplot.show)
     monkeypatch.setattr(matplotlib.pyplot, 'show', show_mock)
