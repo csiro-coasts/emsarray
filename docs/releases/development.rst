@@ -76,7 +76,7 @@ Changelog
   It was getting unruly in size and was about to become larger again.
   The documentation has been updated to match the conceptual divisions.
   The new layout makes it easier to support matplotlib as an optional dependency
-  (:pr:`207`).
+  (:pr:`208`).
 * The handling of multiple grid kinds was rewritten from the ground up
   to properly support conventions like `unstructured grids <ugrid_>`_
   (:pr:`205`, also :issue:`189`, :issue:`175`, :issue:`121`, and :pr:`187`).
