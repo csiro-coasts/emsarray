@@ -15,14 +15,11 @@ from shapely.geometry import MultiPolygon, Point, Polygon
 from shapely.geometry.base import BaseGeometry
 from shapely.strtree import STRtree
 
+from emsarray import plot as _plot
 from emsarray import utils
 from emsarray.exceptions import InvalidPolygonWarning, NoSuchCoordinateError
 from emsarray.operations import depth, point_extraction
 from emsarray.operations.cache import hash_attributes, hash_int, hash_string
-from emsarray.plot import (
-    _requires_plot, animate_on_figure, make_plot_title, plot_on_figure,
-    polygons_to_collection
-)
 from emsarray.state import State
 from emsarray.types import Bounds, DataArrayOrName, Pathish
 
@@ -709,7 +706,7 @@ class Convention[GridKind, Index](abc.ABC):
         pass
 
     @cached_property  # type: ignore
-    @_requires_plot
+    @_plot._requires_plot
     def data_crs(self) -> 'CRS':
         """
         The coordinate reference system that coordinates in this dataset are
@@ -721,7 +718,7 @@ class Convention[GridKind, Index](abc.ABC):
         from cartopy.crs import PlateCarree
         return PlateCarree()
 
-    @_requires_plot
+    @_plot._requires_plot
     def plot_on_figure(
         self,
         figure: 'Figure',
@@ -778,11 +775,11 @@ class Convention[GridKind, Index](abc.ABC):
             #
             # Users can supply their own titles
             # if this automatic behaviour is insufficient
-            kwargs['title'] = make_plot_title(self.dataset, kwargs['scalar'])
+            kwargs['title'] = _plot.make_plot_title(self.dataset, kwargs['scalar'])
 
-        plot_on_figure(figure, self, **kwargs)
+        _plot.plot_on_figure(figure, self, **kwargs)
 
-    @_requires_plot
+    @_plot._requires_plot
     def plot(self, *args: Any, **kwargs: Any) -> None:
         """Plot a data array and automatically display it.
 
@@ -801,7 +798,7 @@ class Convention[GridKind, Index](abc.ABC):
         self.plot_on_figure(pyplot.figure(), *args, **kwargs)
         pyplot.show()
 
-    @_requires_plot
+    @_plot._requires_plot
     def animate_on_figure(
         self,
         figure: 'Figure',
@@ -899,9 +896,9 @@ class Convention[GridKind, Index](abc.ABC):
                 title_bits.append('{}')
             kwargs['title'] = '\n'.join(title_bits)
 
-        return animate_on_figure(figure, self, coordinate=coordinate, **kwargs)
+        return _plot.animate_on_figure(figure, self, coordinate=coordinate, **kwargs)
 
-    @_requires_plot
+    @_plot._requires_plot
     @utils.timed_func
     def make_poly_collection(
         self,
@@ -978,9 +975,9 @@ class Convention[GridKind, Index](abc.ABC):
         if 'transform' not in kwargs:
             kwargs['transform'] = self.data_crs
 
-        return polygons_to_collection(self.polygons[self.mask], **kwargs)
+        return _plot.polygons_to_collection(self.polygons[self.mask], **kwargs)
 
-    @_requires_plot
+    @_plot._requires_plot
     def make_quiver(
         self,
         axes: 'Axes',
