@@ -17,13 +17,10 @@ Indexing
 CF grid datasets have one :ref:`grid <grids>`: *face*.
 :class:`CFGridKind` represents this.
 Each face is :ref:`indexed <indexing>` by two integers *x* and *y*.
-The convention native index type is :data:`CFGridIndex`.
 
 .. autoclass:: CFGridKind
    :members:
    :undoc-members:
-
-.. autodata:: CFGridIndex
 
 Topology
 ========

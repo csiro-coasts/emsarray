@@ -10,17 +10,22 @@ import enum
 import logging
 from collections.abc import Hashable, Sequence
 from functools import cached_property
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy
+import shapely
 import xarray
 from shapely.geometry.base import BaseGeometry
 from xarray.core.dataset import DatasetCoordinates
 
-from emsarray import masking, utils
-from emsarray.types import Pathish
+from emsarray import masking, plot, utils
+from emsarray.operations import triangulate
+from emsarray.types import DataArrayOrName, Pathish
 
 from ._base import DimensionConvention, Specificity
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +94,8 @@ class ArakawaCGridTopology:
         return f'<{name}: {details}>'
 
 
-class ArakawaCGridKind(str, enum.Enum):
-    """Araawa C grid datasets can store data on
+class ArakawaCGridKind(enum.StrEnum):
+    """Arakawa C grid datasets can store data on
     cell faces, left edges, back edges, and nodes.
     The kind of grid is specified by this enum.
     """
@@ -117,20 +122,12 @@ class ArakawaCGridKind(str, enum.Enum):
     #: :meta hide-value:
     node = 'node'
 
-    def __call__(self, j: int, i: int) -> 'ArakawaCIndex':
-        return (self, j, i)
 
-
-#: The native index type for Arakawa C grids
-#: is a tuple with three elements: ``(kind, j, i).``
-#:
-#: :meta hide-value:
-ArakawaCIndex = tuple[ArakawaCGridKind, int, int]
 ArakawaCCoordinates = dict[ArakawaCGridKind, tuple[Hashable, Hashable]]
 ArakawaCDimensions = dict[ArakawaCGridKind, tuple[Hashable, Hashable]]
 
 
-class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
+class ArakawaC(DimensionConvention[ArakawaCGridKind]):
     """
     An Arakawa C grid is a curvilinear orthogonal grid
     with data defined on grid faces, edges, and nodes.
@@ -161,6 +158,12 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
     """
     grid_kinds = frozenset(ArakawaCGridKind)
     default_grid_kind = ArakawaCGridKind.face
+    geometry_types = {
+        ArakawaCGridKind.face: shapely.Polygon,
+        ArakawaCGridKind.left: shapely.LineString,
+        ArakawaCGridKind.back: shapely.LineString,
+        ArakawaCGridKind.node: shapely.Point,
+    }
 
     coordinate_names: ArakawaCCoordinates
 
@@ -168,7 +171,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         self,
         dataset: xarray.Dataset,
         *,
-        coordinate_names: dict[Hashable, tuple[Hashable, Hashable]] | None = None,
+        coordinate_names: dict[ArakawaCGridKind, tuple[Hashable, Hashable]] | None = None,
     ):
         super().__init__(dataset)
 
@@ -254,11 +257,16 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
             for kind, coordinates in self.coordinate_names.items()
         }
 
-    def unpack_index(self, index: ArakawaCIndex) -> tuple[ArakawaCGridKind, Sequence[int]]:
-        return index[0], index[1:]
-
-    def pack_index(self, grid_kind: ArakawaCGridKind, indexes: Sequence[int]) -> ArakawaCIndex:
-        return cast(ArakawaCIndex, (grid_kind, *indexes))
+    def _make_geometry(self, grid_kind: ArakawaCGridKind) -> numpy.ndarray:
+        if grid_kind is ArakawaCGridKind.face:
+            return self._make_polygons()
+        if grid_kind is ArakawaCGridKind.left:
+            return self._make_left_edges()
+        if grid_kind is ArakawaCGridKind.back:
+            return self._make_back_edges()
+        if grid_kind is ArakawaCGridKind.node:
+            return self._make_nodes()
+        raise ValueError(f"Invalid grid kind {grid_kind}")
 
     def _make_polygons(self) -> numpy.ndarray:
         j_size, i_size = self.face.shape
@@ -267,11 +275,11 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
 
         # Preallocate the points array. We will copy data straight in to this
         # to save repeated memory allocations.
-        points = numpy.empty(shape=(i_size, 4, 2), dtype=self.node.longitude.dtype)
+        points = numpy.empty(shape=(i_size, 4, 2), dtype=longitude.dtype)
         # Preallocate the output array so we can fill it in batches
         out = numpy.full(shape=self.face.size, fill_value=None, dtype=object)
         # Construct polygons row by row
-        for j in range(self.face.shape[0]):
+        for j in range(j_size):
             points[:, 0, 0] = longitude[j + 0, :-1]
             points[:, 1, 0] = longitude[j + 0, +1:]
             points[:, 2, 0] = longitude[j + 1, +1:]
@@ -287,13 +295,81 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
 
         return out
 
-    @cached_property
-    def face_centres(self) -> numpy.ndarray:
-        centres = numpy.column_stack((
+    def _make_left_edges(self) -> numpy.ndarray:
+        j_size, i_size = self.left.shape
+        longitude = self.node.longitude.values
+        latitude = self.node.latitude.values
+
+        points = numpy.empty(shape=(i_size, 2, 2), dtype=longitude.dtype)
+
+        out = numpy.full(shape=self.left.size, fill_value=None, dtype=object)
+        for j in range(j_size):
+            points[:, 0, 0] = longitude[j + 0, :]
+            points[:, 1, 0] = longitude[j + 1, :]
+
+            points[:, 0, 1] = latitude[j + 0, :]
+            points[:, 1, 1] = latitude[j + 1, :]
+
+            j_slice = slice(j * i_size, (j + 1) * i_size)
+            utils.make_linestrings_with_holes(points, out=out[j_slice])
+
+        return out
+
+    def _make_back_edges(self) -> numpy.ndarray:
+        j_size, i_size = self.back.shape
+        longitude = self.node.longitude.values
+        latitude = self.node.latitude.values
+
+        points = numpy.empty(shape=(i_size, 2, 2), dtype=longitude.dtype)
+
+        out = numpy.full(shape=self.back.size, fill_value=None, dtype=object)
+        for j in range(j_size):
+            points[:, 0, 0] = longitude[j, :-1]
+            points[:, 1, 0] = longitude[j, +1:]
+
+            points[:, 0, 1] = latitude[j, :-1]
+            points[:, 1, 1] = latitude[j, +1:]
+
+            j_slice = slice(j * i_size, (j + 1) * i_size)
+            utils.make_linestrings_with_holes(points, out=out[j_slice])
+
+        return out
+
+    def _make_nodes(self) -> numpy.ndarray:
+        j_size, i_size = self.node.shape
+        longitude = self.node.longitude.values
+        latitude = self.node.latitude.values
+
+        points = numpy.empty(shape=(i_size, 2), dtype=longitude.dtype)
+
+        out = numpy.full(shape=self.node.size, fill_value=None, dtype=object)
+        for j in range(j_size):
+            points[:, 0] = longitude[j, :]
+            points[:, 1] = latitude[j, :]
+
+            j_slice = slice(j * i_size, (j + 1) * i_size)
+            utils.make_points_with_holes(points, out=out[j_slice])
+
+        return out
+
+    def _make_geometry_centroid(self, grid_kind: ArakawaCGridKind) -> numpy.ndarray:
+        if grid_kind is ArakawaCGridKind.face:
+            topology = self.face
+        elif grid_kind is ArakawaCGridKind.left:
+            topology = self.left
+        elif grid_kind is ArakawaCGridKind.back:
+            topology = self.back
+        elif grid_kind is ArakawaCGridKind.node:
+            topology = self.node
+
+        coords = numpy.column_stack((
             self.ravel(self.face.longitude).values,
             self.ravel(self.face.latitude).values,
         ))
-        return cast(numpy.ndarray, centres)
+        points = numpy.full(shape=topology.size, dtype=object, fill_value=None)
+        valid_coords = numpy.flatnonzero(numpy.all(~numpy.isnan(coords), axis=1))
+        shapely.points(coords[valid_coords], out=points, indices=valid_coords)
+        return cast(numpy.ndarray, points)
 
     def get_all_geometry_names(self) -> list[Hashable]:
         return [
@@ -320,9 +396,11 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
         logger.info("Finding intersecting cells for centre mask")
 
         # A cell is included if it intersects the clip polygon
-        intersecting_indexes = self.strtree.query(clip_geometry, predicate='intersects')
-        face_mask = numpy.full(self.face.shape, fill_value=False)
-        face_mask.ravel()[intersecting_indexes] = True
+        face_grid = self.grids[ArakawaCGridKind.face]
+        intersecting_indexes = face_grid.strtree.query(clip_geometry, predicate='intersects')
+        face_mask_da = xarray.DataArray(numpy.full(face_grid.size, fill_value=False))
+        face_mask_da.values[intersecting_indexes] = True
+        face_mask = face_grid.wind(face_mask_da).values
 
         # Expand the mask by one cell around the clipped region, as a buffer
         if buffer > 0:
@@ -336,6 +414,64 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind, ArakawaCIndex]):
 
     def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
+
+    def make_artist(
+        self,
+        axes: 'Axes',
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> 'plot.GridArtist':
+        data_array = utils.names_to_data_arrays(self.dataset, variable)
+
+        if isinstance(data_array, xarray.DataArray):
+            grid_kind = self.get_grid_kind(data_array)
+            if grid_kind is ArakawaCGridKind.face:
+                return plot.artists.make_polygon_scalar_collection(
+                    axes, self.grids[grid_kind], data_array, **kwargs)
+
+            if grid_kind is ArakawaCGridKind.node:
+                return plot.artists.make_node_scalar_artist(
+                    axes, self.grids[grid_kind], data_array, **kwargs)
+
+        else:
+            grid_kinds = tuple(self.get_grid_kind(d) for d in data_array)
+            if grid_kinds == (ArakawaCGridKind.face, ArakawaCGridKind.face):
+                return plot.artists.make_polygon_vector_quiver(
+                    axes, self.grids[ArakawaCGridKind.face], data_array, **kwargs)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(
+        self,
+        axes: 'Axes',
+    ) -> 'plot.GridArtist':
+        grid = self.grids[ArakawaCGridKind.face]
+        collection = plot.artists.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
+
+    def make_triangulation(self) -> triangulate.Triangulation:
+        vertices = self.grids[ArakawaCGridKind.node].geometry
+        polygons = self.grids[ArakawaCGridKind.face].geometry
+
+        j_size, i_size = self.node.shape
+        xx, yy = numpy.meshgrid(numpy.arange(i_size - 1), numpy.arange(j_size - 1) * i_size)
+        bottom_left_indexes = (xx + yy).flatten()
+        offsets = numpy.array([0, 1, i_size + 1, i_size])
+        polygon_vertex_indexes = bottom_left_indexes[:, None].repeat(4, axis=1) + offsets
+
+        vertex_coordinates, triangles, face_indexes = triangulate.triangulate(vertices, polygons, polygon_vertex_indexes)
+        return triangulate.Triangulation[ArakawaCGridKind](
+            vertices=vertex_coordinates,
+            triangles=triangles,
+            face_indexes=face_indexes,
+            face_grid_kind=ArakawaCGridKind.face,
+            vertex_grid_kind=ArakawaCGridKind.node)
 
 
 def c_mask_from_centres(

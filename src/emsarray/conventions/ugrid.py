@@ -15,20 +15,24 @@ from collections.abc import Hashable, Iterable, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy
 import shapely
 import xarray
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import utils
+from emsarray import plot, utils
 from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )
-from emsarray.types import Bounds, Pathish
+from emsarray.operations import triangulate
+from emsarray.types import Bounds, DataArrayOrName, Pathish
 
 from ._base import DimensionConvention, Specificity
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
 
 logger = logging.getLogger(__name__)
 
@@ -1030,15 +1034,16 @@ class UGridKind(str, enum.Enum):
     node = 'node'
 
 
-#: UGRID indexes are always single integers, for all index kinds.
-UGridIndex = tuple[UGridKind, int]
-
-
-class UGrid(DimensionConvention[UGridKind, UGridIndex]):
+class UGrid(DimensionConvention[UGridKind]):
     """A :class:`.Convention` subclass to handle unstructured grid datasets.
     """
 
     default_grid_kind = UGridKind.face
+    geometry_types = {
+        UGridKind.face: shapely.Polygon,
+        UGridKind.edge: shapely.LineString,
+        UGridKind.node: shapely.Point,
+    }
 
     @classmethod
     def check_dataset(cls, dataset: xarray.Dataset) -> int | None:
@@ -1079,12 +1084,6 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
             dimensions[UGridKind.edge] = [self.topology.edge_dimension]
         return dimensions
 
-    def unpack_index(self, index: UGridIndex) -> tuple[UGridKind, Sequence[int]]:
-        return index[0], index[1:]
-
-    def pack_index(self, grid_kind: UGridKind, indexes: Sequence[int]) -> UGridIndex:
-        return (grid_kind, indexes[0])
-
     @cached_property
     def grid_kinds(self) -> frozenset[UGridKind]:
         items = [UGridKind.face, UGridKind.node]
@@ -1093,7 +1092,16 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
             items.append(UGridKind.edge)
         return frozenset(items)
 
-    def _make_polygons(self) -> numpy.ndarray:
+    def _make_geometry(self, grid_kind: UGridKind) -> numpy.ndarray:
+        if grid_kind is UGridKind.face:
+            return self._make_faces()
+        if grid_kind is UGridKind.edge:
+            return self._make_edges()
+        if grid_kind is UGridKind.node:
+            return self._make_nodes()
+        raise ValueError(f"Invalid grid kind {grid_kind}")
+
+    def _make_faces(self) -> numpy.ndarray:
         """Generate list of Polygons"""
         topology = self.topology
         # X,Y coords of each node
@@ -1128,13 +1136,69 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
 
         return polygons
 
-    @cached_property
-    def face_centres(self) -> numpy.ndarray:
-        face_x, face_y = self.topology.face_x, self.topology.face_y
-        if face_x is not None and face_y is not None:
-            face_centres = numpy.column_stack((face_x, face_y))
-            return cast(numpy.ndarray, face_centres)
-        return super().face_centres
+    def _make_edges(self) -> numpy.ndarray:
+        topology = self.topology
+        # X,Y coords of each node
+        node_x = topology.node_x.values
+        node_y = topology.node_y.values
+        # The nodes that each edge is constructed from
+        edge_node = topology.edge_node_array
+        edge_count = topology.edge_count
+
+        chunk_size = 1000
+        chunk_count = math.ceil(edge_count / chunk_size)
+
+        points = numpy.zeros((chunk_size, 2, 2), dtype=node_x.dtype)
+        out = numpy.full(edge_count, None, dtype=object)
+
+        for chunk_index in range(chunk_count):
+            chunk_slice = slice(chunk_index * chunk_size, min(edge_count, (chunk_index + 1) * chunk_size))
+            chunk_points = points[:chunk_slice.stop - chunk_slice.start]
+            chunk_points[:, 0, 0] = node_x[edge_node[chunk_slice, 0]]
+            chunk_points[:, 1, 0] = node_x[edge_node[chunk_slice, 1]]
+            chunk_points[:, 0, 1] = node_y[edge_node[chunk_slice, 0]]
+            chunk_points[:, 1, 1] = node_y[edge_node[chunk_slice, 1]]
+            shapely.linestrings(chunk_points, out=out[chunk_slice])
+
+        return out
+
+    def _make_nodes(self) -> numpy.ndarray:
+        topology = self.topology
+        # X,Y coords of each node
+        node_x = topology.node_x.values
+        node_y = topology.node_y.values
+
+        node_count = topology.node_count
+
+        chunk_size = 1000
+        chunk_count = math.ceil(node_count / chunk_size)
+
+        points = numpy.zeros((chunk_size, 2), dtype=node_x.dtype)
+        out = numpy.full(node_count, None, dtype=object)
+
+        for chunk_index in range(chunk_count):
+            chunk_slice = slice(chunk_index * chunk_size, min(node_count, (chunk_index + 1) * chunk_size))
+            chunk_points = points[:chunk_slice.stop - chunk_slice.start]
+            chunk_points[:, 0] = node_x[chunk_slice]
+            chunk_points[:, 1] = node_y[chunk_slice]
+            shapely.points(chunk_points, out=out[chunk_slice])
+
+        return out
+
+    def _make_geometry_centroid(self, grid_kind: UGridKind) -> numpy.ndarray:
+        topology = self.topology
+        if grid_kind is UGridKind.face:
+            xs = topology.face_x
+            ys = topology.face_y
+        elif grid_kind is UGridKind.edge:
+            xs = topology.edge_x
+            ys = topology.edge_y
+        elif grid_kind is UGridKind.node:
+            xs = topology.node_x
+            ys = topology.node_y
+        if xs is None or ys is None:
+            return super()._make_geometry_centroid(grid_kind)
+        return cast(numpy.ndarray, shapely.points(numpy.c_[xs, ys]))
 
     @cached_property
     def bounds(self) -> Bounds:
@@ -1171,7 +1235,8 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         """
         # Find all faces that intersect the clip geometry
         logger.info("Making clip mask")
-        face_indexes = self.strtree.query(clip_geometry, predicate='intersects')
+        face_grid = self.grids[UGridKind.face]
+        face_indexes = face_grid.strtree.query(clip_geometry, predicate='intersects')
         logger.debug("Found %d intersecting faces, adding size %d buffer...", len(face_indexes), buffer)
 
         # Include all the neighbours of the intersecting faces
@@ -1351,3 +1416,55 @@ class UGrid(DimensionConvention[UGridKind, UGridIndex]):
         dataset = super().drop_geometry()
         dataset.attrs.pop('Conventions', None)
         return dataset
+
+    def make_artist(
+        self,
+        axes: 'Axes',
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> 'plot.GridArtist':
+        data_array = utils.names_to_data_arrays(self.dataset, variable)
+
+        if isinstance(data_array, xarray.DataArray):
+            grid_kind = self.get_grid_kind(data_array)
+            if grid_kind is UGridKind.face:
+                return plot.artists.make_polygon_scalar_collection(
+                    axes, self.grids[UGridKind.face], data_array, **kwargs)
+
+            if grid_kind is UGridKind.node:
+                return plot.artists.make_node_scalar_artist(
+                    axes, self.grids[UGridKind.node], data_array, **kwargs)
+
+        else:
+            grid_kinds = tuple(self.get_grid_kind(d) for d in data_array)
+            if grid_kinds == (UGridKind.face, UGridKind.face):
+                return plot.artists.make_polygon_vector_quiver(
+                    axes, self.grids[UGridKind.face], data_array, **kwargs)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(
+        self,
+        axes: 'Axes',
+    ) -> 'plot.GridArtist':
+        grid = self.grids[UGridKind.face]
+        collection = plot.artists.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
+
+    def make_triangulation(self) -> triangulate.Triangulation:
+        vertices = self.grids[UGridKind.node].geometry
+        polygons = self.grids[UGridKind.face].geometry
+        polygon_vertex_indexes = self.topology.face_node_array
+        vertex_coordinates, triangles, face_indexes = triangulate.triangulate(vertices, polygons, polygon_vertex_indexes)
+        return triangulate.Triangulation[UGridKind](
+            vertices=vertex_coordinates,
+            triangles=triangles,
+            face_indexes=face_indexes,
+            face_grid_kind=UGridKind.face,
+            vertex_grid_kind=UGridKind.node)

@@ -454,9 +454,10 @@ def plot_geometry(
     axes.set_aspect(aspect='equal', adjustable='datalim')
     axes.gridlines(draw_labels=['left', 'bottom'], linestyle='dashed')
 
-    axes.add_collection(dataset.ems.make_poly_collection(
-        edgecolors='black', linewidth=0.5, facecolors='lightcyan'))
-    axes.scatter(dataset.ems.face_centres[:, 0], dataset.ems.face_centres[:, 1], c='red')
+    dataset.ems.plot_geometry(axes)
+    grid = dataset.ems.default_grid
+    centroid = shapely.get_coordinates(grid.centroid)
+    axes.scatter(centroid[:, 0], centroid[:, 1], c='red')
 
     if title is not None:
         axes.set_title(title)

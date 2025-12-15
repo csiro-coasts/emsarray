@@ -39,6 +39,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.napoleon',
+    'sphinxcontrib.video',
     'roles'
 ]
 
@@ -56,6 +57,7 @@ exclude_patterns = ['_build']
 # a list of builtin themes.
 #
 html_theme = 'sphinx_book_theme'
+html_theme_options = {'show_toc_level': 2}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

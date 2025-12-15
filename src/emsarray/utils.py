@@ -18,7 +18,7 @@ from collections.abc import (
     Callable, Hashable, Iterable, Mapping, MutableMapping, Sequence
 )
 from types import TracebackType
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, overload
 
 import cftime
 import netCDF4
@@ -784,6 +784,43 @@ def make_polygons_with_holes(
     return out
 
 
+def make_linestrings_with_holes(
+    points: numpy.ndarray,
+    *,
+    out: numpy.ndarray | None = None,
+) -> numpy.ndarray:
+    if out is None:
+        out = numpy.full(points.shape[0], None, dtype=object)
+
+    complete_row_indexes = numpy.flatnonzero(numpy.isfinite(points).all(axis=(1, 2)))
+    complete_points = points[complete_row_indexes].reshape((complete_row_indexes.size * points.shape[1], 2))
+
+    shapely.linestrings(
+        complete_points,
+        indices=complete_row_indexes.repeat(points.shape[1]),
+        out=out)
+
+    return out
+
+
+def make_points_with_holes(
+    points: numpy.ndarray,
+    *,
+    out: numpy.ndarray | None = None,
+) -> numpy.ndarray:
+    if out is None:
+        out = numpy.full(points.shape[0], None, dtype=object)
+
+    complete_row_indexes = numpy.flatnonzero(numpy.isfinite(points).all(axis=1))
+
+    shapely.points(
+        points[complete_row_indexes],
+        indices=complete_row_indexes,
+        out=out)
+
+    return out
+
+
 def deprecated(message: str, category: type[Warning] = DeprecationWarning) -> Callable:
     def decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
@@ -818,20 +855,51 @@ def name_to_data_array(
     dataset : xarray.Dataset
         The dataset to check data arrays against
     data_array : Hashable or xarray.DataArray
-        A data array or the name of a data array in the dataset
+        A data array or the name of a data array in the dataset.
 
     Returns
     -------
     xarray.DataArray
-        The data array passed in, extracted from the dataset if necessary
+        The data array passed in, extracted from the dataset if necessary.
     """
     if isinstance(data_array, xarray.DataArray):
         check_data_array_dimensions_match(dataset, data_array)
         return data_array
+
     else:
         if data_array not in dataset.variables:
             raise ValueError(f"Data array {data_array!r} is not in the dataset")
-        return dataset[data_array]
+        return dataset[cast(Hashable, data_array)]
+
+
+@overload
+def names_to_data_arrays(dataset: xarray.Dataset, data_array: Iterable[DataArrayOrName]) -> tuple[xarray.DataArray, ...]:
+    ...
+
+
+@overload
+def names_to_data_arrays(dataset: xarray.Dataset, data_array: DataArrayOrName) -> xarray.DataArray:
+    ...
+
+
+def names_to_data_arrays(
+    dataset: xarray.Dataset,
+    data_array: DataArrayOrName | Iterable[DataArrayOrName],
+) -> xarray.DataArray | tuple[DataArrayOrName, ...]:
+    # Typing this function is difficult. This function exists so that users can
+    # provide either a data array, the name of a data array, or an iterable of
+    # data arrays. Data array names only have to be Hashable, while data arrays
+    # and names of data arrays (i.e. strings) are iterable themselves, and
+    # tuples are hashable. Distinguishing between the cases is non trivial.
+    # We explicitly support lists and tuples, everything else is an error.
+    # The type signature says `Iterable` but that is only because mypy
+    # complains about overlapping type signatures if
+    # `tuple[DataArrayOrName, ...]` is used, as tuples are Hashable.
+    if isinstance(data_array, (list, tuple)):
+        return tuple(name_to_data_array(dataset, d) for d in data_array)
+
+    else:
+        return name_to_data_array(dataset, cast(DataArrayOrName, data_array))
 
 
 def data_array_to_name(dataset: xarray.Dataset, data_array: DataArrayOrName) -> Hashable:

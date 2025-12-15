@@ -3,6 +3,7 @@ import dataclasses
 import enum
 import hashlib
 import logging
+import math
 import warnings
 from collections.abc import Callable, Hashable, Iterable, Sequence
 from functools import cached_property
@@ -17,8 +18,8 @@ from shapely.strtree import STRtree
 
 from emsarray import plot as _plot
 from emsarray import utils
-from emsarray.exceptions import InvalidPolygonWarning, NoSuchCoordinateError
-from emsarray.operations import depth, point_extraction
+from emsarray.exceptions import InvalidGeometryWarning, NoSuchCoordinateError
+from emsarray.operations import depth, point_extraction, triangulate
 from emsarray.operations.cache import hash_attributes, hash_int, hash_string
 from emsarray.state import State
 from emsarray.types import Bounds, DataArrayOrName, Pathish
@@ -28,48 +29,11 @@ if TYPE_CHECKING:
     from cartopy.crs import CRS
     from matplotlib.animation import FuncAnimation
     from matplotlib.axes import Axes
-    from matplotlib.collections import PolyCollection
     from matplotlib.figure import Figure
-    from matplotlib.quiver import Quiver
+
+    from emsarray.plot import GridArtist
 
 logger = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass
-class SpatialIndexItem[Index]:
-    """Information about an item in the :class:`~shapely.strtree.STRtree`
-    spatial index for a dataset.
-
-    See Also
-    --------
-    Convention.spatial_index
-    """
-
-    #: The linear index of this cell
-    linear_index: int
-
-    #: The native index of this cell
-    index: Index
-
-    #: The geographic shape of this cell
-    polygon: Polygon
-
-    def __repr__(self) -> str:
-        items = {
-            'index': f'{self.index}/{self.linear_index}',
-            'polygon': self.polygon.wkt,
-        }
-        item_str = ' '.join(f'{key}: {value}' for key, value in items.items())
-        return f'<{type(self).__name__} {item_str}>'
-
-    def __lt__(self, other: Any) -> bool:
-        if not isinstance(other, SpatialIndexItem):
-            return NotImplemented
-
-        # SpatialIndexItems are only for cells / polygons, so we only need to
-        # compare the linear indexes. The polygon attribute is not orderable,
-        # so comparing on that is going to be unpleasant.
-        return self.linear_index < other.linear_index
 
 
 class Specificity(enum.IntEnum):
@@ -88,6 +52,250 @@ class Specificity(enum.IntEnum):
     LOW = 10
     MEDIUM = 20
     HIGH = 30
+
+
+@dataclasses.dataclass
+class Grid[GridKind, Index](abc.ABC):
+    #: The :class:`Convention` this grid is associated with
+    convention: 'Convention[GridKind, Index]'
+
+    #: The :type:`GridKind` this grid represents
+    grid_kind: GridKind
+
+    #: A Shapely geometry class such as :class:`shapely.Polygon` or :class:`shapely.Point`.
+    geometry_type: type[BaseGeometry]
+
+    @property
+    @abc.abstractmethod
+    def size(self) -> int:
+        """
+        The linear :attr:`~xarray.DataArray.size`
+        of :class:`DataArrays <xarray.DataArray>` on this grid,
+        not accounting for other dimensions such as time or depth.
+        """
+        pass
+
+    @cached_property
+    def geometry(self) -> numpy.ndarray:
+        """
+        The geometry of this grid as a :class:`numpy.ndarray` of Shapely geometries.
+        Different grids might have different :attr:`geometry types <.geometry_type>`.
+        Some elements may be `None`, depending on the dataset convention and
+        the particulars of the dataset.
+
+        See also
+        --------
+        :attr:`Grid.geometry_type`
+        :attr:`Grid.mask`
+        """
+        return self.convention.make_geometry(self.grid_kind)
+
+    @cached_property
+    def strtree(self) -> STRtree:
+        """
+        A :class:`shapely.strtree.STRtree` filled with the geometry of this grid.
+        The indexes returned when querying this STRtree correspond to the linear index of this grid.
+        The indexes correspond with the geometry in :attr:`Grid.geometry`.
+
+        Example
+        -------
+
+        This example will find the linear index, native index, selector, and geometry
+        at a point.
+
+        .. code-block:: python
+
+            import emsarray
+            import shapely
+
+            dataset = emsarray.tutorial.open_dataset('gbr4')
+            point = shapely.Point(151.869, -23.386)
+            grid = dataset.ems.grids['face']
+            intersecting_indexes = grid.strtree.query(point, predicate="intersects")
+
+            if len(intersecting_indexes) == 0:
+                print("No intersecting geometry")
+
+            else:
+                linear_index = intersecting_indexes[0]
+                native_index = grid.wind_index(linear_index)
+                selector = dataset.ems.selector_for_index(native_index)
+                geometry = grid.geometry[linear_index]
+
+        See also
+        --------
+        :attr:`Grid.geometry`
+        :meth:`Grid.wind_index()`
+        """
+        return STRtree(self.geometry)
+
+    @cached_property
+    def mask(self) -> numpy.ndarray:
+        """
+        A boolean :class:`numpy.ndarray` of the same length as :attr:`Grid.geometry`,
+        True where the geometry is defined, False if the geometry is undefined or invalid.
+        """
+        mask = numpy.fromiter(
+            (p is not None for p in self.geometry),
+            dtype=bool, count=self.size)
+        return cast(numpy.ndarray, mask)
+
+    @cached_property
+    def centroid(self) -> numpy.ndarray:
+        """
+        The centres of the geometry of this grid as a :class:`numpy.ndarray` of Shapely points.
+        Defaults to the :func:`shapely.centroid` of :attr:`Grid.geometry`,
+        but some conventions might have more specific ways of finding the centres.
+        """
+        return self.convention.make_geometry_centroid(self.grid_kind)
+
+    @abc.abstractmethod
+    def ravel_index(self, index: Index) -> int:
+        """
+        Convert a native :type:`Index` to a linear index for this grid.
+        """
+        pass
+
+    @abc.abstractmethod
+    def wind_index(self, linear_index: int) -> Index:
+        """
+        Convert a linear index to a native :type:`Index` for this grid.
+        """
+        pass
+
+    @abc.abstractmethod
+    def ravel(
+        self,
+        data_array: DataArrayOrName,
+        *,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        """
+        Flatten the surface dimensions of a :class:`~xarray.DataArray`,
+        returning a flatter :class:`numpy.ndarray` indexed in the same order as the linear index.
+
+        For DataArrays with extra dimensions such as time or depth,
+        only the surface dimensions are flattened.
+        Other dimensions are left as is.
+
+        Parameters
+        ----------
+        data_array : xarray.DataArray
+            One of the data variables from this dataset.
+        linear_dimension : Hashable, optional
+            The name of the new dimension to flatten the surface dimensions to.
+            Defaults to 'index'.
+
+        Returns
+        -------
+        xarray.DataArray
+            A new data array where all the surface dimensions
+            have been flattened in to one linear array.
+            The values for each cell are in the same order as the linear index for this grid.
+            Any other dimensions, such as depth or time, will be retained.
+
+        See Also
+        --------
+        Convention.ravel : An alias for this that will find the correct grid for a data array first.
+        .utils.ravel_dimensions : A function that ravels some given dimensions in a dataset.
+        """
+        pass
+
+    @abc.abstractmethod
+    def wind(
+        self,
+        data_array: xarray.DataArray,
+        *,
+        axis: int | None = None,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        """
+        Wind a flattened :class:`~xarray.DataArray`
+        so that it has the same shape as this grid.
+
+        By using :attr:`.size` and :meth:`.wind()` together
+        it is possible to construct new data variables for a dataset
+        of any arbitrary shape.
+
+        Parameters
+        ----------
+        data_array : xarray.DataArray
+            One of the data variables from this dataset.
+        axis : int, optional
+            The axis number that should be wound.
+            Optional, defaults to the last axis.
+        linear_dimension : Hashable, optional
+            The axis number that should be wound.
+            Optional, defaults to the last dimension.
+
+        Returns
+        -------
+        xarray.DataArray
+            A new data array where the linear data have been wound
+            to match the shape of this grid.
+            Any other dimensions, such as depth or time, will be retained.
+
+        Examples
+        --------
+        The following will construct a data array of the correct shape
+        for any convention supported by emsarray:
+
+        .. code-block:: python
+
+            import emsarray
+            import numpy
+            import xarray
+
+            dataset = emsarray.tutorial.open_dataset('kgari')
+            grid = dataset.ems.default_grid
+            flat_array = xarray.DataArray(
+                data=numpy.arange(grid.size),
+                dims=['index'],
+            )
+            data_array = grid.wind(flat_array)
+
+        This will construct a boolean array indicating
+        which cells of a dataset intersect a target geometry:
+
+        .. code-block:: python
+
+            import emsarray
+            import numpy
+            import shapely
+            import xarray
+
+            dataset = emsarray.tutorial.open_dataset('gbr4')
+            target = shapely.Polygon([
+                [152.8088379, -22.7863108],
+                [153.9184570, -22.2280904],
+                [153.4680176, -20.9614396],
+                [151.8255615, -20.4012720],
+                [151.4135742, -21.8309067],
+                [152.0068359, -22.4313402],
+                [152.8088379, -22.7863108],
+            ])
+
+            grid = dataset.ems.default_grid
+            hits = grid.strtree.query(target, predicate='intersects')
+            intersecting_cells = xarray.DataArray(
+                data=numpy.zeros(grid.size, dtype=bool),
+                dims=['index'],
+            )
+            intersecting_cells.values[hits] = True
+            intersecting_cells = grid.wind(intersecting_cells)
+
+            dataset.ems.plot(intersecting_cells)
+
+        See Also
+        --------
+        Grid.ravel : The inverse operation.
+        Convention.wind : A shortcut to this method on the Convention
+        .utils.wind_dimension : Reshape a particular dimension in a data array.
+        """
+        pass
+
+    def __repr__(self) -> str:
+        return f'<Grid: {self.grid_kind} {self.size}>'
 
 
 class Convention[GridKind, Index](abc.ABC):
@@ -241,11 +449,16 @@ class Convention[GridKind, Index](abc.ABC):
 
         Notes
         -----
+        xarray will find all time variables and convert them to numpy datetimes when opening a dataset.
+
         The CF Conventions state that
         a time variable is defined by having a `units` attribute
         formatted according to the UDUNITS package [1]_.
 
-        xarray will find all time variables and convert them to numpy datetimes.
+        In practice, some datasets do not follow this conventions.
+        emsarray will first look for a time coordinate that conforms to the CF Conventions,
+        but if none are found it will fall back to picking a datetime variable
+        that has at least one `coordinate_type`: `time`, `standard_name`: `time`, or `axis`: `T` attribute set.
 
         References
         ----------
@@ -404,16 +617,15 @@ class Convention[GridKind, Index](abc.ABC):
             )
         return candidates[0]
 
-    @abc.abstractmethod
     def ravel_index(self, index: Index) -> int:
         """Convert a convention native index to a linear index.
 
-        Each conventnion has a different native index type,
-        read the specific conventnion documentation for more information.
+        Each convention has a different native index type,
+        read the specific convention documentation for more information.
 
         Parameters
         ----------
-        index : :data:`.Index`
+        index : :type:`.Index`
             The native index to ravel.
 
         Returns
@@ -434,7 +646,7 @@ class Convention[GridKind, Index](abc.ABC):
             ('t', 'z', 'y', 'x')
             >>> temp.shape
             (10, 20, 30, 40)
-            >>> dataset.ems.ravel_index((3, 4))
+            >>> dataset.ems.ravel_index((CFGridKind.face, 3, 4))
             124
 
         Cell polygons are indexed in the same order as the linear indexes for cells.
@@ -442,40 +654,41 @@ class Convention[GridKind, Index](abc.ABC):
 
         .. code-block:: python
 
-            >>> index = (3, 4)
-            >>> linear_index = dataset.ems.ravel_index(index)
-            >>> polygon = dataset.ems.polygons[linear_index]
+            >>> grid = dataset.ems.grids[CFGridKind.face]
+            >>> index = (CFGridKind.face, 3, 4)
+            >>> linear_index = grid.ravel_index(index)
+            >>> polygon = grid.geometry[linear_index]
 
         See Also
         --------
         :meth:`.Convention.wind_index` : The inverse operation
         """
-        pass
+        grid = self.get_grid_for_index(index)
+        return grid.ravel_index(index)
 
-    @abc.abstractmethod
     def wind_index(
         self,
         linear_index: int,
         *,
         grid_kind: GridKind | None = None,
     ) -> Index:
-        """Convert a linear index to a conventnion native index.
+        """Convert a linear index to a convention native index.
 
-        Each conventnion has a different native index type,
-        read the specific conventnion documentation for more information.
+        Each convention has a different native index type,
+        read the specific convention documentation for more information.
 
         Parameters
         ----------
         linear_index : int
             The linear index to wind.
-        grid_kind : :data:`.GridKind`, optional
+        grid_kind : :type:`.GridKind`, optional
             Used to indicate what kind of index is being wound,
             for conventions with multiple grids.
             Optional, if not provided the default grid kind will be used.
 
         Returns
         -------
-        :data:`.Index`
+        :type:`.Index`
             The convention native index for that same cell
 
         Example
@@ -492,19 +705,23 @@ class Convention[GridKind, Index](abc.ABC):
             >>> temp.shape
             (10, 20, 30, 40)
             >>> dataset.ems.wind_index(124)
-            (3, 4)
+            (CFGridKind.face, 3, 4)
 
         See Also
         --------
         :meth:`.Convention.ravel_index` : The inverse operation
         """
-        pass
+        if grid_kind is None:
+            grid = self.default_grid
+        else:
+            grid = self.grids[grid_kind]
+        return grid.wind_index(linear_index)
 
     @property
     @abc.abstractmethod
     def grid_kinds(self) -> frozenset[GridKind]:
         """
-        All of the :data:`grid kinds <.GridKind>` this dataset includes.
+        A set of the :type:`grid kinds <.GridKind>` this dataset includes.
         """
         pass
 
@@ -512,24 +729,54 @@ class Convention[GridKind, Index](abc.ABC):
     @abc.abstractmethod
     def default_grid_kind(self) -> GridKind:
         """
-        The default :data:`grid kind <.GridKind>` for this dataset.
-        For most datasets this should be the face grid.
+        The default :type:`grid kind <.GridKind>` for this dataset.
+        For most datasets this should be a polygon grid.
         """
+        # TODO Deprecate this?
         pass
 
     @property
     @abc.abstractmethod
-    def grid_size(self) -> dict[GridKind, int]:
-        """The linear size of each grid kind."""
+    def grids(self) -> dict[GridKind, Grid[GridKind, Index]]:
+        """
+        All of the grids this dataset is defined on,
+        as a dict of :type:`GridKind`: :class:`Grid`.
+        Every :type:`GridKind` in :attr:`Convention.grid_kinds`
+        is present as a key in the dictionary.
+        """
         pass
+
+    @cached_property
+    def default_grid(self) -> Grid[GridKind, Index]:
+        return self.grids[self.default_grid_kind]
+
+    @cached_property
+    @utils.deprecated(
+        "Convention.grid_size[grid_kind] is deprecated, "
+        "use Convention.grids[grid_kind].size instead."
+    )
+    def grid_size(self) -> dict[GridKind, int]:
+        """
+        The linear size of each grid kind.
+
+        .. deprecated:: 1.0.0
+
+            Use :attr:`Grid.size` instead:
+
+            .. code-block:: python
+
+                dataset = xarray.open_dataset(...)
+                grid = dataset.ems.default_grid
+                grid.size
+        """
+        return {grid_kind: grid.size for grid_kind, grid in self.grids.items()}
 
     @abc.abstractmethod
     def get_grid_kind(self, data_array: xarray.DataArray) -> GridKind:
         """
         Determines the relevant grid kind for this data array.
-
-        If the data array is not indexable using the native index types
-        a ValueError is raised.
+        If the data array doesn't match any grid kind for this dataset
+        a ValueError is raised
 
         Parameters
         ----------
@@ -538,12 +785,12 @@ class Convention[GridKind, Index](abc.ABC):
 
         Returns
         -------
-        :data:`.GridKind`
+        :type:`.GridKind`
 
         Raises
         ------
         ValueError
-            If the data array passed in is not indexable using any native index type
+            If the data array passed in doesn't match any grid kind for this dataset
             a ValueError is raised.
             Depth coordinates or time coordinates are examples of data arrays
             that will not be indexable and will raise an error.
@@ -564,10 +811,89 @@ class Convention[GridKind, Index](abc.ABC):
             UGridKind.face
             >>> dataset.ems.get_grid_kind(dataset.data_vars['u1'])
             UGridKind.edge
+
+        See also
+        --------
+        :meth:`Convention.get_grid`
+        :attr:`Convention.grid_kinds`
         """
         pass
 
+    def get_grid(self, data_array: xarray.DataArray) -> Grid:
+        """
+        Get the :class:`Grid` for a :class:`xarray.DataArray`.
+        If the data array doesn't match any grid kind for this dataset
+        a ValueError is raised
+
+        Parameters
+        ----------
+        data_array : xarray.DataArray
+            A :class:`xarray.DataArray` from this dataset,
+            or a data array with matching dimensions.
+
+        Returns
+        -------
+        Grid
+            A :class:`Grid` from :attr:`Convention.grids`
+
+        Raises
+        ------
+        ValueError
+            If the data array passed in doesn't match any grid kind for this dataset
+            a ValueError is raised.
+            Depth coordinates or time coordinates are examples of data arrays
+            that will not be indexable and will raise an error.
+
+        See also
+        --------
+        :meth:`Convention.get_grid_kind`
+        :attr:`Convention.grids`
+        """
+        return self.grids[self.get_grid_kind(data_array)]
+
     @abc.abstractmethod
+    def get_grid_kind_for_index(self, index: Index) -> GridKind:
+        """
+        Determines the relevant :type:`GridKind` for this :type:`Index`.
+
+        Parameters
+        ----------
+        index : Index
+            An index
+
+        Returns
+        -------
+        grid_kind : GridKind
+            The GridKind for the Index
+
+        See also
+        --------
+        get_grid_for_index - Get the grid for an index
+        get_grid_kind - Get the grid kind for a data array
+        """
+        pass
+
+    def get_grid_for_index(self, index: Index) -> Grid[GridKind, Index]:
+        """
+        Determines the relevant :class:`Grid` for this :type:`Index`.
+
+        Parameters
+        ----------
+        index : Index
+            An index
+
+        Returns
+        -------
+        grid : Grid
+            The Grid for the Index
+
+        See also
+        --------
+        get_grid_kind_for_index - Get the grid kind for an index
+        get_grid - Get the grid for a data array
+        """
+        return self.grids[self.get_grid_kind_for_index(index)]
+
     def ravel(
         self,
         data_array: xarray.DataArray,
@@ -605,12 +931,12 @@ class Convention[GridKind, Index](abc.ABC):
 
         See Also
         --------
-        .utils.ravel_dimensions : A function that ravels some given dimensions in a dataset.
+        Grid.ravel : The actual implementation
         Convention.wind : The inverse operation.
+        .utils.ravel_dimensions : A function that ravels some given dimensions in a dataset.
         """
-        pass
+        return self.get_grid(data_array).ravel(data_array)
 
-    @abc.abstractmethod
     def wind(
         self,
         data_array: xarray.DataArray,
@@ -623,9 +949,7 @@ class Convention[GridKind, Index](abc.ABC):
         Wind a flattened :class:`~xarray.DataArray`
         so that it has the same shape as data variables in this dataset.
 
-        By using :attr:`.grid_size` and :meth:`.wind()` together
-        it is possible to construct new data variables for a dataset
-        of any arbitrary shape.
+        See :meth:`Grid.wind()` for full documentation.
 
         Parameters
         ----------
@@ -649,61 +973,15 @@ class Convention[GridKind, Index](abc.ABC):
             to match the shape of the convention.
             Any other dimensions, such as depth or time, will be retained.
 
-        Examples
-        --------
-        The following will construct a data array of the correct shape
-        for any convention supported by emsarray:
-
-        .. code-block:: python
-
-            import emsarray
-            import numpy
-            import xarray
-
-            dataset = emsarray.tutorial.open_dataset('kgari')
-            face_size = dataset.ems.grid_size[dataset.ems.default_grid_kind]
-            flat_array = xarray.DataArray(
-                data=numpy.arange(face_size),
-                dims=['index'],
-            )
-            data_array = dataset.ems.wind(flat_array)
-
-        This will construct a boolean array indicating
-        which cells of a dataset intersect a target geometry:
-
-        .. code-block:: python
-
-            import emsarray
-            import numpy
-            import shapely
-            import xarray
-
-            dataset = emsarray.tutorial.open_dataset('gbr4')
-            target = shapely.Polygon([
-                [152.8088379, -22.7863108],
-                [153.9184570, -22.2280904],
-                [153.4680176, -20.9614396],
-                [151.8255615, -20.4012720],
-                [151.4135742, -21.8309067],
-                [152.0068359, -22.4313402],
-                [152.8088379, -22.7863108],
-            ])
-
-            hits = dataset.ems.strtree.query(target, predicate='intersects')
-            grid_size = dataset.ems.grid_size[dataset.ems.default_grid_kind]
-            intersecting_cells = xarray.DataArray(
-                data=numpy.zeros(grid_size, dtype=bool),
-                dims=['index'],
-            )
-            intersecting_cells.values[hits] = True
-            intersecting_cells = dataset.ems.wind(intersecting_cells)
-
         See Also
         --------
+        Grid.wind : The actual implementation.
         .utils.wind_dimension : Reshape a particular dimension in a data array.
         Convention.ravel : The inverse operation.
         """
-        pass
+        if grid_kind is None:
+            grid_kind = self.default_grid_kind
+        return self.grids[grid_kind].wind(data_array, axis=axis, linear_dimension=linear_dimension)
 
     @cached_property  # type: ignore
     @_plot._requires_plot
@@ -711,17 +989,49 @@ class Convention[GridKind, Index](abc.ABC):
         """
         The coordinate reference system that coordinates in this dataset are
         defined in.
-        Used by :meth:`.Convention.make_poly_collection` and :meth:`.Convention.make_quiver`.
+        Used by plotting methods when creating :class:`Artists <matplotlib.artist.Artist>`.
         Defaults to :class:`cartopy.crs.PlateCarree`.
+
+        If your dataset uses a different coordinate reference system
+        this property can be set manually:
+
+        .. code-block:: python
+
+            dataset = emsarray.open_dataset(...)
+            dataset.ems.data_crs = pyproj.CRS('EPSG:32755')
         """
         # Lazily imported here as cartopy is an optional dependency
         from cartopy.crs import PlateCarree
         return PlateCarree()
 
     @_plot._requires_plot
+    def plot(self, *args: Any, **kwargs: Any) -> None:
+        """Plot a data array and automatically display it.
+
+        This method is most useful when working in Jupyter notebooks
+        which display figures automatically.
+        This method is a wrapper around :meth:`.plot_on_figure`
+        that creates and shows a :class:`~matplotlib.figure.Figure` for you.
+        All arguments are passed on to :meth:`.plot_on_figure`,
+        refer to that function for details.
+
+        This method is a shortcut for quickly generating simple plots.
+        It is not intended to be fully featured.
+        See the :ref:`examples <examples>` for more comprehensive plotting examples.
+
+        See Also
+        --------
+        :meth:`.plot_on_figure`
+        """
+        from matplotlib import pyplot
+        self.plot_on_figure(pyplot.figure(), *args, **kwargs)
+        pyplot.show()
+
+    @_plot._requires_plot
     def plot_on_figure(
         self,
         figure: 'Figure',
+        *variables: DataArrayOrName | tuple[DataArrayOrName, ...],
         scalar: DataArrayOrName | None = None,
         vector: tuple[DataArrayOrName, DataArrayOrName] | None = None,
         title: str | None = None,
@@ -738,70 +1048,81 @@ class Convention[GridKind, Index](abc.ABC):
         This method will only plot a single time step and depth layer.
         Callers are responsible for selecting a single slice before calling this method.
 
+        This method is a shortcut for quickly generating simple plots.
+        It is not intended to be fully featured.
+        See the :ref:`examples <examples>` for more comprehensive plotting examples.
+
         Parameters
         ----------
         figure : matplotlib.figure.Figure
             The :class:`~matplotlib.figure.Figure` instance to plot this on.
+        *variables : :class:`xarray.DataArray` or tuples of :class:`xarray.DataArray`
+            Any number of dataset variables to plot.
+            Scalar variables should be passed in directly,
+            while vector pairs should be passed in as a tuple.
+            These will be passed to :meth:`.Convention.make_artist`.
         scalar : DataArrayOrName
             The :class:`~xarray.DataArray` to plot,
             or the name of an existing DataArray in this Dataset.
+
+            .. deprecated:: 1.0.0
+
+                Pass in variables as positional arguments instead
         vector : tuple of DataArrayOrName
             A tuple of the *u* and *v* components of a vector.
             The components should be a :class:`~xarray.DataArray`,
             or the name of an existing DataArray in this Dataset.
+
+            .. deprecated:: 1.0.0
+
+                Pass in variables as positional arguments instead
         **kwargs
             Any extra keyword arguments are passed on to
             :meth:`emsarray.plot.plot_on_figure`
 
         See Also
         --------
+        :meth:`Convention.plot` : A shortcut that automatically displays the figure
         :func:`.plot.plot_on_figure` : The underlying implementation
         """
         if scalar is not None:
-            kwargs['scalar'] = utils.name_to_data_array(self.dataset, scalar)
+            warnings.warn(
+                (
+                    "The 'scalar' parameter to 'Convention.plot_on_figure() is deprecated. "
+                    "Pass the scalar variable as a positional argument instead."
+                ),
+                category=DeprecationWarning, stacklevel=2)
+            variables = variables + (scalar,)
 
         if vector is not None:
-            kwargs['vector'] = tuple(utils.name_to_data_array(self.dataset, v) for v in vector)
+            warnings.warn(
+                (
+                    "The 'vector' parameter to 'Convention.plot_on_figure() is deprecated. "
+                    "Pass the vector tuple as a positional argument instead."
+                ),
+                category=DeprecationWarning, stacklevel=2)
+            variables = variables + (vector,)
+
+        mapped_variables = [
+            utils.names_to_data_arrays(self.dataset, v)
+            for v in variables
+        ]
 
         if title is not None:
             kwargs['title'] = title
-        elif scalar is not None and vector is None:
-            # Make a title out of the scalar variable, but only if a title
-            # hasn't been supplied and we don't also have vectors to plot.
-            #
-            # We can't make a good name from vectors,
-            # as they are in two variables with names like
-            # 'u component of current' and 'v component of current'.
-            #
-            # Users can supply their own titles
-            # if this automatic behaviour is insufficient
-            kwargs['title'] = _plot.make_plot_title(self.dataset, kwargs['scalar'])
 
-        _plot.plot_on_figure(figure, self, **kwargs)
+        # Find a title if there is a single variable passed in
+        elif len(mapped_variables) == 1 and isinstance(mapped_variables[0], xarray.DataArray):
+            variable = mapped_variables[0]
+            kwargs['title'] = _plot.make_plot_title(self.dataset, variable)
 
-    @_plot._requires_plot
-    def plot(self, *args: Any, **kwargs: Any) -> None:
-        """Plot a data array and automatically display it.
-
-        This method is most useful when working in Jupyter notebooks
-        which display figures automatically.
-        This method is a wrapper around :meth:`.plot_on_figure`
-        that creates and shows a :class:`~matplotlib.figure.Figure` for you.
-        All arguments are passed on to :meth:`.plot_on_figure`,
-        refer to that function for details.
-
-        See Also
-        --------
-        :meth:`.plot_on_figure`
-        """
-        from matplotlib import pyplot
-        self.plot_on_figure(pyplot.figure(), *args, **kwargs)
-        pyplot.show()
+        _plot.plot_on_figure(figure, self, *mapped_variables, **kwargs)
 
     @_plot._requires_plot
     def animate_on_figure(
         self,
         figure: 'Figure',
+        *variables: DataArrayOrName | tuple[DataArrayOrName, ...],
         scalar: DataArrayOrName | None = None,
         vector: tuple[DataArrayOrName, DataArrayOrName] | None = None,
         coordinate: DataArrayOrName | None = None,
@@ -811,16 +1132,36 @@ class Convention[GridKind, Index](abc.ABC):
         """
         Make an animated plot of a data array.
 
+        This method is a shortcut for quickly generating simple animations.
+        It is not intended to be fully featured.
+        See the :ref:`examples <examples>` for more comprehensive plotting examples.
+
         For real world examples, refer to the ``examples/animation.ipynb`` notebook.
 
         Parameters
         ----------
         figure : matplotlib.figure.Figure
             The :class:`matplotlib.figure.Figure` to plot the animation on
-        data_array : DataArrayOrName
-            The :class:`xarray.DataArray` to plot.
-            If a string is passed in,
-            the variable with that name is taken from :attr:`dataset`.
+        *variables : :class:`xarray.DataArray` or tuples of :class:`xarray.DataArray`
+            Any number of dataset variables to plot.
+            Scalar variables should be passed in directly,
+            while vector pairs should be passed in as a tuple.
+            These will be passed to :meth:`.Convention.make_artist`.
+        scalar : DataArrayOrName
+            The :class:`~xarray.DataArray` to plot,
+            or the name of an existing DataArray in this Dataset.
+
+            .. deprecated:: 1.0.0
+
+                Pass in variables as positional arguments instead
+        vector : tuple of DataArrayOrName
+            A tuple of the *u* and *v* components of a vector.
+            The components should be a :class:`~xarray.DataArray`,
+            or the name of an existing DataArray in this Dataset.
+
+            .. deprecated:: 1.0.0
+
+                Pass in variables as positional arguments instead
         coordinate : Hashable or xarray.DataArray, optional
             The coordinate to vary across the animation.
             Pass in either the name of a coordinate variable
@@ -853,26 +1194,33 @@ class Convention[GridKind, Index](abc.ABC):
         if len(coordinate.dims) != 1:
             raise ValueError("Coordinate variable must be one dimensional")
 
-        coordinate_dim = coordinate.dims[0]
-
         if scalar is not None:
-            scalar = utils.name_to_data_array(self.dataset, scalar)
-            if coordinate_dim not in scalar.dims:
-                raise ValueError("Scalar dimensions do not match coordinate axis to animate along")
-            kwargs['scalar'] = scalar
+            warnings.warn(
+                (
+                    "The 'scalar' parameter to 'Convention.animate_on_figure() is deprecated. "
+                    "Pass the scalar variable as a positional argument instead."
+                ),
+                category=DeprecationWarning, stacklevel=2)
+            variables = variables + (scalar,)
 
         if vector is not None:
-            vector = (
-                utils.name_to_data_array(self.dataset, vector[0]),
-                utils.name_to_data_array(self.dataset, vector[1]),
-            )
-            if not all(coordinate_dim in component.dims for component in vector):
-                raise ValueError("Vector dimensions do not match coordinate axis to animate along")
-            kwargs['vector'] = vector
+            warnings.warn(
+                (
+                    "The 'vector' parameter to 'Convention.animate_on_figure() is deprecated. "
+                    "Pass the vector tuple as a positional argument instead."
+                ),
+                category=DeprecationWarning, stacklevel=2)
+            variables = variables + (vector,)
+
+        mapped_variables = [
+            utils.name_to_data_array(self.dataset, v)
+            for v in variables
+        ]
 
         if title is not None:
             kwargs['title'] = title
-        elif scalar is not None and vector is None:
+
+        elif len(mapped_variables) == 1 and isinstance(mapped_variables[0], xarray.DataArray):
             # Make a title out of the scalar variable, but only if a title
             # hasn't been supplied and we don't also have vectors to plot.
             #
@@ -880,35 +1228,108 @@ class Convention[GridKind, Index](abc.ABC):
             # as they are in two variables with names like
             # 'u component of current' and 'v component of current'.
             #
-            # Users can supply their own titles
-            # if this automatic behaviour is insufficient
+            # Users can supply their own titles if this automatic behaviour is insufficient
+            variable = mapped_variables[0]
             title_bits = []
-            if 'long_name' in scalar.attrs:
-                title_bits.append(str(scalar.attrs['long_name']))
-            elif scalar.name:
-                title_bits.append(str(scalar.name))
-
-            if 'long_name' in coordinate.attrs:
-                title_bits.append(str(coordinate.attrs['long_name']) + ': {}')
-            elif coordinate.name:
-                title_bits.append(str(coordinate.name) + ': {}')
+            variable_title = _plot.make_plot_title(self.dataset, variable)
+            if variable_title is not None:
+                title_bits.append(variable_title)
+            coordinate_title = _plot.make_plot_title(self.dataset, coordinate)
+            if coordinate_title is not None:
+                title_bits.append(coordinate_title + ': {}')
             else:
                 title_bits.append('{}')
+
             kwargs['title'] = '\n'.join(title_bits)
 
-        return _plot.animate_on_figure(figure, self, coordinate=coordinate, **kwargs)
+        return _plot.animate_on_figure(figure, self, coordinate, *mapped_variables, **kwargs)
+
+    @abc.abstractmethod
+    def make_artist(
+        self,
+        axes: 'Axes',
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> '_plot.GridArtist':
+        """
+        Make a matplotlib artists for the data array,
+        adding it to the Axes and returning the Artist.
+        This method will pick a reasonable way of drawing the variable
+        based on the convention and the grid that the variable is defined on.
+        See the documentation on each convention for specific details.
+
+        For most conventions:
+
+        * scalar variables defined on a polygon grid will use
+          :func:`~emsarray.plot.make_polygon_scalar_collection`
+        * vector pairs defined on a polygon grid will use
+          :func:`~emsarray.plot.make_polygon_vector_quiver`
+        * scalar variables defined on a node grid will use
+          :func:`~emsarray.plot.make_node_scalar_artist`
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+            The axes to add the artist to.
+        variable : DataArrayOrName or tuple of DataArrayOrName
+            The data array, or tuple of data arrays, to make an artist for.
+            A sensible artist type is picked based on the data arrays passed in
+            and the grids they are defined on.
+        kwargs : Any
+            Any extra kwargs are passed on to the artist
+            and can be used to style it.
+            The specific kwargs that are accepted depend on the artist that is used.
+
+        Returns
+        -------
+        emsarray.plot.GridArtist
+            The artist for the data array passed in.
+            The artist will already have been added to the axes.
+
+        See also
+        --------
+        :mod:`emsarray.plot` : For a list of all supported artists
+        """
+        pass
+
+    @abc.abstractmethod
+    def plot_geometry(
+        self,
+        axes: 'Axes',
+    ) -> 'GridArtist':
+        """
+        Plot the geometry of this dataset on the axes.
+        What this means is dependent on the dataset convention used.
+
+        Parameters
+        ----------
+        axes : matplotlib.axes.Axes
+
+        Returns
+        -------
+        emsarray.plot.GridArtist
+            The artists that will draw the geometry.
+        """
+        pass
 
     @_plot._requires_plot
     @utils.timed_func
+    @utils.deprecated(
+        "Convention.make_poly_collection() is deprecated. "
+        "Use Convention.make_artist() or emsarray.plot.make_polygon_scalar_collection instead."
+    )
     def make_poly_collection(
         self,
         data_array: DataArrayOrName | None = None,
         **kwargs: Any,
-    ) -> 'PolyCollection':
+    ) -> 'GridArtist':
         """
         Make a :class:`~matplotlib.collections.PolyCollection`
         from the geometry of this :class:`~xarray.Dataset`.
-        This can be used to make custom matplotlib plots from your data.
+
+        .. deprecated:: 1.0.0
+
+            Use :meth:`Convention.make_artist()` instead
 
         If a :class:`~xarray.DataArray` is passed in,
         the values of that are assigned to the PolyCollection `array` parameter.
@@ -929,64 +1350,42 @@ class Convention[GridKind, Index](abc.ABC):
         -------
         :class:`~matplotlib.collections.PolyCollection`
             A PolyCollection constructed using the geometry of this dataset.
-
-        Example
-        -------
-
-        .. code-block:: python
-
-            import cartopy.crs as ccrs
-            import matplotlib.pyplot as plt
-            import emsarray
-
-            figure = plt.figure(figsize=(10, 8))
-            axes = plt.subplot(projection=ccrs.PlateCarree())
-            axes.set_aspect(aspect='equal', adjustable='datalim')
-
-            ds = emsarray.open_dataset("./tests/datasets/ugrid_mesh2d.nc")
-            ds = ds.isel(record=0, Mesh2_layers=-1)
-            patches = ds.ems.make_poly_collection('temp')
-            axes.add_collection(patches)
-            figure.colorbar(patches, ax=axes, location='right', label='meters')
-
-            axes.set_title("Depth")
-            axes.autoscale()
-            figure.show()
         """
+        grid = self.default_grid
+
         if data_array is not None:
             if 'array' in kwargs:
                 raise TypeError(
                     "Can not pass both `data_array` and `array` to make_poly_collection"
                 )
 
-            data_array = utils.name_to_data_array(self.dataset, data_array)
-
-            data_array = self.ravel(data_array)
-            if len(data_array.dims) > 1:
-                raise ValueError(
-                    "Data array has too many dimensions - did you forget to "
-                    "select a single timestep or a single depth layer?")
-
-            values = data_array.values[self.mask]
-            kwargs['array'] = values
+            kwargs['data_array'] = utils.name_to_data_array(self.dataset, data_array)
             if 'clim' not in kwargs:
-                kwargs['clim'] = (numpy.nanmin(values), numpy.nanmax(values))
+                kwargs['clim'] = (numpy.nanmin(kwargs['data_array']), numpy.nanmax(kwargs['data_array']))
 
         if 'transform' not in kwargs:
             kwargs['transform'] = self.data_crs
 
-        return _plot.polygons_to_collection(self.polygons[self.mask], **kwargs)
+        return _plot.artists.PolygonScalarCollection(grid=grid, **kwargs)
 
     @_plot._requires_plot
+    @utils.deprecated(
+        "Convention.make_quiver() is deprecated. "
+        "Use Convention.make_artist() or plot.make_polygon_vector_quiver() instead."
+    )
     def make_quiver(
         self,
         axes: 'Axes',
         u: DataArrayOrName | None = None,
         v: DataArrayOrName | None = None,
         **kwargs: Any,
-    ) -> 'Quiver':
+    ) -> 'GridArtist':
         """
         Make a :class:`matplotlib.quiver.Quiver` instance to plot vector data.
+
+        .. deprecated:: 1.0.0
+
+            Use :meth:`Convention.make_artist()` instead.
 
         Parameters
         ----------
@@ -1004,124 +1403,116 @@ class Convention[GridKind, Index](abc.ABC):
         matplotlib.quiver.Quiver
             A quiver instance that can be added to a plot
         """
-        from matplotlib.quiver import Quiver
-
-        x, y = numpy.transpose(self.face_centres)
-
-        # A Quiver needs some values when being initialized.
-        # We don't always want to provide values to the quiver,
-        # sometimes preferring to fill them in later,
-        # so `u` and `v` are optional.
-        # If they are not provided, we set default quiver values of `numpy.nan`.
-        values: tuple[numpy.ndarray, numpy.ndarray] | tuple[float, float]
-        values = numpy.nan, numpy.nan
+        grid = self.default_grid
 
         if u is not None and v is not None:
             u = utils.name_to_data_array(self.dataset, u)
             v = utils.name_to_data_array(self.dataset, v)
-
-            if u.dims != v.dims:
-                raise ValueError(
-                    "Vector data array dimensions must be identical!\n"
-                    f"u dimensions: {tuple(u.dims)}\n"
-                    f"v dimensions: {tuple(v.dims)}"
-                )
-
-            u, v = self.ravel(u), self.ravel(v)
-
-            if len(u.dims) > 1:
-                raise ValueError(
-                    "Vector data arrays have too many dimensions - did you forget to "
-                    "select a single timestep or a single depth layer?")
-
-            values = u.values, v.values
+            kwargs['data_array'] = (u, v)
 
         if 'transform' not in kwargs:
             kwargs['transform'] = self.data_crs
 
-        return Quiver(axes, x, y, *values, **kwargs)
+        return _plot.artists.PolygonVectorQuiver(grid=grid, **kwargs)
 
-    @cached_property
-    @utils.timed_func
-    def polygons(self) -> numpy.ndarray:
-        """A :class:`numpy.ndarray` of :class:`shapely.Polygon` instances
-        representing the cells in this dataset.
+    def _validate_geometry(
+        self,
+        grid_kind: GridKind,
+        geometry: numpy.ndarray,
+    ) -> numpy.ndarray:
+        """Check generated geometry to make sure it is valid."""
+        grid = self.grids[grid_kind]
+        if grid.size != len(geometry):
+            raise RuntimeError("Length of grid geometry did not match grid size")
 
-        The order of the polygons in the list
-        corresponds to the linear index of this dataset.
-        Not all valid cell indexes have a polygon,
-        these holes are represented as :data:`None` in the list.
-        If you want a list of just polygons, apply the :attr:`mask <Convention.mask>`:
-
-        .. code-block:: python
-
-            dataset = emsarray.open_dataset("...")
-            only_polygons = dataset.ems.polygons[dataset.ems.mask]
-
-        See Also
-        --------
-        :meth:`ravel_index`
-        :attr:`mask`
-        """
-        polygons = self._make_polygons()
-
-        not_none = (polygons != None)  # noqa: E711
-        invalid_polygon_indices = numpy.flatnonzero(not_none & ~shapely.is_valid(polygons))
-        if len(invalid_polygon_indices):
+        not_none = (geometry != None)  # noqa: E711
+        invalid_indices = numpy.flatnonzero(not_none & ~shapely.is_valid(geometry))
+        if len(invalid_indices):
             indices_str = numpy.array2string(
-                invalid_polygon_indices, max_line_width=None, threshold=5)
+                invalid_indices, max_line_width=None, threshold=5)
             warnings.warn(
-                f"Dropping invalid polygons at indices {indices_str}",
-                category=InvalidPolygonWarning)
-            polygons[invalid_polygon_indices] = None
-            not_none[invalid_polygon_indices] = False
+                f"Dropping invalid {grid_kind} geometry at indices {indices_str}",
+                category=InvalidGeometryWarning)
+            geometry[invalid_indices] = None
+            not_none[invalid_indices] = False
 
-        polygons.flags.writeable = False
-        return polygons
+        geometry.flags.writeable = False
+
+        return geometry
 
     @abc.abstractmethod
-    def _make_polygons(self) -> numpy.ndarray:
+    def _make_geometry(self, grid_kind: GridKind) -> numpy.ndarray:
+        """
+        Make the geometry for the given grid kind.
+        Called by :attr:`Grid.geometry` lazily when required and then cached.
+        Subclasses must implement this.
+        """
         pass
 
+    def make_geometry(self, grid_kind: GridKind) -> numpy.ndarray:
+        """
+        Make geometry for the specified :type:`GridKind`.
+        This should normally be accessed via :attr:`Grid.geometry`,
+        which stores a cached copy of the geometry for each grid.
+        """
+        geometry = self._make_geometry(grid_kind)
+        self._validate_geometry(grid_kind, geometry)
+        return geometry
+
+    def _make_geometry_centroid(self, grid_kind: GridKind) -> numpy.ndarray:
+        """
+        Make geometry centroids for the specified :type:`GridKind`.
+        Called by :attr:`Grid.centroid` lazily when required and then cached.
+        Subclasses may implement this if this information is part of the convention,
+        otherwise falls back to calling :func:`shapely.centroid` on the grid geometry.
+        """
+        grid = self.grids[grid_kind]
+        return cast(numpy.ndarray, shapely.centroid(grid.geometry))
+
+    def make_geometry_centroid(self, grid_kind: GridKind) -> numpy.ndarray:
+        """
+        Make geometry centroids for the specified :type:`GridKind`.
+        This should normally be accessed via :attr:`Grid.centroid`,
+        which stores a cached copy of the geometry for each grid.
+        """
+        centroids = self._make_geometry_centroid(grid_kind)
+        self._validate_geometry(grid_kind, centroids)
+        return centroids
+
     @cached_property
+    @utils.deprecated(
+        "dataset.ems.polygons is deprecated. "
+        "Use dataset.ems.get_grid(data_array).geometry instead."
+    )
+    def polygons(self) -> numpy.ndarray:
+        grid = self.grids[self.default_grid_kind]
+        if issubclass(grid.geometry_type, Polygon):
+            return grid.geometry
+        raise ValueError(f"Default grid kind {grid.grid_kind} does not have polygonal geometry")
+
+    @cached_property
+    @utils.deprecated(
+        "dataset.ems.face_centres is deprecated. "
+        "Use dataset.ems.get_grid(data_array).centroid instead. "
+        "For a list of coordinate pairs use shapely.get_coordinates(grid.centroid)."
+    )
     def face_centres(self) -> numpy.ndarray:
-        """
-        A numpy :class:`~numpy.ndarray` of face centres, which are (x, y) pairs.
-        The first dimension will be the same length and in the same order
-        as :attr:`Convention.polygons`,
-        while the second dimension will always be of size 2.
-        """
-        # This default implementation simply finds the centroid of each polygon.
-        # Subclasses are free to override this if the particular convention and dataset
-        # provides the cell centres as a data array.
-        centres = numpy.array([
-            polygon.centroid.coords[0] if polygon is not None else [numpy.nan, numpy.nan]
-            for polygon in self.polygons
-        ])
-        return cast(numpy.ndarray, centres)
+        grid = self.grids[self.default_grid_kind]
+        centroid = grid.centroid
+        coords = numpy.full(fill_value=numpy.nan, shape=(grid.size, 2))
+        coords[centroid != None] = shapely.get_coordinates(centroid)  # noqa: E711
+        return cast(numpy.ndarray, coords)
 
     @cached_property
+    @utils.deprecated(
+        "dataset.ems.mask is deprecated. "
+        "Use dataset.ems.get_grid(data_array).mask instead."
+    )
     def mask(self) -> numpy.ndarray:
-        """
-        A boolean :class:`numpy.ndarray` indicating which cells have valid polygons.
-        This can be used to select only items from linear arrays
-        that have a corresponding polygon.
-
-        .. code-block:: python
-
-            dataset = emsarray.open_dataset("...")
-            mask = dataset.ems.mask
-            plottable_polygons = dataset.ems.polygons[mask]
-            plottable_values = dataset.ems.ravel("eta")[mask]
-
-        See Also
-        --------
-        :meth:`Convention.ravel`
-        """
-        mask = numpy.fromiter(
-            (p is not None for p in self.polygons),
-            dtype=bool, count=self.polygons.size)
-        return cast(numpy.ndarray, mask)
+        grid = self.grids[self.default_grid_kind]
+        if issubclass(grid.geometry_type, Polygon):
+            return grid.mask
+        raise ValueError(f"Default grid kind {grid.grid_kind} does not have polygonal geometry")
 
     @cached_property
     def geometry(self) -> Polygon | MultiPolygon:
@@ -1132,7 +1523,8 @@ class Convention[GridKind, Index](abc.ABC):
         This is equivalent to the union of all polygons in the dataset,
         although specific conventions may have a simpler way of constructing this.
         """
-        return shapely.unary_union(self.polygons[self.mask])
+        grid = self.grids[self.default_grid_kind]
+        return shapely.unary_union(grid.geometry[grid.mask])
 
     @cached_property
     def bounds(self) -> Bounds:
@@ -1140,83 +1532,18 @@ class Convention[GridKind, Index](abc.ABC):
         Returns minimum bounding region (minx, miny, maxx, maxy) of the entire dataset.
 
         This is equivalent to the bounds of the dataset :attr:`geometry`,
-        although specific conventons may have a simpler way of constructing this.
+        although specific conventions may have a simpler way of constructing this.
         """
         return cast(Bounds, self.geometry.bounds)
 
     @cached_property
-    @utils.timed_func
+    @utils.deprecated(
+        "dataset.ems.strtree is deprecated. "
+        "Use dataset.ems.get_grid(data_array).strtree instead."
+    )
     def strtree(self) -> STRtree:
-        """
-        A :class:`shapely.strtree.STRtree` spatial index of all cells in this dataset.
-        This allows for fast spatial lookups, querying which cells lie at
-        a point, or which cells intersect a geometry.
-
-        Querying the STRtree will return the linear indexes of any matching cells.
-        Use :attr:`polygons` to find the geometries associated with each index.
-        Use :meth:`wind_index()` to transform this back to a native index,
-        or :meth:`ravel` to linearise a variable.
-
-        Examples
-        --------
-
-        Find the indexes of all cells that intersect a line:
-
-        .. code-block:: python
-
-            dataset = emsarray.tutorial.open_dataset('austen')
-            geometry = shapely.linestring([
-                [146.9311523, -15.7076628],
-                [149.3261719, -19.0413488],
-                [152.2485352, -21.6778483],
-                [154.2480469, -24.2469646],
-                [155.1049805, -27.5082714],
-                [154.7753906, -31.2973280],
-                [153.3911133, -34.1072564],
-                [152.0947266, -36.0846213],
-                [150.6005859, -38.7712164],
-            ])
-            hits = dataset.ems.strtree.query(geometry, predicate='intersects')
-        """
-        return STRtree(self.polygons)
-
-    def get_index_for_point(
-        self,
-        point: Point,
-    ) -> SpatialIndexItem[Index] | None:
-        """
-        Find the index for a :class:`~shapely.Point` in the dataset.
-
-        Parameters
-        ----------
-        point : shapely.Point
-            The geographic point to query
-
-        Returns
-        -------
-        :class:`SpatialIndexItem`, optional
-            The :class:`SpatialIndexItem` for the point queried.
-            This indicates the polygon that intersected the point
-            and the index of that polygon in the dataset.
-
-            If the point does not intersect the dataset, None is returned.
-
-        Notes
-        -----
-        In the case where the point intersects multiple cells
-        the cell with the lowest linear index is returned.
-        This can happen if the point is exactly one of the cell vertices,
-        or falls on a cell edge,
-        or if the geometry of the dataset contains overlapping polygons.
-        """
-        hits = numpy.sort(self.strtree.query(point, predicate='intersects'))
-        if len(hits) > 0:
-            linear_index = hits[0]
-            return SpatialIndexItem(
-                linear_index=linear_index,
-                index=self.wind_index(linear_index),
-                polygon=self.polygons[linear_index])
-        return None
+        grid = self.grids[self.default_grid_kind]
+        return grid.strtree
 
     def selector_for_index(self, index: Index) -> xarray.Dataset:
         """
@@ -1225,7 +1552,7 @@ class Convention[GridKind, Index](abc.ABC):
 
         Parameters
         ----------
-        index : :data:`Index`
+        index : :type:`Index`
             A convention native index
 
         Returns
@@ -1268,7 +1595,7 @@ class Convention[GridKind, Index](abc.ABC):
 
         Parameters
         ----------
-        indexes : list of :data:`Index`
+        indexes : list of :type:`Index`
             A list of convention native indexes
 
         Returns
@@ -1313,7 +1640,7 @@ class Convention[GridKind, Index](abc.ABC):
 
         Parameters
         ----------
-        index : :data:`Index`
+        index : :type:`Index`
             The index to select.
         drop_geometry : bool, default True
             Whether to drop geometry variables from the returned point dataset.
@@ -1364,7 +1691,7 @@ class Convention[GridKind, Index](abc.ABC):
 
         Parameters
         ----------
-        indexes : list of :data:`Index`
+        indexes : list of :type:`Index`
             The indexes to select.
             The indexes must all be for the same grid kind.
         index_dimension : str, optional
@@ -1413,10 +1740,16 @@ class Convention[GridKind, Index](abc.ABC):
         # Select just this point
         return dataset.isel(selector)
 
-    def select_point(self, point: Point) -> xarray.Dataset:
+    def select_point(
+        self,
+        point: Point,
+        *,
+        grid_kind: GridKind | None = None,
+    ) -> xarray.Dataset:
         """
         Return a new dataset that contains values for a single point.
-        This is a shortcut for :meth:`get_index_for_point` and :meth:`select_index`.
+        This is a shortcut for querying the :attr:`Grid.strtree` to find intersecting geometry,
+        then selecting the cell using :meth:`select_index`.
 
         If the point is not inside the dataset a :class:`ValueError` is raised.
 
@@ -1435,10 +1768,18 @@ class Convention[GridKind, Index](abc.ABC):
         :meth:`.select_index`
         :meth:`.select_points`
         """
-        index = self.get_index_for_point(point)
-        if index is None:
+        if grid_kind is None:
+            grid_kind = self.default_grid_kind
+        grid = self.grids[grid_kind]
+        if not issubclass(grid.geometry_type, shapely.Polygon):
+            raise ValueError(f"Grid geometry for {grid_kind} is not polygons")
+
+        hits = sorted(grid.strtree.query(point, "intersects"))
+        if len(hits) == 0:
             raise ValueError("Point did not intersect dataset")
-        return self.select_index(index.index)
+
+        index = grid.wind_index(hits[0])
+        return self.select_index(index)
 
     def select_points(
         self,
@@ -1714,29 +2055,152 @@ class Convention[GridKind, Index](abc.ABC):
             # Hash dataset attributes
             hash_attributes(hash, data_array.attrs)
 
+    def make_triangulation(self) -> triangulate.Triangulation[GridKind]:
+        """
+        Triangulates the polygons in the dataset.
+        Subclasses may have improved implementations.
 
-class DimensionConvention[GridKind, Index](Convention[GridKind, Index]):
+        This requires the dataset to have a grid with polygonal geometry.
+        If there is an additional grid corresponding to the vertices of the polygons
+        then subclasses should use this information to inform the triangulation.
+
+        Returns
+        -------
+        tuple of vertices, triangles, and `cell_indexes`
+            A tuple of three numpy arrays is returned,
+            containing vertices, triangles, and cell indexes respectively.
+
+            `vertices` is a numpy array of shape (V, 2)
+            where V is the number of unique vertices in the dataset.
+            The vertex coordinates are in (x, y) or (lon, lat) order.
+            If the dataset has a vertex grid associated with the polygons
+            then this array replicates that data.
+
+            `triangles` is a numpy array of shape (T, 3)
+            where T is the number of triangles in the dataset.
+            Each triangle is a set of three vertex indexes.
+
+            `cell_indexes` is a numpy list of length T.
+            Each entry indicates which polygon from the dataset a triangle is a part of.
+
+        See also
+        --------
+        :func:`~emsarray.operations.triangulate.triangulate`
+        """
+        grid = self.default_grid
+        if not issubclass(grid.geometry_type, shapely.Polygon):
+            raise ValueError("Can not triangulate a dataset that does not have polygonal geometry")
+        polygons = grid.geometry
+        vertices = triangulate.find_unique_vertices(polygons)
+        polygon_vertex_indexes = triangulate.polygons_to_vertex_indexes(polygons, vertices)
+        vertex_coordinates, triangles, face_indexes = triangulate.triangulate(vertices, polygons, polygon_vertex_indexes)
+        return triangulate.Triangulation(
+            vertices=vertex_coordinates,
+            triangles=triangles,
+            face_indexes=face_indexes,
+            face_grid_kind=grid.grid_kind)
+
+
+type DimensionIndex[GridKind] = tuple[GridKind, *tuple[int, ...]]
+
+
+@dataclasses.dataclass(kw_only=True)
+class DimensionGrid[GridKind](Grid[GridKind, DimensionIndex[GridKind]]):
+    """
+    A :class:`Grid` subclass that complements :class:`DimensionConvention`.
+    Has one extra required argument :attr:`dimensions`,
+    and provides an implementation of all abstract :class:`Grid` methods.
+    """
+    #: The dimensions that data arrays on this grid must have.
+    dimensions: Sequence[Hashable]
+
+    @cached_property
+    def shape(self) -> tuple[int, ...]:
+        return tuple(
+            self.convention.dataset.sizes[dimension]
+            for dimension in self.dimensions
+        )
+
+    @cached_property
+    def size(self) -> int:
+        return int(math.prod(self.shape))
+
+    def ravel_index(self, index: DimensionIndex[GridKind]) -> int:
+        grid_kind, *indexes = index
+        if grid_kind is not self.grid_kind:
+            raise ValueError(
+                f"Index is for grid kind {grid_kind}, expected {self.grid_kind}")
+        return int(numpy.ravel_multi_index(indexes, self.shape))
+
+    def wind_index(
+        self,
+        linear_index: int,
+    ) -> DimensionIndex[GridKind]:
+        indexes = tuple(map(int, numpy.unravel_index(linear_index, self.shape)))
+        return (self.grid_kind, *indexes)
+
+    def ravel(
+        self,
+        data_array: DataArrayOrName,
+        *,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        data_array = utils.name_to_data_array(self.convention.dataset, data_array)
+        grid_kind = self.convention.get_grid_kind(data_array)
+        if grid_kind is not self.grid_kind:
+            raise ValueError(
+                f"Data array has grid kind {grid_kind}, expected {self.grid_kind}")
+
+        return utils.ravel_dimensions(
+            data_array, list(self.dimensions),
+            linear_dimension=linear_dimension)
+
+    def wind(
+        self,
+        data_array: xarray.DataArray,
+        *,
+        axis: int | None = None,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        if axis is not None:
+            linear_dimension = data_array.dims[axis]
+        elif linear_dimension is None:
+            linear_dimension = data_array.dims[-1]
+
+        return utils.wind_dimension(
+            data_array,
+            dimensions=self.dimensions, sizes=self.shape,
+            linear_dimension=linear_dimension)
+
+    def __repr__(self) -> str:
+        return f'<DimensionGrid: {self.grid_kind} {self.dimensions} {self.shape}>'
+
+
+class DimensionConvention[GridKind](Convention[GridKind, DimensionIndex[GridKind]]):
     """
     A Convention subclass where different grid kinds
     are always defined on unique sets of dimension.
     This covers most conventions.
 
-    This subclass adds the abstract methods and properties:
+    This subclass adds the abstract properties
+    :attr:`.grid_dimensions` and :attr:`.geometry_types`
+    that subclasses must define.
 
-    - :attr:`.grid_dimensions`
-    - :meth:`.unpack_index`
-    - :meth:`.pack_index`
-
-    Default implementations are provided for:
-
-    - :attr:`.grid_size`
-    - :meth:`.get_grid_kind`
-    - :meth:`.ravel_index`
-    - :meth:`.wind_index`
-    - :meth:`.ravel`
-    - :meth:`.wind`
-    - :meth:`.selector_for_index`
+    Default implementations are provided for all abstract :class:`Grid` methods
+    using :class:`DimensionGrid`.
     """
+
+    @cached_property
+    def grids(self) -> dict[GridKind, Grid[GridKind, DimensionIndex[GridKind]]]:
+        return {
+            grid_kind: DimensionGrid(
+                convention=self,
+                grid_kind=grid_kind,
+                dimensions=self.grid_dimensions[grid_kind],
+                geometry_type=self.geometry_types[grid_kind],
+            )
+            for grid_kind in self.grid_kinds
+        }
 
     @property
     @abc.abstractmethod
@@ -1744,7 +2208,7 @@ class DimensionConvention[GridKind, Index](Convention[GridKind, Index]):
         """
         The dimensions associated with a particular grid kind.
 
-        This is a mapping between :data:`grid kinds <GridKind>`
+        This is a mapping between :type:`grid kinds <GridKind>`
         and an ordered list of dimension names.
         Each dimension in the dataset must be associated with at most one grid kind.
         Each grid kind must be associated with at least one dimension.
@@ -1758,6 +2222,25 @@ class DimensionConvention[GridKind, Index](Convention[GridKind, Index]):
         pass
 
     @property
+    @abc.abstractmethod
+    def geometry_types(self) -> dict[GridKind, type[BaseGeometry]]:
+        """
+        The geometry type associated with a particular grid kind.
+
+        This is a mapping between :type:`grid kinds <GridKind>`
+        and shapely geometry types such as
+        :class:`~shapely.Polygon` and :class:`~shapely.Point`.
+
+        Users should use :attr:`Grid.geometry_type` instead of this property,
+        this is only used to construct the grids.
+        """
+        pass
+
+    @property
+    @utils.deprecated(
+        "DimensionConvention.grid_shape[grid_kind] is deprecated. "
+        "Use DimensionConvention.grids[grid_kind].shape instead."
+    )
     def grid_shape(self) -> dict[GridKind, Sequence[int]]:
         """
         The :attr:`shape <numpy.ndarray.shape>` of each grid kind.
@@ -1765,18 +2248,19 @@ class DimensionConvention[GridKind, Index](Convention[GridKind, Index]):
         :meth private:
         """
         return {
-            grid_kind: tuple(
-                self.dataset.sizes[dim]
-                for dim in self.grid_dimensions[grid_kind]
-            )
-            for grid_kind in self.grid_kinds
+            grid_kind: cast(DimensionGrid, grid).shape
+            for grid_kind, grid in self.grids.items()
         }
 
     @property
+    @utils.deprecated(
+        "DimensionConvention.grid_size[grid_kind] is deprecated. "
+        "Use DimensionConvention.grids[grid_kind].size instead."
+    )
     def grid_size(self) -> dict[GridKind, int]:
         return {
-            grid_kind: int(numpy.prod(shape))
-            for grid_kind, shape in self.grid_shape.items()
+            grid_kind: grid.size
+            for grid_kind, grid in self.grids.items()
         }
 
     def get_grid_kind(self, data_array: xarray.DataArray) -> GridKind:
@@ -1786,106 +2270,12 @@ class DimensionConvention[GridKind, Index](Convention[GridKind, Index]):
                 return kind
         raise ValueError("Unknown grid kind")
 
-    @abc.abstractmethod
-    def unpack_index(self, index: Index) -> tuple[GridKind, Sequence[int]]:
-        """Convert a native index in to a grid kind and dimension indexes.
-
-        Parameters
-        ----------
-        index : Index
-            A native index
-
-        Returns
-        -------
-        grid_kind : GridKind
-            The grid kind
-        indexes : sequence of int
-            The dimension indexes
-
-        See Also
-        --------
-        pack_index
-        """
-
-        pass
-
-    @abc.abstractmethod
-    def pack_index(self, grid_kind: GridKind, indexes: Sequence[int]) -> Index:
-        """Convert a grid kind and dimension indexes in to a native index.
-
-        Parameters
-        ----------
-        grid_kind : GridKind
-            The grid kind
-        indexes : sequence of int
-            The dimension indexes
-
-        Returns
-        -------
-        index : Index
-            The corresponding native index
-
-        See Also
-        --------
-        unpack_index
-        """
-        pass
-
-    def ravel_index(self, index: Index) -> int:
-        grid_kind, indexes = self.unpack_index(index)
-        shape = self.grid_shape[grid_kind]
-        return int(numpy.ravel_multi_index(indexes, shape))
-
-    def wind_index(
-        self,
-        linear_index: int,
-        *,
-        grid_kind: GridKind | None = None,
-    ) -> Index:
-        if grid_kind is None:
-            grid_kind = self.default_grid_kind
-        shape = self.grid_shape[grid_kind]
-        indexes = tuple(map(int, numpy.unravel_index(linear_index, shape)))
-        return self.pack_index(grid_kind, indexes)
-
-    def ravel(
-        self,
-        data_array: xarray.DataArray,
-        *,
-        linear_dimension: Hashable | None = None,
-    ) -> xarray.DataArray:
-        kind = self.get_grid_kind(data_array)
-        dimensions = self.grid_dimensions[kind]
-        return utils.ravel_dimensions(
-            data_array, list(dimensions),
-            linear_dimension=linear_dimension)
-
-    def wind(
-        self,
-        data_array: xarray.DataArray,
-        *,
-        grid_kind: GridKind | None = None,
-        axis: int | None = None,
-        linear_dimension: Hashable | None = None,
-    ) -> xarray.DataArray:
-        if axis is not None:
-            linear_dimension = data_array.dims[axis]
-        elif linear_dimension is None:
-            linear_dimension = data_array.dims[-1]
-        if grid_kind is None:
-            grid_kind = self.default_grid_kind
-
-        dimensions = self.grid_dimensions[grid_kind]
-        sizes = [self.dataset.sizes[dim] for dim in dimensions]
-
-        return utils.wind_dimension(
-            data_array,
-            dimensions=dimensions, sizes=sizes,
-            linear_dimension=linear_dimension)
+    def get_grid_kind_for_index(self, index: DimensionIndex[GridKind]) -> GridKind:
+        return index[0]
 
     def selector_for_indexes(
         self,
-        indexes: list[Index],
+        indexes: list[DimensionIndex[GridKind]],
         *,
         index_dimension: Hashable | None = None,
     ) -> xarray.Dataset:
@@ -1894,16 +2284,15 @@ class DimensionConvention[GridKind, Index](Convention[GridKind, Index]):
         if len(indexes) == 0:
             raise ValueError("Need at least one index to select")
 
-        grid_kinds, index_tuples = zip(*[self.unpack_index(index) for index in indexes])
+        grid_kinds = set(index[0] for index in indexes)
+        index_tuples = [index[1:] for index in indexes]
 
-        unique_grid_kinds = set(grid_kinds)
-        if len(unique_grid_kinds) > 1:
+        if len(grid_kinds) > 1:
             raise ValueError(
                 "All indexes must be on the same grid kind, got "
-                + ", ".join(map(repr, unique_grid_kinds)))
+                + ", ".join(map(repr, grid_kinds)))
 
-        grid_kind = grid_kinds[0]
-        dimensions = self.grid_dimensions[grid_kind]
+        dimensions = self.grid_dimensions[grid_kinds.pop()]
         # This array will have shape (len(indexes), len(dimensions))
         index_array = numpy.array(index_tuples)
         return xarray.Dataset({

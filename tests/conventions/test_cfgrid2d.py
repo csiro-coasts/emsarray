@@ -13,13 +13,15 @@ import pathlib
 import numpy
 import pandas
 import pytest
+import shapely
 import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_allclose
 from shapely.geometry import Polygon
 from shapely.testing import assert_geometries_equal
 
-from emsarray.conventions import get_dataset_convention
+from emsarray import plot
+from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.grid import CFGrid2DTopology, CFGridKind
 from emsarray.conventions.shoc import ShocSimple
 from emsarray.exceptions import NoSuchCoordinateError
@@ -246,15 +248,31 @@ def test_manual_coordinate_names():
     xarray.testing.assert_equal(topology.longitude, dataset['e'])
 
 
+def test_grids():
+    dataset = make_dataset(j_size=10, i_size=20)
+    grids = dataset.ems.grids
+    assert grids.keys() == {CFGridKind.face}
+
+
+def test_face_grid() -> None:
+    width, height = 11, 7
+    dataset = make_dataset(j_size=height, i_size=width)
+    face_grid: DimensionGrid = dataset.ems.grids['face']
+    assert face_grid.shape == (height, width)
+    assert face_grid.size == width * height
+    assert isinstance(face_grid.geometry, numpy.ndarray)
+    assert face_grid.geometry_type is shapely.Polygon
+
+
 def test_polygons_no_bounds():
     dataset = make_dataset(
         j_size=10, i_size=20,
         include_bounds=False, corner_size=3)
-    polygons = dataset.ems.polygons
-    print(type(dataset.ems))
+    face_grid = dataset.ems.grids['face']
+    polygons = face_grid.geometry
 
     # Should be one item for every cell in the shape
-    assert len(polygons) == 10 * 20
+    assert face_grid.size == len(polygons) == 10 * 20
 
     assert_geometries_equal(
         polygons[0],
@@ -274,10 +292,11 @@ def test_polygons_with_bounds() -> None:
     dataset = make_dataset(
         j_size=10, i_size=20,
         include_bounds=True, corner_size=3)
-    polygons = dataset.ems.polygons
+    face_grid = dataset.ems.grids['face']
+    polygons = face_grid.geometry
 
     # Should be one item for every cell in the shape
-    assert len(polygons) == 10 * 20
+    assert face_grid.size == len(polygons) == 10 * 20
 
     assert_geometries_equal(
         polygons[0],
@@ -295,7 +314,8 @@ def test_polygons_with_bounds() -> None:
 
 def test_holes() -> None:
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
-    only_polygons = dataset.ems.polygons[dataset.ems.mask]
+    face_grid = dataset.ems.grids['face']
+    only_polygons = face_grid.geometry[face_grid.mask]
 
     # The grid is 10*20 minus a 5x5 box removed from a corner
     assert len(only_polygons) == 10 * 20 - (5 * 5)
@@ -350,7 +370,8 @@ def test_bounds_river(
     plot_geometry(dataset, tmp_path / 'river.png', extent=(-0.05, 0.75, -0.05, 0.75))
 
     convention: ShocSimple = dataset.ems
-    polygons = convention.wind(xarray.DataArray(convention.polygons)).values
+    face_grid = convention.grids['face']
+    polygons = face_grid.wind(xarray.DataArray(face_grid.geometry)).values
     assert numpy.all(polygons[:, 3:] != None)  # noqa: E711
     assert numpy.all(polygons[:3, :3] == None)  # noqa: E711
     assert numpy.all(polygons[-3:, :3] == None)  # noqa: E711
@@ -367,21 +388,26 @@ def test_bounds_river(
         numpy.testing.assert_allclose(min_x, 0.35)
 
 
-def test_face_centres() -> None:
+def test_centroid() -> None:
     # SHOC simple face centres are taken directly from the coordinates,
     # not calculated from polygon centres.
     dataset = make_dataset(j_size=10, i_size=20, corner_size=3)
     convention: ShocSimple = dataset.ems
 
-    face_centres = convention.face_centres
+    face_centres = convention.default_grid.centroid
     lons = dataset.variables['longitude'].values
     lats = dataset.variables['latitude'].values
     for j in range(dataset.sizes['j']):
         for i in range(dataset.sizes['i']):
             lon = lons[j, i]
             lat = lats[j, i]
-            linear_index = convention.ravel_index((j, i))
-            numpy.testing.assert_equal(face_centres[linear_index], [lon, lat])
+            linear_index = convention.ravel_index((CFGridKind.face, j, i))
+            point = face_centres[linear_index]
+            if point is None:
+                assert numpy.isnan(lon)
+                assert numpy.isnan(lat)
+            else:
+                numpy.testing.assert_equal([point.x, point.y], [lon, lat])
 
 
 def test_selector_for_index() -> None:
@@ -389,7 +415,7 @@ def test_selector_for_index() -> None:
     convention: ShocSimple = dataset.ems
 
     # Shoc simple only has a single face grid
-    index = (3, 4)
+    index = (CFGridKind.face, 3, 4)
     selector = {'j': 3, 'i': 4}
     assert selector == convention.selector_for_index(index)
 
@@ -405,7 +431,7 @@ def test_ravel_index() -> None:
     convention: ShocSimple = dataset.ems
 
     for linear_index, (j, i) in enumerate(itertools.product(range(5), range(7))):
-        index = (j, i)
+        index = (CFGridKind.face, j, i)
         assert convention.ravel_index(index) == linear_index
         assert convention.wind_index(linear_index) == index
         assert convention.wind_index(linear_index, grid_kind=CFGridKind.face) == index
@@ -434,9 +460,10 @@ def test_ravel() -> None:
 def test_wind() -> None:
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocSimple = dataset.ems
+    grid = convention.grids[CFGridKind.face]
 
     time_size = dataset.sizes['time']
-    values = numpy.arange(time_size * convention.grid_size[CFGridKind.face])
+    values = numpy.arange(time_size * grid.size)
     flat_array = xarray.DataArray(
         data=values.reshape((time_size, -1)),
         dims=['time', 'index'],
@@ -466,10 +493,11 @@ def test_drop_geometry(datasets: pathlib.Path) -> None:
 def test_values() -> None:
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
     eta = dataset.data_vars["eta"].isel(time=0)
-    values = dataset.ems.ravel(eta)
+    grid = dataset.ems.get_grid(eta)
+    values = grid.ravel(eta)
 
     # There should be one value per cell polygon
-    assert len(values) == len(dataset.ems.polygons)
+    assert grid.size == len(values) == len(grid.geometry)
 
     # The values should be in a specific order
     assert numpy.allclose(values, eta.values.ravel(), equal_nan=True)
@@ -483,24 +511,60 @@ def test_topology_with_missing_variable_standard_name() -> None:
 
 
 @pytest.mark.matplotlib
-def test_plot_on_figure() -> None:
+def test_make_artist_scalar(tmp_path: pathlib.Path) -> None:
     # Not much to test here, mostly that it doesn't throw an error
     dataset = make_dataset(j_size=10, i_size=20)
     surface_temp = dataset.data_vars["temp"].isel(k=-1, time=0)
 
     figure = Figure()
-    dataset.ems.plot_on_figure(figure, surface_temp)
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(axes, surface_temp, cmap='Oranges')
+    axes.autoscale()
 
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.artists.PolygonScalarCollection)
+    # It should have made a colorbar also
     assert len(figure.axes) == 2
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.get_cmap().name == 'Oranges'
+
+    figure.savefig(tmp_path / 'scalar.png')
+
+
+@pytest.mark.matplotlib
+def test_make_artist_vector(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(j_size=10, i_size=20)
+    # These are not really a vector pair, but they do have the right shape...
+    u, v = dataset['longitude'], dataset['latitude']
+
+    figure = Figure()
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(axes, (u, v), scale=40)
+    axes.autoscale()
+
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.artists.PolygonVectorQuiver)
+    # Only one axes this time, vectors don't get a colorbar
+    assert len(figure.axes) == 1
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.scale == 40
+
+    figure.savefig(tmp_path / 'vector.png')
 
 
 @pytest.mark.memory_usage
 def test_make_polygon_memory_usage() -> None:
     j_size, i_size = 1000, 2000
     dataset = make_dataset(j_size=j_size, i_size=i_size)
+    face_grid = dataset.ems.grids['face']
 
     with track_peak_memory_usage() as tracker:
-        assert len(dataset.ems.polygons) == j_size * i_size
+        assert face_grid.size == len(face_grid.geometry) == j_size * i_size
 
     logger.info("current memory usage: %d, peak memory usage: %d", tracker.current, tracker.peak)
 

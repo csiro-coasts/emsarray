@@ -6,14 +6,16 @@ import pathlib
 import numpy
 import pandas
 import pytest
+import shapely
 import xarray
 from matplotlib.figure import Figure
 from numpy.testing import assert_equal
-from shapely.geometry.polygon import Polygon, orient
+from shapely.geometry.polygon import orient
 
-from emsarray.conventions import get_dataset_convention
+from emsarray import plot
+from emsarray.conventions import DimensionGrid, get_dataset_convention
 from emsarray.conventions.arakawa_c import (
-    ArakawaCGridKind, ArakawaCIndex, c_mask_from_centres
+    ArakawaCGridKind, c_mask_from_centres
 )
 from emsarray.conventions.shoc import ShocStandard
 from emsarray.operations import geometry
@@ -154,6 +156,22 @@ def make_dataset(
             "long_name": "I component of current at back face",
         }
     )
+    xx, yy = numpy.meshgrid(
+        numpy.linspace(-5, 5, i_size),
+        numpy.linspace(-5, 5, j_size),
+    )
+    uav = xarray.DataArray(
+        data=numpy.sin(xx) + numpy.sin(yy),
+        dims=wet_mask.data_vars["face_mask"].dims,
+        name="uav",
+        attrs={"units": "metres per second", "long_name": "Eastward component of current"}
+    )
+    vav = xarray.DataArray(
+        data=numpy.cos(xx) + numpy.cos(yy),
+        dims=wet_mask.data_vars["face_mask"].dims,
+        name="vav",
+        attrs={"units": "metres per second", "long_name": "Eastward component of current"}
+    )
     flag = xarray.DataArray(
         data=numpy.random.randint(0, 256, (time_size, k_size, j_size + 1, i_size + 1)),
         dims=["record", "k_centre", *wet_mask.data_vars["node_mask"].dims],
@@ -170,6 +188,8 @@ def make_dataset(
             "temp": temp,
             "u1": u1,
             "u2": u2,
+            "uav": uav,
+            "vav": vav,
             "flag": flag,
         },
         attrs={
@@ -229,25 +249,103 @@ def test_varnames():
     assert dataset.ems.time_coordinate.name == 't'
 
 
-def test_polygons():
-    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+def test_grids():
+    dataset = make_dataset(j_size=10, i_size=20)
+    grids = dataset.ems.grids
+    assert grids.keys() == {
+        ArakawaCGridKind.face,
+        ArakawaCGridKind.back,
+        ArakawaCGridKind.left,
+        ArakawaCGridKind.node,
+    }
 
-    polygons = dataset.ems.polygons
-    # Should be one item for every cell in the shape
-    assert polygons.size == 10 * 20
 
-    polygon_grid = polygons.reshape((10, 20))
+def test_get_grid() -> None:
+    dataset = make_dataset(j_size=10, i_size=20)
+    convention: ShocStandard = dataset.ems
+
+    assert convention.get_grid(dataset['temp']) is convention.grids['face']
+    assert convention.get_grid(dataset['u1']) is convention.grids['left']
+    assert convention.get_grid(dataset['u2']) is convention.grids['back']
+    assert convention.get_grid(dataset['x_grid']) is convention.grids['node']
+
+
+def test_face_grid() -> None:
+    j_size, i_size = 10, 20
+    dataset = make_dataset(j_size=j_size, i_size=i_size)
+    face_grid: DimensionGrid = dataset.ems.grids['face']
+    assert face_grid.shape == (j_size, i_size)
+    assert face_grid.size == j_size * i_size
+    assert isinstance(face_grid.geometry, numpy.ndarray)
+    assert face_grid.geometry_type is shapely.Polygon
+
+    polygons = face_grid.geometry
+    polygon_grid = face_grid.wind(xarray.DataArray(polygons)).values
 
     # Check some specific polygons
     actual = polygon_grid[1, 1]
-    expected = orient(Polygon([
+    expected = orient(shapely.Polygon([
         (0.2, 2.0), (0.3, 2.1), (0.4, 2.0), (0.3, 1.9), (0.2, 2.0),
     ]))
     assert actual.equals_exact(expected, 1e-6)
 
     actual = polygon_grid[-2, -6]
-    expected = orient(Polygon([(2.2, 1.4), (2.3, 1.5), (2.4, 1.4), (2.3, 1.3), (2.2, 1.4)]))
+    expected = orient(shapely.Polygon([(2.2, 1.4), (2.3, 1.5), (2.4, 1.4), (2.3, 1.3), (2.2, 1.4)]))
     assert actual.equals_exact(expected, 1e-6)
+
+
+def test_left_grid() -> None:
+    j_size, i_size = 10, 20
+    dataset = make_dataset(j_size=j_size, i_size=i_size)
+    left_grid: DimensionGrid = dataset.ems.grids['left']
+    assert left_grid.shape == (j_size, i_size + 1)
+    assert left_grid.size == j_size * (i_size + 1)
+    assert isinstance(left_grid.geometry, numpy.ndarray)
+    assert left_grid.geometry_type is shapely.LineString
+
+    left_edges = left_grid.geometry
+    left_edges_grid = left_grid.wind(xarray.DataArray(left_edges)).values
+
+    # Check some specific polygons
+    actual = left_edges_grid[1, 1]
+    expected = shapely.LineString([(0.2, 2.0), (0.3, 2.1)])
+    assert actual.equals_exact(expected, 1e-6)
+
+    actual = left_edges_grid[-2, -6]
+    expected = shapely.LineString([(2.3, 1.3), (2.4, 1.4)])
+    assert actual.equals_exact(expected, 1e-6)
+
+
+def test_back_grid() -> None:
+    j_size, i_size = 11, 7
+    dataset = make_dataset(j_size=j_size, i_size=i_size)
+    back_grid: DimensionGrid = dataset.ems.grids['back']
+    assert back_grid.shape == (j_size + 1, i_size)
+    assert back_grid.size == (j_size + 1) * i_size
+    assert isinstance(back_grid.geometry, numpy.ndarray)
+    assert back_grid.geometry_type is shapely.LineString
+
+    back_edges = back_grid.geometry
+    back_edges_grid = back_grid.wind(xarray.DataArray(back_edges)).values
+
+    # Check some specific polygons
+    actual = back_edges_grid[1, 1]
+    expected = shapely.LineString([(0.2, 0.7), (0.3, 0.6)])
+    assert actual.equals_exact(expected, 1e-6)
+
+    actual = back_edges_grid[-2, -6]
+    expected = shapely.LineString([(1.1, 1.6), (1.2, 1.5)])
+    assert actual.equals_exact(expected, 1e-6)
+
+
+def test_node_grid() -> None:
+    j_size, i_size = 11, 7
+    dataset = make_dataset(j_size=j_size, i_size=i_size)
+    node_grid: DimensionGrid = dataset.ems.grids['node']
+    assert node_grid.shape == (j_size + 1, i_size + 1)
+    assert node_grid.size == (j_size + 1) * (i_size + 1)
+    assert isinstance(node_grid.geometry, numpy.ndarray)
+    assert node_grid.geometry_type is shapely.Point
 
 
 def test_face_centres():
@@ -256,7 +354,7 @@ def test_face_centres():
     dataset = make_dataset(j_size=10, i_size=20, corner_size=3)
     convention: ShocStandard = dataset.ems
 
-    face_centres = convention.face_centres
+    face_centres = convention.default_grid.centroid
     lons = dataset['x_centre'].values
     lats = dataset['y_centre'].values
     for j in range(dataset.sizes['j_centre']):
@@ -264,7 +362,12 @@ def test_face_centres():
             lon = lons[j, i]
             lat = lats[j, i]
             linear_index = convention.ravel_index((ArakawaCGridKind.face, j, i))
-            numpy.testing.assert_equal(face_centres[linear_index], [lon, lat])
+            point = face_centres[linear_index]
+            if point is None:
+                assert numpy.isnan(lon)
+                assert numpy.isnan(lat)
+            else:
+                numpy.testing.assert_equal([point.x, point.y], [lon, lat])
 
 
 def test_make_geojson_geometry():
@@ -349,7 +452,7 @@ def test_grid_kinds():
         })],
     ),
 )
-def test_selector_for_index(index: ArakawaCIndex, selector: dict):
+def test_selector_for_index(index: tuple[ArakawaCGridKind, int, int], selector: dict):
     dataset = make_dataset(j_size=5, i_size=7)
     convention: ShocStandard = dataset.ems
     assert selector == convention.selector_for_index(index)
@@ -363,7 +466,7 @@ def test_select_index_face() -> None:
     face = convention.select_index((ArakawaCGridKind.face, 3, 4))
 
     assert set(face.variables.keys()) == {
-        'botz', 'eta', 'temp',
+        'botz', 'eta', 'temp', 'uav', 'vav',
     }
     assert face.sizes == {'record': 4, 'k_centre': 5}
 
@@ -374,7 +477,7 @@ def test_select_index_face_keep_geometry() -> None:
     face = convention.select_index((ArakawaCGridKind.face, 3, 4), drop_geometry=False)
 
     assert set(face.variables.keys()) == {
-        'botz', 'eta', 'temp',
+        'botz', 'eta', 'temp', 'uav', 'vav',
         'x_centre', 'y_centre',
     }
     assert face.sizes == {'record': 4, 'k_centre': 5}
@@ -457,25 +560,96 @@ def test_drop_geometry(datasets: pathlib.Path):
 def test_values():
     dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
     eta = dataset.data_vars["eta"].isel(record=0)
-    values = dataset.ems.ravel(eta)
+    grid = dataset.ems.get_grid(eta)
+    values = grid.ravel(eta)
 
     # There should be one value per cell polygon
-    assert len(values) == len(dataset.ems.polygons)
+    assert grid.size == len(values)
 
     # The values should be in a specific order
     assert numpy.allclose(values, eta.values.ravel(), equal_nan=True)
 
 
 @pytest.mark.matplotlib
-def test_plot_on_figure():
-    # Not much to test here, mostly that it doesn't throw an error
-    dataset = make_dataset(j_size=10, i_size=20)
-    surface_temp = dataset.data_vars["temp"].isel(k_centre=-1, record=0)
+def test_make_artist_face_scalar(tmp_path: pathlib.Path) -> None:
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+    surface_temp = dataset.data_vars["temp"].isel(record=0, k_centre=-1)
 
     figure = Figure()
-    dataset.ems.plot_on_figure(figure, surface_temp)
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(axes, surface_temp, cmap='Oranges')
+    axes.autoscale()
 
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.artists.PolygonScalarCollection)
+    # It should have made a colorbar also
     assert len(figure.axes) == 2
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.get_cmap().name == 'Oranges'
+
+    figure.savefig(tmp_path / 'face_scalar.png')
+
+
+@pytest.mark.matplotlib
+def test_make_artist_face_vector(tmp_path: pathlib.Path) -> None:
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+
+    figure = Figure()
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(
+        axes, ('uav', 'vav'),
+        scale=20)
+    axes.autoscale()
+
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.artists.PolygonVectorQuiver)
+    # Only one axes this time, vectors don't get a colorbar
+    assert len(figure.axes) == 1
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.scale == 20
+
+    figure.savefig(tmp_path / 'face_vector.png')
+
+
+@pytest.mark.matplotlib
+def test_make_artist_node_scalar(tmp_path: pathlib.Path) -> None:
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+    latest_surface = dataset.isel(record=0, k_centre=-1)
+
+    figure = Figure()
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    artist = dataset.ems.make_artist(
+        axes, latest_surface['flag'],
+        cmap='Blues')
+    axes.autoscale()
+
+    # Check the right kind of artist was made
+    assert isinstance(artist, plot.artists.NodeTriMesh)
+    # It should have made a colorbar also
+    assert len(figure.axes) == 2
+    # The artist should have been added to the axes
+    assert artist in axes.get_children()
+    # kwargs should be passed through to the artist
+    assert artist.get_cmap().name == 'Blues'
+
+    figure.savefig(tmp_path / 'node.png')
+
+
+@pytest.mark.matplotlib(mock_coast=True)
+def test_plot_geometry(tmp_path: pathlib.Path) -> None:
+    # Not much to test here, mostly that it doesn't throw an error
+    dataset = make_dataset(j_size=10, i_size=20, corner_size=5)
+
+    figure = Figure()
+    dataset.ems.plot_on_figure(figure)
+
+    assert len(figure.axes) == 1
+
+    figure.savefig(tmp_path / 'geometry.png')
 
 
 def test_make_clip_mask():
@@ -483,7 +657,7 @@ def test_make_clip_mask():
     convention: ShocStandard = dataset.ems
 
     # The dataset will have cells with centres from 0-.5 longitude, 0-.7 latitude
-    clip_geometry = Polygon([
+    clip_geometry = shapely.Polygon([
         (.74, .84), (.86, .84), (.86, .96), (.74, .96), (.74, .84),
     ])
 
@@ -595,7 +769,7 @@ def test_apply_clip_mask(tmp_path):
     convention: ShocStandard = dataset.ems
 
     # Clip it!
-    clip_geometry = Polygon([
+    clip_geometry = shapely.Polygon([
         (.74, .84), (.86, .84), (.86, .96), (.74, .96), (.74, .84),
     ])
     mask = convention.make_clip_mask(clip_geometry)
@@ -628,27 +802,31 @@ def test_apply_clip_mask(tmp_path):
     assert_equal(clipped.data_vars['temp'].values, clip_values(dataset.data_vars['temp'].values))
 
     # Check that the new geometry matches the relevant polygons in the old geometry
-    original_polygons = convention.polygons.reshape(10, 8)[3:6, 2:5].ravel()
+    face_grid = convention.grids['face']
+    original_polygons = face_grid.geometry.reshape(10, 8)[3:6, 2:5].ravel()
 
-    assert len(clipped.ems.polygons) == 3 * 3
-    assert clipped.ems.polygons[0] is None
-    assert clipped.ems.polygons[1].equals_exact(original_polygons[1], 1e-6)
-    assert clipped.ems.polygons[2] is None
-    assert clipped.ems.polygons[3].equals_exact(original_polygons[3], 1e-6)
-    assert clipped.ems.polygons[4].equals_exact(original_polygons[4], 1e-6)
-    assert clipped.ems.polygons[5].equals_exact(original_polygons[5], 1e-6)
-    assert clipped.ems.polygons[6] is None
-    assert clipped.ems.polygons[7].equals_exact(original_polygons[7], 1e-6)
-    assert clipped.ems.polygons[8] is None
+    clipped_face_grid = clipped.ems.grids['face']
+    clipped_polygons = clipped_face_grid.geometry
+    assert clipped_face_grid.size == 3 * 3
+    assert clipped_polygons[0] is None
+    assert clipped_polygons[1].equals_exact(original_polygons[1], 1e-6)
+    assert clipped_polygons[2] is None
+    assert clipped_polygons[3].equals_exact(original_polygons[3], 1e-6)
+    assert clipped_polygons[4].equals_exact(original_polygons[4], 1e-6)
+    assert clipped_polygons[5].equals_exact(original_polygons[5], 1e-6)
+    assert clipped_polygons[6] is None
+    assert clipped_polygons[7].equals_exact(original_polygons[7], 1e-6)
+    assert clipped_polygons[8] is None
 
 
 @pytest.mark.memory_usage
 def test_make_polygons_memory_usage():
     j_size, i_size = 1000, 2000
     dataset = make_dataset(j_size=j_size, i_size=i_size)
+    face_grid = dataset.ems.grids['face']
 
     with track_peak_memory_usage() as tracker:
-        assert len(dataset.ems.polygons) == j_size * i_size
+        assert len(face_grid.geometry) == j_size * i_size
 
     logger.info("current memory usage: %d, peak memory usage: %d", tracker.current, tracker.peak)
 

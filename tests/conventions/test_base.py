@@ -3,19 +3,21 @@ import enum
 import pathlib
 from collections.abc import Hashable
 from functools import cached_property
+from typing import Any
 
 import numpy
 import pandas
 import pytest
 import xarray
 from matplotlib import pyplot
+from matplotlib.axes import Axes
 from shapely.geometry import LineString, Point, Polygon, box
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import masking, utils
-from emsarray.conventions import Convention
+from emsarray import masking, plot, utils
+from emsarray.conventions import Convention, Grid
 from emsarray.exceptions import NoSuchCoordinateError
-from emsarray.types import Pathish
+from emsarray.types import DataArrayOrName, Pathish
 
 
 class SimpleGridKind(str, enum.Enum):
@@ -34,6 +36,59 @@ class SimpleGridIndex:
         return f'({self.y}, {self.x})'
 
 
+class SimpleGrid(Grid[SimpleGridKind, SimpleGridIndex]):
+    @cached_property
+    def size(self) -> int:
+        dataset = self.convention.dataset
+        return dataset.sizes['y'] * dataset.sizes['x']
+
+    @cached_property
+    def shape(self) -> tuple[int, int]:
+        dataset = self.convention.dataset
+        return (dataset.sizes['y'], dataset.sizes['x'])
+
+    def ravel_index(self, index: SimpleGridIndex) -> int:
+        return int(numpy.ravel_multi_index((index.y, index.x), self.shape))
+
+    def wind_index(
+        self,
+        linear_index: int,
+    ) -> SimpleGridIndex:
+        y, x = tuple(map(int, numpy.unravel_index(linear_index, self.shape)))
+        return SimpleGridIndex(y, x)
+
+    def ravel(
+        self,
+        data_array: DataArrayOrName,
+        *,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        data_array = utils.name_to_data_array(self.convention.dataset, data_array)
+        return utils.ravel_dimensions(
+            data_array, ['y', 'x'],
+            linear_dimension=linear_dimension)
+
+    def wind(
+        self,
+        data_array: xarray.DataArray,
+        *,
+        axis: int | None = None,
+        linear_dimension: Hashable | None = None,
+    ) -> xarray.DataArray:
+        if axis is not None:
+            linear_dimension = data_array.dims[axis]
+        elif linear_dimension is None:
+            linear_dimension = data_array.dims[-1]
+
+        return utils.wind_dimension(
+            data_array,
+            dimensions=['y', 'x'], sizes=self.shape,
+            linear_dimension=linear_dimension)
+
+    def __repr__(self) -> str:
+        return f'<SimpleGrid: {self.shape}>'
+
+
 class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
     grid_kinds = frozenset(SimpleGridKind)
     default_grid_kind = SimpleGridKind.face
@@ -48,28 +103,22 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
         return (y, x)
 
     @cached_property
-    def grid_size(self) -> dict[SimpleGridKind, int]:
-        return {SimpleGridKind.face: int(numpy.prod(self.shape))}
+    def grids(self) -> dict[SimpleGridKind, Grid[SimpleGridKind, SimpleGridIndex]]:
+        return {SimpleGridKind.face: SimpleGrid(self, SimpleGridKind.face, Polygon)}
 
     def get_grid_kind(self, data_array: xarray.DataArray) -> SimpleGridKind:
         if set(data_array.dims) >= {'x', 'y'}:
             return SimpleGridKind.face
         raise ValueError("Unknown grid type")
 
+    def get_grid_kind_for_index(self, index: SimpleGridIndex) -> SimpleGridKind:
+        return SimpleGridKind.face
+
     def get_all_geometry_names(self) -> list[Hashable]:
         return ['x', 'y']
 
-    def wind_index(
-        self,
-        index: int,
-        *,
-        grid_kind: SimpleGridKind | None = None,
-    ) -> SimpleGridIndex:
-        y, x = map(int, numpy.unravel_index(index, self.shape))
-        return SimpleGridIndex(y, x)
-
-    def ravel_index(self, indexes: SimpleGridIndex) -> int:
-        return int(numpy.ravel_multi_index((indexes.y, indexes.x), self.shape))
+    def ravel_index(self, index: SimpleGridIndex) -> int:
+        return self.grids[SimpleGridKind.face].ravel_index(index)
 
     def selector_for_indexes(
         self,
@@ -86,39 +135,10 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
             'y': (index_dimension, index_array[:, 1]),
         })
 
-    def ravel(
-        self,
-        data_array: xarray.DataArray,
-        *,
-        linear_dimension: Hashable | None = None,
-    ) -> xarray.DataArray:
-        self.get_grid_kind(data_array)
-        return utils.ravel_dimensions(
-            data_array, ['y', 'x'],
-            linear_dimension=linear_dimension)
-
-    def wind(
-        self,
-        data_array: xarray.DataArray,
-        *,
-        grid_kind: SimpleGridKind | None = None,
-        axis: int | None = None,
-        linear_dimension: Hashable | None = None,
-    ) -> xarray.DataArray:
-        if axis is not None:
-            linear_dimension = data_array.dims[axis]
-        elif linear_dimension is None:
-            linear_dimension = data_array.dims[-1]
-
-        return utils.wind_dimension(
-            data_array,
-            dimensions=['y', 'x'], sizes=self.shape,
-            linear_dimension=linear_dimension)
-
     def drop_geometry(self) -> xarray.Dataset:
         return self.dataset
 
-    def _make_polygons(self) -> numpy.ndarray:
+    def _make_geometry(self, grid_kind: SimpleGridKind) -> numpy.ndarray:
         height, width = self.shape
         # Each polygon is a box from (x, y, x+1, y+1),
         # however the polygons around the edge are masked out with None.
@@ -129,6 +149,37 @@ class SimpleConvention(Convention[SimpleGridKind, SimpleGridIndex]):
             for y in range(self.shape[0])
             for x in range(self.shape[1])
         ], dtype=numpy.object_)
+
+    def make_artist(
+        self,
+        axes: Axes,
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> plot.GridArtist:
+        data_array = utils.names_to_data_arrays(self.dataset, variable)
+        if isinstance(data_array, xarray.DataArray):
+            grid_kind = self.get_grid_kind(data_array)
+            if grid_kind is SimpleGridKind.face:
+                return plot.artists.make_polygon_scalar_collection(
+                    axes, self.grids[SimpleGridKind.face], data_array, **kwargs)
+        elif isinstance(data_array, tuple):
+            grid_kinds = tuple(self.get_grid_kind(d) for d in data_array)
+            if grid_kinds == (SimpleGridKind.face, SimpleGridKind.face):
+                return plot.artists.make_polygon_vector_quiver(
+                    axes, self.grids[SimpleGridKind.face], data_array, **kwargs)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(self, axes: Axes) -> plot.GridArtist:
+        grid = self.grids[SimpleGridKind.face]
+        collection = plot.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
 
     def make_clip_mask(
         self,
@@ -312,10 +363,11 @@ def test_mask():
         'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
     })
     convention = SimpleConvention(dataset)
+    grid = convention.grids[SimpleGridKind.face]
     top_bottom = [False] * 20
     middle = [False] + [True] * 18 + [False]
     numpy.testing.assert_equal(
-        convention.mask,
+        grid.mask,
         numpy.array(top_bottom + middle * 8 + top_bottom),
     )
 
@@ -353,6 +405,7 @@ def test_strtree():
         'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
     })
     convention = SimpleConvention(dataset)
+    grid = convention.grids[SimpleGridKind.face]
 
     line = LineString([(-1, -1), (1.5, 1.5), (1.5, 2.5), (3.9, 3.9)])
     expected_intersections = {convention.ravel_index(index) for index in [
@@ -360,56 +413,8 @@ def test_strtree():
         SimpleGridIndex(3, 2), SimpleGridIndex(3, 3)]}
 
     # Query the spatial index
-    items = convention.strtree.query(line, predicate='intersects')
+    items = grid.strtree.query(line, predicate='intersects')
     assert set(items) == expected_intersections
-
-
-def test_get_index_for_point_centre():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    # Polygons for this simple convetion is box(x, y, x+1, y+1):w
-    index = convention.get_index_for_point(Point(1.5, 1.5))
-    assert index.index == SimpleGridIndex(1, 1)
-
-    index = convention.get_index_for_point(Point(2.5, 2.5))
-    assert index.index == SimpleGridIndex(2, 2)
-
-
-def test_get_index_for_point_vertex():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    point = Point(2, 2)
-
-    # There should be four cells intersecting this point
-    intersections = convention.strtree.query(point, predicate='intersects')
-    assert len(intersections) == 4
-
-    # `get_index_for_point` should still return a single item in this case
-    index = convention.get_index_for_point(point)
-    assert index.index == SimpleGridIndex(1, 1)
-
-    # The point should be the first of the hits in index order
-    assert index.linear_index == min(intersections)
-
-
-def test_get_index_for_point_miss():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    point = Point(-1, -1)
-
-    assert convention.get_index_for_point(point) is None
 
 
 def test_selector_for_point():
@@ -473,7 +478,9 @@ def test_select_point():
     # The underlying implementation does this, and the individual methods are
     # tested in detail elsewhere
     point = Point(3.5, 5.5)
-    index = convention.get_index_for_point(point).index
+    grid = convention.grids['face']
+    hits = grid.strtree.query(point, 'intersects')
+    index = grid.wind_index(hits[0])
     expected = convention.select_index(index)
     actual = convention.select_point(point)
     assert actual == expected
@@ -507,7 +514,7 @@ def test_plot():
     pyplot.show.reset_mock()
 
 
-def test_face_centres():
+def test_centroid():
     # Test the fallback face_centres, which computes centres from polygon centroids
     dataset = xarray.Dataset({
         'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
@@ -515,93 +522,17 @@ def test_face_centres():
     })
     convention = SimpleConvention(dataset)
 
-    polygons = convention.polygons
-    face_centres = convention.face_centres
+    grid = convention.grids['face']
+    polygons = grid.geometry
+    face_centres = grid.centroid
 
     # Check a valid cell has a centre matching the polygon centroid
     i = 21
     assert polygons[i] is not None
-    x, y = polygons[i].centroid.coords[0]
-    numpy.testing.assert_equal(face_centres[i], [x, y])
+    assert face_centres[i].equals_exact(polygons[i].centroid, 1e-6)
 
-    # Check a hole has a centre of [nan, nan]
+    # Check a hole has no centroid
     i = 0
     assert len(face_centres) == len(polygons)
     assert polygons[i] is None
-    numpy.testing.assert_equal(face_centres[i], [numpy.nan, numpy.nan])
-
-
-@pytest.mark.matplotlib
-def test_make_poly_collection():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    patches = convention.make_poly_collection(cmap='plasma', edgecolor='black')
-    assert len(patches.get_paths()) == len(convention.polygons[convention.mask])
-    assert patches.get_cmap().name == 'plasma'
-    # Colours get transformed in to RGBA arrays
-    numpy.testing.assert_equal(patches.get_edgecolor(), [[0., 0., 0., 1.0]])
-
-
-def test_make_poly_collection_data_array():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    patches = convention.make_poly_collection(data_array='botz')
-    assert len(patches.get_paths()) == len(convention.polygons[convention.mask])
-
-    values = convention.ravel(dataset.data_vars['botz'])[convention.mask]
-    numpy.testing.assert_equal(patches.get_array(), values)
-    assert patches.get_clim() == (numpy.nanmin(values), numpy.nanmax(values))
-
-
-def test_make_poly_collection_data_array_and_array():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    array = numpy.random.standard_normal(len(convention.polygons[convention.mask]))
-
-    with pytest.raises(TypeError):
-        # Passing both array and data_array is a TypeError
-        convention.make_poly_collection(data_array='botz', array=array)
-
-
-def test_make_poly_collection_data_array_and_clim():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    # You can override the default clim if you want
-    patches = convention.make_poly_collection(data_array='botz', clim=(-12, -8))
-    assert patches.get_clim() == (-12, -8)
-
-
-def test_make_poly_collection_data_array_dimensions():
-    dataset = xarray.Dataset({
-        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, 10, 20))),
-        'botz': (['y', 'x'], numpy.random.standard_normal((10, 20)) - 10),
-    })
-    convention = SimpleConvention(dataset)
-
-    with pytest.raises(ValueError):
-        # temp needs subsetting first, so this should raise an error
-        convention.make_poly_collection(data_array='temp')
-
-    # One way to avoid this is to isel the data array
-    convention.make_poly_collection(data_array=dataset.data_vars['temp'].isel(z=0, t=0))
-
-    # Another way to avoid this is to isel the dataset
-    dataset_0 = dataset.isel(z=0, t=0)
-    convention = SimpleConvention(dataset_0)
-    convention.make_poly_collection(data_array='temp')
+    assert face_centres[i] is None

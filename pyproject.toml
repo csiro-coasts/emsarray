@@ -51,6 +51,7 @@ docs = [
 	"emsarray[complete]",
 	"sphinx ~=8.2.3",
 	"sphinx_book_theme ~=1.1.4",
+	"sphinxcontrib-video ~=0.4.1",
 	"livereload~=2.7.1",
 ]
 

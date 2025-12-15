@@ -9,27 +9,28 @@ import warnings
 from collections.abc import Hashable, Sequence
 from contextlib import suppress
 from functools import cached_property
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy
+import shapely
 import xarray
-from shapely.geometry import Polygon, box
+from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
 
-from emsarray import masking, utils
+from emsarray import masking, plot, utils
 from emsarray.exceptions import ConventionViolationWarning
-from emsarray.types import Bounds, Pathish
+from emsarray.types import Bounds, DataArrayOrName, Pathish
 
 from ._base import DimensionConvention, Specificity
+
+if TYPE_CHECKING:
+    # Import these optional dependencies only during type checking
+    from matplotlib.axes import Axes
 
 
 class CFGridKind(str, enum.Enum):
     """"""
     face = 'face'
-
-
-#: A two-tuple of ``(y, x)``.
-CFGridIndex = tuple[int, int]
 
 
 CF_LATITUDE_UNITS = {
@@ -183,7 +184,7 @@ class CFGridTopology(abc.ABC):
         return int(numpy.prod(self.shape))
 
 
-class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind, CFGridIndex]):
+class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind]):
     """
     A base class for CF grid datasets.
     There are two concrete subclasses: :class:`CFGrid1D` and :class:`CFGrid2D`.
@@ -191,6 +192,10 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind, CFGridInd
 
     grid_kinds = frozenset(CFGridKind)
     default_grid_kind = CFGridKind.face
+    geometry_types = {
+        CFGridKind.face: shapely.Polygon,
+    }
+
     topology_class: type[Topology]
 
     def __init__(
@@ -237,6 +242,15 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind, CFGridInd
         """A :class:`CFGridTopology` helper."""
         return self.topology_class(self.dataset)
 
+    def _make_geometry(self, grid_kind: CFGridKind) -> numpy.ndarray:
+        if grid_kind is CFGridKind.face:
+            return self._make_polygons()
+        raise ValueError(f"Invalid grid kind {grid_kind}")
+
+    @abc.abstractmethod
+    def _make_polygons(self) -> numpy.ndarray:
+        pass
+
     @cached_property
     def bounds(self) -> Bounds:
         # This can be computed easily from the coordinate bounds
@@ -252,12 +266,6 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind, CFGridInd
         return {
             CFGridKind.face: [self.topology.y_dimension, self.topology.x_dimension],
         }
-
-    def unpack_index(self, index: CFGridIndex) -> tuple[CFGridKind, Sequence[int]]:
-        return CFGridKind.face, index
-
-    def pack_index(self, grid_kind: CFGridKind, indexes: Sequence[int]) -> CFGridIndex:
-        return cast(CFGridIndex, indexes)
 
     def get_all_geometry_names(self) -> list[Hashable]:
         # Grid datasets contain latitude and longitude variables
@@ -289,9 +297,11 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind, CFGridInd
     ) -> xarray.Dataset:
         topology = self.topology
 
-        intersecting_indexes = self.strtree.query(clip_geometry, predicate='intersects')
-        mask = numpy.full(topology.shape, fill_value=False)
-        mask.ravel()[intersecting_indexes] = True
+        face_grid = self.grids[CFGridKind.face]
+        intersecting_indexes = face_grid.strtree.query(clip_geometry, predicate='intersects')
+        mask_da = xarray.DataArray(numpy.full(face_grid.size, fill_value=False))
+        mask_da.values[intersecting_indexes] = True
+        mask = face_grid.wind(mask_da).values
 
         if buffer > 0:
             mask = masking.blur_mask(mask, size=buffer)
@@ -311,9 +321,40 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind, CFGridInd
     def apply_clip_mask(self, clip_mask: xarray.Dataset, work_dir: Pathish) -> xarray.Dataset:
         return masking.mask_grid_dataset(self.dataset, clip_mask, work_dir)
 
+    def make_artist(
+        self,
+        axes: 'Axes',
+        variable: DataArrayOrName | tuple[DataArrayOrName, ...],
+        **kwargs: Any,
+    ) -> 'plot.GridArtist':
+        grid = self.grids[CFGridKind.face]
+        data_array = utils.names_to_data_arrays(self.dataset, variable)
+
+        if isinstance(data_array, xarray.DataArray):
+            return plot.artists.make_polygon_scalar_collection(axes, grid, data_array, **kwargs)
+
+        if isinstance(data_array, tuple):
+            if len(data_array) == 2:
+                return plot.artists.make_polygon_vector_quiver(axes, grid, data_array, **kwargs)
+
+        raise ValueError("I don't know how to plot this")
+
+    def plot_geometry(
+        self,
+        axes: 'Axes',
+    ) -> 'plot.GridArtist':
+        grid = self.grids[CFGridKind.face]
+        collection = plot.artists.PolygonScalarCollection.from_grid(
+            grid,
+            edgecolor='grey',
+            facecolor='blue',
+            linewidth=0.5,
+        )
+        axes.add_collection(collection)
+        return collection
+
 
 # 1D coordinate grids
-
 class CFGrid1DTopology(CFGridTopology):
     """
     Collects information about the topology of a gridded dataset
@@ -437,15 +478,19 @@ class CFGrid1D(CFGrid[CFGrid1DTopology]):
 
         return out
 
-    @cached_property
-    def face_centres(self) -> numpy.ndarray:
+    def _make_geometry_centroid(self, grid_kind: CFGridKind) -> numpy.ndarray:
         topology = self.topology
         xx, yy = numpy.meshgrid(topology.longitude.values, topology.latitude.values)
-        centres = numpy.column_stack((xx.flatten(), yy.flatten()))
-        return cast(numpy.ndarray, centres)
+        coords = numpy.column_stack((xx.flatten(), yy.flatten()))
+
+        points = numpy.full(shape=topology.size, dtype=object, fill_value=None)
+        valid_coords = numpy.flatnonzero(numpy.all(~numpy.isnan(coords), axis=1))
+        shapely.points(coords[valid_coords], out=points, indices=valid_coords)
+
+        return cast(numpy.ndarray, points)
 
     @cached_property
-    def geometry(self) -> Polygon:
+    def geometry(self) -> shapely.Polygon:
         # As CFGrid1D is axis aligned,
         # the geometry can be constructed from the bounds.
         return box(*self.bounds)
@@ -604,10 +649,13 @@ class CFGrid2D(CFGrid[CFGrid2DTopology]):
 
         return out
 
-    @cached_property
-    def face_centres(self) -> numpy.ndarray:
-        centres = numpy.column_stack((
+    def _make_geometry_centroid(self, grid_kind: CFGridKind) -> numpy.ndarray:
+        topology = self.topology
+        coords = numpy.column_stack((
             self.ravel(self.topology.longitude).values,
             self.ravel(self.topology.latitude).values,
         ))
-        return cast(numpy.ndarray, centres)
+        points = numpy.full(shape=topology.size, dtype=object, fill_value=None)
+        valid_coords = numpy.flatnonzero(numpy.all(~numpy.isnan(coords), axis=1))
+        shapely.points(coords[valid_coords], out=points, indices=valid_coords)
+        return cast(numpy.ndarray, points)
