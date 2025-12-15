@@ -23,9 +23,9 @@ release_notes_dev_header = """
 =============================
 Next release (in development)
 =============================
-
-* ...
 """.lstrip()
+
+release_notes_dev_list = "* ..."
 
 
 def main(
@@ -118,7 +118,7 @@ def pre_release(opts: argparse.Namespace) -> None:
     print(f"Renaming {release_notes_dev} to {new_release_notes}...")
     call('git', 'mv', str(release_notes_dev), str(new_release_notes))
 
-    heading_re = re.compile('.*?^=+$.*?^=+$', re.MULTILINE | re.DOTALL)
+    heading_re = re.compile(re.escape(release_notes_dev_header + "\n"))
     version = opts.new_version
     ruler = '=' * len(version)
     new_heading = '\n'.join([
@@ -127,6 +127,8 @@ def pre_release(opts: argparse.Namespace) -> None:
         ruler,
         '',
         f'Released on {opts.release_date.isoformat()}',
+        '',
+        '',
     ])
     replace_in_file(new_release_notes, heading_re, new_heading)
     call('git', 'add', str(new_release_notes))
@@ -168,6 +170,8 @@ def post_release(opts: argparse.Namespace) -> None:
     call('git', 'checkout', '-b', branch_name, opts.ref)
 
     release_notes_dev.write_text(release_notes_dev_header)
+    release_notes_dev.write_text("\n")
+    release_notes_dev.write_text(release_notes_dev_list)
     toctree_re = re.compile(r'^\.\. toctree::$\n(^ +.*$\n)*^$\n', re.MULTILINE)
     replace_in_file(
         release_notes_index,
