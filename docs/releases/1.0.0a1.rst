@@ -1,6 +1,8 @@
-=============================
-Next release (in development)
-=============================
+=======
+1.0.0a1
+=======
+
+Released on 2025-12-15
 
 Improved support for multiple grids
 ===================================
