@@ -1,3 +1,11 @@
+"""
+.. _example-kgari-transect:
+
+====================
+K'gari transect plot
+====================
+"""
+
 import shapely
 from matplotlib import pyplot
 
@@ -8,6 +16,10 @@ dataset_url = 'https://thredds.nci.org.au/thredds/dodsC/fx3/gbr4_H4p0_ABARRAr2_O
 dataset = emsarray.open_dataset(dataset_url).isel(time=-1)
 dataset = dataset.ems.select_variables(['botz', 'temp'])
 
+# %%
+# The following is a :mod:`transect <emsarray.transect>` path
+# starting in the Great Sandy Strait near K'gari,
+# heading roughly North out to deeper waters:
 line = shapely.LineString([
     [152.9768944, -25.4827962],
     [152.9701996, -25.4420345],
@@ -29,7 +41,9 @@ landmarks = [
     ('Lady Elliot Island', shapely.Point(152.7145958, -24.1129146)),
 ]
 
-# Plot the transect
+# %%
+# Plot a transect showing temperature along this path.
+
 figure = transect.plot(
     dataset, line, dataset['temp'],
     figsize=(7.9, 3),
@@ -37,7 +51,10 @@ figure = transect.plot(
     landmarks=landmarks,
     title="Temperature",
     cmap='Oranges_r')
-figure.savefig('kgari-transect.png')
+pyplot.show()
+
+# %%
+# The path of the transect can be plotted using matplotlib.
 
 # Plot the path of the transect
 figure = pyplot.figure(figsize=(5, 5), dpi=100)
@@ -46,7 +63,7 @@ axes.set_aspect(aspect='equal', adjustable='datalim')
 axes.set_title('Transect path')
 dataset.ems.make_artist(
     axes, 'botz', cmap='Blues', clim=(0, 2000), edgecolor='face',
-    linewidth=0.5, zorder=0))
+    linewidth=0.5, zorder=0)
 axes = figure.axes[0]
 axes.set_extent(plot.bounds_to_extent(line.envelope.buffer(0.2).bounds))
 axes.plot(*line.coords.xy, zorder=2, c='orange', linewidth=4)
@@ -54,6 +71,5 @@ axes.plot(*line.coords.xy, zorder=2, c='orange', linewidth=4)
 plot.add_coast(axes, zorder=1)
 plot.add_gridlines(axes)
 plot.add_landmarks(axes, landmarks)
-figure.savefig('kgari-path.png')
 
-pyplot.show(block=True)
+pyplot.show()

@@ -40,6 +40,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.napoleon',
     'sphinxcontrib.video',
+    'sphinx_gallery.gen_gallery',
     'roles'
 ]
 
@@ -63,6 +64,10 @@ html_theme_options = {'show_toc_level': 2}
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+
+def setup(app):
+    app.add_css_file("hide_links.css")
 
 
 # Options for generated documentation
@@ -98,4 +103,14 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'shapely': ('https://shapely.readthedocs.io/en/stable/', None),
     'xarray': ('https://docs.xarray.dev/en/stable/', None),
+}
+
+
+# Sphinx gallery configuration
+sphinx_gallery_conf = {
+    'examples_dirs': '../examples',
+    'gallery_dirs': './examples',
+    'filename_pattern': '/plot-',
+    'matplotlib_animations': True,
+    'backreferences_dir': './examples/backreferences',
 }
