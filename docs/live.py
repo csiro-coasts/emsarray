@@ -10,6 +10,7 @@ def main() -> None:
     server.watch('**/*.py', command, delay=0.1)
     server.watch('**/*.ipynb', command, delay=0.1)
     server.watch('../src', command, delay=0.1)
+    server.watch('../examples', command, delay=0.1)
     server.serve(root='./_build/dirhtml')
 
 

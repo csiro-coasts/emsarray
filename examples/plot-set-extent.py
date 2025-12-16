@@ -1,10 +1,18 @@
+"""
+================================
+Plot a small area with landmarks
+================================
+
+You can use :meth:`.Axes.set_extent()` to display a region of interest on a plot.
+Combined with :func:`add_landmarks()` to highlight regional landmarks.
+"""
 import emsarray.plot
 import shapely
 from matplotlib import pyplot
 
 dataset = emsarray.tutorial.open_dataset('gbr4')
 
-# set up the figure
+# Set up the figure
 figure = pyplot.figure()
 axes = figure.add_subplot(projection=dataset.ems.data_crs)
 axes.set_title("Sea surface temperature around Mackay")
@@ -26,5 +34,4 @@ emsarray.plot.add_landmarks(axes, [
     ('Mackay', shapely.Point(149.192671, -21.146719)),
 ])
 
-figure.savefig("plot-set-extent.png")
-pyplot.show(block=True)
+pyplot.show()

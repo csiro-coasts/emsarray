@@ -96,7 +96,7 @@ def add_landmarks(
 
     Examples
     --------
-    :ref:`example-plot-set-extent`
+    .. minigallery:: ../examples/plot-set-extent.py
     """
     outline = patheffects.withStroke(
         linewidth=outline_width, foreground=outline_color)

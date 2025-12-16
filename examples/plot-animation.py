@@ -1,3 +1,15 @@
+"""
+=============
+Animated plot
+=============
+
+Animated plots are possible with emsarray by using :class:`matplotlib.animation.FuncAnimation`
+and calling :meth:`.GridArtist.set_data_array()` each frame.
+A :class:`~matplotlib.animation.FuncAnimation` will call a function every frame where you can update the plot.
+Each artist returned by :meth:`.Convention.make_artist()` has a :meth:`~.GridArtist.set_data_array()` method
+which can be used to update the data in the plot.
+In combination this makes animations in emsarray about as straight forward as making a static plot:
+"""
 import cartopy.crs
 import datetime
 import emsarray
@@ -24,7 +36,7 @@ aest_timezone = datetime.timezone(datetime.timedelta(hours=10))
 
 
 # Make a figure
-figure = pyplot.figure(figsize=(8, 8), layout='constrained')
+figure = pyplot.figure(figsize=(8, 8))
 axes = figure.add_subplot(projection=cartopy.crs.PlateCarree())
 axes.set_aspect('equal', adjustable='datalim')
 coast = GSHHSFeature(scale='intermediate')
@@ -47,16 +59,10 @@ uv_artist = ds.ems.make_artist(
     axes, (u.isel(time=0), v.isel(time=0)),
     scale=40)
 
-
-# Finish setting up the plot
-axes.autoscale()
-
-
 def update_plot(frame: int) -> list[Artist]:
     # This function is called every frame and should update the plot with new data.
 
-    # Disable the matplotlib layout engine after the first frame
-    # else the plot has a tendency to jiggle around on later frames.
+    # Disable the layout engine after the first frame, else the plot can shift slightly
     if frame > 0:
         figure.set_layout_engine('none')
 
@@ -72,19 +78,14 @@ def update_plot(frame: int) -> list[Artist]:
     # Return every artist that has been updated this frame
     return [axes.title, magnitude_artist, uv_artist]
 
+# Render the first frame
+update_plot(0)
+
+# Finish setting up the plot
+axes.autoscale()
 
 animation = FuncAnimation(
     figure,  # The figure to animate
     update_plot,  # The function to call to update the plot data
     frames=ds.sizes['time'],  # How many frames of animation to render
 )
-
-# Draw and save the first frame of the animation for a thumbnail
-update_plot(0)
-figure.savefig('animated-plot.png')
-
-# Save the animation
-ffmpeg_writer = FFMpegWriter(fps=5, bitrate=1800)
-animation.save('animated-plot.mp4', writer=ffmpeg_writer)
-
-pyplot.show(block=True)

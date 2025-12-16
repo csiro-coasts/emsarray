@@ -1,3 +1,19 @@
+"""
+===============================
+Plot with specified data limits
+===============================
+
+:meth:`.Convention.make_artist()` method will create an appropriate
+:class:`~matplotlib.artist.Artist` to plot a variable.
+The artist can be customised by passing kwargs to :meth:`~.Convention.make_artist()`.
+The :meth:`~.Convention.make_artist()` documentation for each convention
+will describe what artists are created for what kinds of variables.
+
+Typically a scalar variable defined on a polygon grid
+will be drawn using a :class:`~matplotlib.collections.PolyCollection`.
+This class accepts options such as `clim` and `cmap`
+which can be used to customise the appearance of the plot.
+"""
 import cartopy.crs
 import emsarray
 import emsarray.plot
@@ -29,6 +45,4 @@ axes.autoscale()
 axes.set_title("Sea surface height deviation")
 axes.set_facecolor('aliceblue')
 
-figure.savefig('plot-with-clim.png')
-
-pyplot.show(block=True)
+pyplot.show()

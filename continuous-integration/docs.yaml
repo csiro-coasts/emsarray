@@ -3,7 +3,9 @@ channels:
 
 dependencies:
   - geos ~=3.12.2
+  - udunits2 >=2.2.25
   - python =3.14
+  - ffmpeg
   - wheel
   - pip:
     - -r ./requirements-3.14.txt

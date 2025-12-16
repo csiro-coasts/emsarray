@@ -12,13 +12,7 @@ Transects are vertical slices along some path through your dataset.
 Examples
 --------
 
-.. list-table::
-
-   * - :ref:`example-kgari-transect`
-
-       .. image:: /_static/images/kgari-transect.png
-          :width: 200
-          :class: no-scaled-link
+.. minigallery:: ../examples/plot-kgari-transect.py
 
 .. autofunction:: plot
 

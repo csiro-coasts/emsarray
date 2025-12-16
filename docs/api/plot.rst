@@ -11,11 +11,10 @@ The :func:`plot_on_figure` and :func:`animate_on_figure` functions
 will generate a simple plot of any supported variables.
 These functions are intended as quick and simple ways of exploring a dataset
 and have limited customisation options.
-Consult the :ref:`examples gallery <examples>`
-for demonstrations on making more customised plots.
 
-The :ref:`examples <examples>` section contains many worked examples on how to generate plots.
-:ref:`example-plot-with-clim` is a good place to start.
+The :ref:`examples <examples>` section contains many worked examples
+on how to generate plots with more customisations.
+:ref:`sphx_glr_examples_plot-with-clim.py` is a good place to start.
 
 Shortcuts
 =========
