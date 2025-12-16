@@ -65,8 +65,8 @@ html_theme_options = {'show_toc_level': 2}
 html_static_path = ['_static']
 
 
-add_module_names = False
-
+# Options for generated documentation
+add_module_names = True
 
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
