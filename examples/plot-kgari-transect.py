@@ -1,6 +1,4 @@
 """
-.. _example-kgari-transect:
-
 ====================
 K'gari transect plot
 ====================

@@ -49,6 +49,9 @@ geometry.write_shapefile(dataset, './gbr4.shp')
 
 ## Examples
 
+The `examples/` directory contains examples of making many different plots.
+These are included in the documentation under [Examples][emsarray-examples].
+
 Examples of using `emsarray` are available in the [emsarray-notebooks][emsarray-notebooks] repository.
 You can [explore these notebooks online][emsarray-binder] with Binder.
 
@@ -98,6 +101,7 @@ You can the view the docs at <http://localhost:5500>
 [emsarray-binder]: https://mybinder.org/v2/gh/csiro-coasts/emsarray-notebooks/HEAD
 [emsarray-conda-forge]: https://anaconda.org/conda-forge/emsarray/
 [emsarray-documentation]: https://emsarray.readthedocs.io
+[emsarray-examples]: https://emsarray.readthedocs.io/en/stable/examples/
 [emsarray-notebooks]: https://github.com/csiro-coasts/emsarray-notebooks
 [emsarray-pypi]: https://pypi.org/project/emsarray/
 [emsarray-source-code]: https://github.com/csiro-coasts/emsarray

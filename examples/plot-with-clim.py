@@ -1,6 +1,4 @@
 """
-.. _example-plot-with-clim:
-
 ===============================
 Plot with specified data limits
 ===============================

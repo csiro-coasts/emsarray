@@ -1134,9 +1134,8 @@ class Convention[GridKind, Index](abc.ABC):
 
         This method is a shortcut for quickly generating simple animations.
         It is not intended to be fully featured.
-        See the :ref:`examples <examples>` for more comprehensive plotting examples.
-
-        For real world examples, refer to the ``examples/animation.ipynb`` notebook.
+        See the :ref:`examples <examples>` for more comprehensive plotting examples,
+        and specifically :ref:`sphx_glr_examples_plot-animation.py` for an animated example.
 
         Parameters
         ----------

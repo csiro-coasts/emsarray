@@ -1,6 +1,4 @@
 """
-.. _example-plot-set-extent:
-
 ================================
 Plot a small area with landmarks
 ================================

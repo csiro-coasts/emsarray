@@ -1,6 +1,4 @@
 """
-.. _example-animated-plot:
-
 =============
 Animated plot
 =============
