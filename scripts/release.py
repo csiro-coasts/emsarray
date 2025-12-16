@@ -169,9 +169,10 @@ def post_release(opts: argparse.Namespace) -> None:
     branch_name = f'post-{version}-release'
     call('git', 'checkout', '-b', branch_name, opts.ref)
 
-    release_notes_dev.write_text(release_notes_dev_header)
-    release_notes_dev.write_text("\n")
-    release_notes_dev.write_text(release_notes_dev_list)
+    with open(release_notes_dev, 'w') as f:
+        f.write(release_notes_dev_header)
+        f.write("\n")
+        f.write(release_notes_dev_list)
     toctree_re = re.compile(r'^\.\. toctree::$\n(^ +.*$\n)*^$\n', re.MULTILINE)
     replace_in_file(
         release_notes_index,
