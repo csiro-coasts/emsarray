@@ -29,21 +29,33 @@ These methods were little used and backwards compatibility was complicated.
 To make the transition smoother the assumption of a default polygon grid has been maintained,
 however this default may be removed in future releases.
 
-This change allows for plotting variables that are not defined on a polygon grid
-all using the same API.
-A new method :meth:`.Convention.make_artist` has been added
-which will pick the correct matplotlib :class:`~matplotlib.artist.Artist` to plot a given variable.
-Now :class:`~.conventions.ugrid.UGrid` datasets can plot variables defined on face grids and node grids
-using the same API.
-All artists returned by :meth:`~.Convention.make_artist`
-have a :meth:`~.GridArtist.set_data_array` that can update the data drawn by an artist
-which provides a consistent interface for making animations.
-
-:ref:`More examples <examples>` have been added to the documentation to demonstrate this new functionality.
-
 .. _ugrid: https://ugrid-conventions.github.io/ugrid-conventions/
 .. _compas: https://research.csiro.au/cem/software/ems/hydro/unstructured-compas/
 .. _schism: https://ccrm.vims.edu/schismweb/
+
+Improved plotting API
+=====================
+
+The plotting API has been improved to achieve the goals:
+
+* The ability to plot variables defined on non-polygonal grids,
+* Make customisation of artist properties easier, such as colour maps and data limits,
+* Provide a consistent API for updating the data for an artist, to make animated plots simpler,
+* Support plotting on multiple axes in a figure, and
+* Support more kinds of artists, such as contour plots over polygonal grids.
+
+A new method :meth:`.Convention.make_artist` has been added
+which will pick the correct matplotlib :class:`~matplotlib.artist.Artist` to plot a given variable.
+This method will pass any kwargs on to the underlying artist allowing for easy customisation
+(see :ref:`sphx_glr_examples_plot-with-clim.py`).
+This method takes an :class:`~matplotlib.axes.Axes` instance allowing for multiple axes on one figure
+(see :ref:`sphx_glr_examples_plot-two-subplots.py`).
+It will return a :class:`~.plot.artists.GridArtist` instance which has a :meth:`.GridArtist.set_data_array` method.
+Users can call this method to update the data being plotted in an animation
+without the artist-specific handling previously required in :func:`~.plot.animate_on_figure`
+(see :ref:`sphx_glr_examples_plot-animation.py`).
+
+:ref:`More examples <examples>` are being added over time to demonstrate how to make more customised plots.
 
 Changelog
 =========
@@ -81,4 +93,8 @@ Changelog
   (:pr:`208`).
 * The handling of multiple grid kinds was rewritten from the ground up
   to properly support conventions like `unstructured grids <ugrid_>`_
-  (:pr:`205`, also :issue:`189`, :issue:`175`, :issue:`121`, and :pr:`187`).
+  using the new :meth:`.Convention.grids` property
+  (:pr:`205`, also :issue:`189`).
+* A new method :meth:`Convention.make_artist()` improves the plotting capabilities,
+  supporting plotting variables on all grids supported by the convention
+  (:pr:`205`, :pr:`210`, :pr:`211`, :issue:`175`, :issue:`121`, and :pr:`187`).
