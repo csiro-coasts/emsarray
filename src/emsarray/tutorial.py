@@ -22,11 +22,11 @@ except ImportError as exc:
 _requires_tutorial = requires_extra('tutorial', IMPORT_EXCEPTION)
 
 
-BASE_URL = "https://github.com/csiro-coasts/emsarray-data/raw/{version}/{path}"
+BASE_URL = "https://github.com/csiro-coasts/emsarray-data/releases/download/{version}/{path}"
 
 # Bump this version as new datasets are added or as old datasets are updated.
 # Should be a tag name or commit hash, something immutable.
-VERSION = "v0.4.0"
+VERSION = "v1.0.0"
 
 
 def _make_download_url(name: str) -> str:
