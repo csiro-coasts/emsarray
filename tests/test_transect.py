@@ -44,7 +44,7 @@ def test_plot(
     figure = matplotlib.pyplot.gcf()
     axes = figure.axes[0]
     # This is assembled from the variable long_name and the time coordinate
-    assert axes.get_title() == 'Temperature\n2022-05-11T14:00'
+    assert axes.get_title() == 'Temperature\n2022-10-15T14:00'
     # This is the long_name of the depth coordinate
     assert axes.get_ylabel() == 'Z coordinate'
     # This is made up
@@ -86,7 +86,7 @@ def test_plot_no_intersection(
     figure = matplotlib.pyplot.gcf()
     axes = figure.axes[0]
     # This is assembled from the variable long_name and the time coordinate
-    assert axes.get_title() == 'Temperature\n2022-05-11T14:00'
+    assert axes.get_title() == 'Temperature\n2022-10-15T14:00'
     # This is the long_name of the depth coordinate
     assert axes.get_ylabel() == 'Z coordinate'
     # This is made up
