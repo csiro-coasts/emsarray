@@ -8,3 +8,6 @@ Next release (in development)
   to version 1.0.0, which includes the
   `SCHISM-WWMIII hydrological and wave model hindcast for Vanuatu <https://data.csiro.au/collection/65060>`_ dataset
   (:pr:`212`).
+* Add example showing
+  :ref:`multiple ways of plotting vector data <sphx_glr_examples_plot-vector-methods.py>`
+  (:pr:`213`).
