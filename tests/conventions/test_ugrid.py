@@ -463,34 +463,32 @@ def test_node_grid() -> None:
         assert node.equals_exact(shapely.Point([node_x, node_y]), 1e-6)
 
 
-def test_face_centres_from_variables():
+def test_face_centres_from_variables() -> None:
     dataset = make_dataset(width=3, make_face_coordinates=True)
     convention: UGrid = dataset.ems
-    face_grid = dataset.ems.grids['face']
+    face_grid = convention.grids['face']
 
-    face_centres = convention.default_grid.centroid
+    coordinates = face_grid.centroid_coordinates
     lons = dataset['Mesh2_face_x'].values
     lats = dataset['Mesh2_face_y'].values
     for face in range(dataset.sizes['nMesh2_face']):
         lon = lons[face]
         lat = lats[face]
         linear_index = face_grid.ravel_index((UGridKind.face, face))
-        point = face_centres[linear_index]
-        numpy.testing.assert_equal([point.x, point.y], [lon, lat])
+        numpy.testing.assert_equal(coordinates[linear_index], [lon, lat])
 
 
-def test_face_centres_from_centroids():
+def test_face_centres_from_centroids() -> None:
     dataset = make_dataset(width=3, make_face_coordinates=False)
     convention: UGrid = dataset.ems
-    face_grid = dataset.ems.grids['face']
-    face_centres = face_grid.centroid
+    face_grid = convention.grids['face']
+    coordinates = face_grid.centroid_coordinates
 
     for face in range(dataset.sizes['nMesh2_face']):
         linear_index = convention.ravel_index((UGridKind.face, face))
         polygon = face_grid.geometry[linear_index]
         lon, lat = polygon.centroid.coords[0]
-        point = face_centres[linear_index]
-        numpy.testing.assert_equal([point.x, point.y], [lon, lat])
+        numpy.testing.assert_equal(coordinates[linear_index], [lon, lat])
 
 
 def test_bounds(datasets: pathlib.Path):

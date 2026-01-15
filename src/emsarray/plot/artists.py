@@ -255,10 +255,8 @@ class PolygonTriContourSet(GridArtist, Artist):
     def make_triangulation(grid: 'conventions.Grid') -> Triangulation:
         convention = grid.convention
         # Compute the Delaunay triangulation of the face centres
-        face_centres = grid.centroid
-        coords = numpy.full(fill_value=numpy.nan, shape=(grid.size, 2))
-        coords[face_centres != None] = shapely.get_coordinates(face_centres)  # noqa: E711
-        triangulation = Triangulation(coords[:, 0], coords[:, 1])
+        centres = grid.centroid_coordinates
+        triangulation = Triangulation(centres[:, 0], centres[:, 1])
 
         # Mask out any Triangles that are not contained within the dataset geometry.
         # These are either in concave areas of the geometry (e.g. an inlet or bay)
@@ -393,8 +391,7 @@ class PolygonVectorQuiver(Quiver, GridArtist):
         if not issubclass(grid.geometry_type, shapely.Polygon):
             raise ValueError("Grid must have polygon geometry")
 
-        coords = numpy.full(fill_value=numpy.nan, shape=(grid.size, 2))
-        coords[grid.centroid != None] = shapely.get_coordinates(grid.centroid)  # noqa: E711
+        coords = grid.centroid_coordinates
 
         # A Quiver needs some values when being initialized.
         # We don't always want to provide values to the quiver,

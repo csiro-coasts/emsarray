@@ -536,3 +536,23 @@ def test_centroid():
     assert len(face_centres) == len(polygons)
     assert polygons[i] is None
     assert face_centres[i] is None
+
+
+def test_centroid_coordinates():
+    y_size, x_size = 10, 20
+    dataset = xarray.Dataset({
+        'temp': (['t', 'z', 'y', 'x'], numpy.random.standard_normal((5, 5, y_size, x_size))),
+        'botz': (['y', 'x'], numpy.random.standard_normal((y_size, x_size)) - 10),
+    })
+    convention = SimpleConvention(dataset)
+
+    grid = convention.grids['face']
+    xx, yy = numpy.meshgrid(
+        numpy.arange(x_size) + 0.5,
+        numpy.arange(y_size) + 0.5,
+    )
+    expected = numpy.c_[xx.flatten(), yy.flatten()]
+    expected[~grid.mask] = [numpy.nan, numpy.nan]
+    actual = grid.centroid_coordinates
+
+    numpy.testing.assert_equal(expected, actual)

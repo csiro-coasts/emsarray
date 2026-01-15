@@ -146,8 +146,35 @@ class Grid[GridKind, Index](abc.ABC):
         The centres of the geometry of this grid as a :class:`numpy.ndarray` of Shapely points.
         Defaults to the :func:`shapely.centroid` of :attr:`Grid.geometry`,
         but some conventions might have more specific ways of finding the centres.
+        If geometry is empty the corresponding index in this array will be None.
+
+        See also
+        ========
+        Grid.centroid
+            The same data represented as a two-dimensional array of coordinates.
+        Grid.mask
+            A boolean array indicating where the grid has geometry
         """
         return self.convention.make_geometry_centroid(self.grid_kind)
+
+    @cached_property
+    def centroid_coordinates(self) -> numpy.ndarray:
+        """
+        The centres of the geometry of this grid as a 2-dimensional :class:`numpy.ndarray`
+        with shape (:attr:`Grid.size`, 2).
+        If geometry is empty the corresponding row in this array will be `[numpy.nan, numpy.nan]`.
+
+        See also
+        ========
+        Grid.centroid
+            The same data represented as an array of :class:`shapely.Point`.
+        Grid.mask
+            A boolean array indicating where the grid has geometry
+        """
+        coordinates = numpy.full(fill_value=numpy.nan, shape=(self.size, 2))
+        _coordinates, indexes = shapely.get_coordinates(self.centroid, return_index=True)
+        coordinates[indexes] = _coordinates
+        return coordinates
 
     @abc.abstractmethod
     def ravel_index(self, index: Index) -> int:
@@ -1492,15 +1519,12 @@ class Convention[GridKind, Index](abc.ABC):
     @cached_property
     @utils.deprecated(
         "dataset.ems.face_centres is deprecated. "
-        "Use dataset.ems.get_grid(data_array).centroid instead. "
+        "Use dataset.ems.get_grid(data_array).centroid_coordinates instead. "
         "For a list of coordinate pairs use shapely.get_coordinates(grid.centroid)."
     )
     def face_centres(self) -> numpy.ndarray:
         grid = self.grids[self.default_grid_kind]
-        centroid = grid.centroid
-        coords = numpy.full(fill_value=numpy.nan, shape=(grid.size, 2))
-        coords[centroid != None] = shapely.get_coordinates(centroid)  # noqa: E711
-        return cast(numpy.ndarray, coords)
+        return grid.centroid_coordinates
 
     @cached_property
     @utils.deprecated(
