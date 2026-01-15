@@ -456,8 +456,8 @@ def plot_geometry(
 
     dataset.ems.plot_geometry(axes)
     grid = dataset.ems.default_grid
-    centroid = shapely.get_coordinates(grid.centroid)
-    axes.scatter(centroid[:, 0], centroid[:, 1], c='red')
+    x, y = grid.centroid_coordinates.T
+    axes.scatter(x, y, c='red')
 
     if title is not None:
         axes.set_title(title)

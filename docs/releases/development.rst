@@ -11,3 +11,5 @@ Next release (in development)
 * Add example showing
   :ref:`multiple ways of plotting vector data <sphx_glr_examples_plot-vector-methods.py>`
   (:pr:`213`).
+* Add :attr:`.Grid.centroid_coordinates` attribute
+  (:pr:`214`).
