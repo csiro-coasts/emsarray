@@ -6,8 +6,12 @@ import pytest
 import shapely
 
 import emsarray.transect
+from emsarray.utils import estimate_bounds_1d
 
 logger = logging.getLogger(__name__)
+
+
+# Most of the transect code is exercised by the plot examples in the docs.
 
 
 @pytest.mark.mpl_image_compare
@@ -18,6 +22,7 @@ def test_plot(
     tmp_path: pathlib.Path,
 ):
     dataset = emsarray.tutorial.open_dataset('gbr4')
+    dataset = estimate_bounds_1d(dataset, 'zc')
     temp = dataset['temp'].copy()
     temp = temp.isel(time=-1)
 
@@ -69,6 +74,8 @@ def test_plot_no_intersection(
     This should produce an empty transect plot, which is better than raising an error.
     """
     dataset = emsarray.tutorial.open_dataset('gbr4')
+    dataset = estimate_bounds_1d(dataset, 'zc')
+
     temp = dataset['temp'].copy()
     temp = temp.isel(time=-1)
 
