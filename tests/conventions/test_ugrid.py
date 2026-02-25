@@ -568,6 +568,33 @@ def test_grid_kinds_without_edges():
     assert convention.default_grid_kind == UGridKind.face
 
 
+def test_get_all_geometry_names_with_edges():
+    dataset = make_dataset(width=3, make_edges=True, make_face_coordinates=True)
+    topology_names = dataset.ems.get_all_geometry_names()
+    assert set(topology_names) == {
+        'Mesh2',
+        'Mesh2_node_x',
+        'Mesh2_node_y',
+        'Mesh2_face_x',
+        'Mesh2_face_y',
+        'Mesh2_face_nodes',
+        'Mesh2_edge_nodes',
+    }
+
+
+def test_get_all_geometry_names_without_edges():
+    dataset = make_dataset(width=3, make_edges=False, make_face_coordinates=True)
+    topology_names = dataset.ems.get_all_geometry_names()
+    assert set(topology_names) == {
+        'Mesh2',
+        'Mesh2_node_x',
+        'Mesh2_node_y',
+        'Mesh2_face_x',
+        'Mesh2_face_y',
+        'Mesh2_face_nodes',
+    }
+
+
 def test_drop_geometry_minimal():
     dataset = make_dataset(width=3, make_edges=False, make_face_coordinates=False)
     topology = dataset.ems.topology

@@ -375,6 +375,14 @@ def test_grid_kinds():
     assert convention.default_grid_kind == CFGridKind.face
 
 
+def test_get_all_geometry_names():
+    dataset = make_dataset(width=3, height=3, bounds=True)
+    assert set(dataset.ems.get_all_geometry_names()) == {
+        'lon', 'lon_bounds',
+        'lat', 'lat_bounds',
+    }
+
+
 def test_drop_geometry(datasets: pathlib.Path):
     dataset = xarray.open_dataset(datasets / 'cfgrid1d.nc')
 

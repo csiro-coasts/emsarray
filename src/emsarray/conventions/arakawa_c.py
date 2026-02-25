@@ -372,7 +372,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
         return cast(numpy.ndarray, points)
 
     def get_all_geometry_names(self) -> list[Hashable]:
-        return [
+        return utils.coordinates_plus_bounds(self.dataset, [
             self.face.longitude.name,
             self.face.latitude.name,
             self.node.longitude.name,
@@ -381,7 +381,7 @@ class ArakawaC(DimensionConvention[ArakawaCGridKind]):
             self.left.latitude.name,
             self.back.longitude.name,
             self.back.latitude.name,
-        ]
+        ])
 
     def make_clip_mask(
         self,

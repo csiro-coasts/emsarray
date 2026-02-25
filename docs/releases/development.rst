@@ -27,3 +27,5 @@ Next release (in development)
   (:pr:`220`).
 * Add :func:`emsarray.utils.estimate_bounds_1d` function
   (:pr:`221`).
+* Bounds variables are now included in :meth:`Convention.get_all_geometry_names()`
+  (:pr:`222`).

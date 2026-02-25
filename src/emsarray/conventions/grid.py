@@ -270,20 +270,10 @@ class CFGrid[Topology: CFGridTopology](DimensionConvention[CFGridKind]):
     def get_all_geometry_names(self) -> list[Hashable]:
         # Grid datasets contain latitude and longitude variables
         # plus optional bounds variables.
-        names = [
+        return utils.coordinates_plus_bounds(self.dataset, [
             self.topology.longitude_name,
             self.topology.latitude_name,
-        ]
-
-        bounds_names: list[Hashable | None] = [
-            self.topology.longitude.attrs.get('bounds', None),
-            self.topology.latitude.attrs.get('bounds', None),
-        ]
-        for bounds_name in bounds_names:
-            if bounds_name is not None and bounds_name in self.dataset.variables:
-                names.append(bounds_name)
-
-        return names
+        ])
 
     def drop_geometry(self) -> xarray.Dataset:
         dataset = super().drop_geometry()
