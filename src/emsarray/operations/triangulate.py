@@ -248,7 +248,7 @@ def triangulate(
     convex_hulls = shapely.convex_hull(polygons)
     convex_hull_length = shapely.get_num_coordinates(convex_hulls)
     convex_hull_length[convex_hull_length != 0] -= 1
-    polygon_is_concave = numpy.flatnonzero(convex_hull_length != polygon_length)
+    polygon_is_concave = numpy.flatnonzero(convex_hull_length != polygon_length).tolist()
 
     # Categorize each polygon by length, skipping concave polygons.
     # We will handle them separately.
@@ -266,7 +266,7 @@ def triangulate(
         # Because these triangles are convex and because we only care about the
         # vertex indexes, we can maniuplate the vertex indexes to make a fan
         # triangulation easily.
-        same_length_polygon_indexes = numpy.flatnonzero(polygon_length == unique_length)
+        same_length_polygon_indexes = numpy.flatnonzero(polygon_length == unique_length).tolist()
 
         if unique_length == 3:
             for polygon_index in same_length_polygon_indexes:

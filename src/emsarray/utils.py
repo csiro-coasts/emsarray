@@ -23,7 +23,6 @@ from typing import Any, Literal, cast, overload
 import cftime
 import netCDF4
 import numpy
-import pytz
 import shapely
 import xarray
 from xarray.core.dtypes import maybe_promote
@@ -174,12 +173,12 @@ def format_time_units_for_ems(units: str, calendar: str | None = DEFAULT_CALENDA
     period, date_string = cftime._datesplit(units)
     time_bits = cftime._parse_date(date_string.strip())
     offset_total = time_bits[-1]
-    tzinfo = pytz.FixedOffset(offset_total)
+    tzinfo = datetime.timezone(datetime.timedelta(minutes=offset_total))
 
     reference_datetime = cftime.num2pydate(0, units, calendar)
     # datetimes come out of num2pydate naive and in UTC
     # This will put them in the correct timezone
-    offset_datetime = reference_datetime.replace(tzinfo=pytz.UTC).astimezone(tzinfo)
+    offset_datetime = reference_datetime.replace(tzinfo=datetime.UTC).astimezone(tzinfo)
 
     offset_hours, offset_minutes = divmod(int(time_bits[-1]), 60)
     offset_string = f'{offset_hours:+d}:{offset_minutes:02d}'
