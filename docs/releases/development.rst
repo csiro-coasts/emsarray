@@ -13,3 +13,9 @@ Next release (in development)
   (:pr:`213`, :pr:`215`).
 * Add :attr:`.Grid.centroid_coordinates` attribute
   (:pr:`214`).
+* Stop using pytz.
+  The Python datetime module now has sufficient functionality,
+  the external dependency is no longer required.
+  pytz was included as a dependency of pandas,
+  and pandas recently dropped pytz which broke things.
+  (:pr:`219`).
