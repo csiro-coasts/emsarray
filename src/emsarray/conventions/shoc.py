@@ -17,6 +17,7 @@ See Also
 import logging
 from collections.abc import Hashable
 from functools import cached_property
+from typing import Any
 
 import xarray
 
@@ -87,25 +88,6 @@ class ShocSimple(CFGrid2D):
     """
     _dimensions: tuple[Hashable, Hashable] = ('j', 'i')
 
-    @cached_property
-    def topology(self) -> CFGrid2DTopology:
-        y_dimension, x_dimension = self._dimensions
-        try:
-            latitude = next(
-                name for name, variable in self.dataset.variables.items()
-                if variable.dims == self._dimensions
-                and variable.attrs.get("standard_name", None) == "latitude"
-            )
-            longitude = next(
-                name for name, variable in self.dataset.variables.items()
-                if variable.dims == self._dimensions
-                and variable.attrs.get("standard_name", None) == "longitude"
-            )
-        except StopIteration:
-            raise ValueError("Could not find the necessary coordinate variables")
-
-        return CFGrid2DTopology(self.dataset, latitude=latitude, longitude=longitude)
-
     @classmethod
     def check_dataset(cls, dataset: xarray.Dataset) -> int | None:
         if 'ems_version' not in dataset.attrs:
@@ -115,26 +97,28 @@ class ShocSimple(CFGrid2D):
         return Specificity.HIGH
 
     @cached_property
-    def depth_coordinate(self) -> xarray.DataArray:
-        name = 'zc'
-        try:
-            return self.dataset[name]
-        except KeyError:
-            raise NoSuchCoordinateError(
-                f"SHOC dataset did not have expected depth coordinate {name!r}")
-
-    @cached_property
     def depth_coordinates(self) -> tuple[xarray.DataArray, ...]:
+        # SHOC depth coordinates have fixed names.
+        # Prioritise those, even if they don't have the correct attributes.
         names = ['zc', 'zcsed']
-        return tuple(
+        shoc_depth_coordinates = tuple(
             self.dataset[name] for name in names
             if name in self.dataset.variables)
+        other_depth_coordinates = tuple(
+            coordinate for coordinate in super().depth_coordinates
+            if coordinate.name not in names)
+        return shoc_depth_coordinates + other_depth_coordinates
 
     @cached_property
     def time_coordinate(self) -> xarray.DataArray:
-        name = 'time'
         try:
-            return self.dataset[name]
-        except KeyError:
+            # Try detecting a time coordinate
+            return super().time_coordinate
+        except NoSuchCoordinateError:
+            # Fall back to a hard coded 'time' name in case this dataset
+            # doesn't have the right metadata
+            name = 'time'
+            if name in self.dataset:
+                return self.dataset[name]
             raise NoSuchCoordinateError(
                 f"SHOC dataset did not have expected time coordinate {name!r}")
