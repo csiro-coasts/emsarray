@@ -23,3 +23,5 @@ Next release (in development)
   (:issue:`217`, :pr:`218`).
 * Split `tests.utils` in to multiple `tests.helpers` submodules
   (:pr:`220`).
+* Split `tests.test_utils` in to multiple `tests.utils.test_component` submodules
+  (:pr:`220`).
