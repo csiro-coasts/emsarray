@@ -259,7 +259,7 @@ def update_connectivity(
     values = numpy.ma.masked_equal(raw_values, fill_value)
 
     if connectivity.dims[1] == primary_dimension:
-        values = numpy.transpose(values)
+        values = values.transpose()
     elif primary_dimension not in connectivity.dims:
         raise ValueError("Connectivity variable does not contain primary dimension")
 
