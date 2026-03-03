@@ -11,7 +11,7 @@ import numpy
 import pytest
 import xarray
 
-from tests.utils import only_versions
+from tests.helpers.versions import only_versions
 
 
 def make_dataset():

@@ -14,7 +14,7 @@ import xarray.testing
 from packaging.version import parse
 
 from emsarray import utils
-from tests.utils import filter_warning
+from tests.helpers.warnings import filter_warning
 
 logger = logging.getLogger(__name__)
 

@@ -23,9 +23,9 @@ from emsarray.exceptions import (
     ConventionViolationError, ConventionViolationWarning
 )
 from emsarray.operations import geometry
-from tests.utils import (
-    assert_property_not_cached, filter_warning, track_peak_memory_usage
-)
+from tests.helpers.functools import assert_property_not_cached
+from tests.helpers.memory import track_peak_memory_usage
+from tests.helpers.warnings import filter_warning
 
 logger = logging.getLogger(__name__)
 

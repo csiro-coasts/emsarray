@@ -21,3 +21,5 @@ Next release (in development)
   (:pr:`219`).
 * Defer ShocSimple coordinate detection to the CFGrid2D base class
   (:issue:`217`, :pr:`218`).
+* Split `tests.utils` in to multiple `tests.helpers` submodules
+  (:pr:`220`).
