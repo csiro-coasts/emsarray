@@ -8,7 +8,8 @@ from numpy.testing import assert_equal
 
 from emsarray import masking
 from emsarray.utils import to_netcdf_with_fixes
-from tests.utils import filter_warning, mask_from_strings
+from tests.helpers.array import mask_from_strings
+from tests.helpers.warnings import filter_warning
 
 
 def assert_raw_values(

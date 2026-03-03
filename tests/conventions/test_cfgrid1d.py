@@ -17,9 +17,10 @@ from emsarray.conventions.grid import (
     CFGrid1D, CFGrid1DTopology, CFGridKind, CFGridTopology
 )
 from emsarray.operations import geometry
-from tests.utils import (
-    assert_property_not_cached, box, mask_from_strings, track_peak_memory_usage
-)
+from tests.helpers.array import mask_from_strings
+from tests.helpers.functools import assert_property_not_cached
+from tests.helpers.geometry import box
+from tests.helpers.memory import track_peak_memory_usage
 
 logger = logging.getLogger(__name__)
 

@@ -19,10 +19,11 @@ from emsarray.conventions.arakawa_c import (
 )
 from emsarray.conventions.shoc import ShocStandard
 from emsarray.operations import geometry
-from tests.utils import (
-    DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator, mask_from_strings,
-    track_peak_memory_usage
+from tests.helpers.array import mask_from_strings
+from tests.helpers.datasets import (
+    DiagonalShocGrid, ShocGridGenerator, ShocLayerGenerator
 )
+from tests.helpers.memory import track_peak_memory_usage
 
 logger = logging.getLogger(__name__)
 

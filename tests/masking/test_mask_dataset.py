@@ -12,7 +12,8 @@ import emsarray
 from emsarray.conventions.arakawa_c import (
     ArakawaCGridKind, c_mask_from_centres
 )
-from tests.utils import DiagonalShocGrid, ShocLayerGenerator, mask_from_strings
+from tests.helpers.array import mask_from_strings
+from tests.helpers.datasets import DiagonalShocGrid, ShocLayerGenerator
 
 
 def test_standard_mask_from_centres():

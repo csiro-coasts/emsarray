@@ -26,11 +26,13 @@ from emsarray.conventions.grid import CFGrid2DTopology, CFGridKind
 from emsarray.conventions.shoc import ShocSimple
 from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.operations import geometry
-from tests.utils import (
+from tests.helpers.datasets import (
     AxisAlignedShocGrid, DiagonalShocGrid, ShocGridGenerator,
-    ShocLayerGenerator, assert_property_not_cached, plot_geometry,
-    track_peak_memory_usage
+    ShocLayerGenerator
 )
+from tests.helpers.functools import assert_property_not_cached
+from tests.helpers.geometry import plot_geometry
+from tests.helpers.memory import track_peak_memory_usage
 
 logger = logging.getLogger(__name__)
 

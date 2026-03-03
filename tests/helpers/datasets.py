@@ -1,81 +1,15 @@
 import abc
-import contextlib
-import importlib.metadata
-import itertools
-import tracemalloc
-import warnings
-from collections.abc import Hashable
 from functools import cached_property
-from types import TracebackType
-from typing import Any, Type
+from typing import Hashable
 
-import matplotlib.pyplot as plt
 import numpy
-import pytest
-import shapely
 import xarray
-from cartopy.mpl.geoaxes import GeoAxes
-from packaging.requirements import Requirement
 
 from emsarray.conventions.arakawa_c import (
     ArakawaCGridKind, c_mask_from_centres
 )
-from emsarray.types import Bounds, Pathish
 
-
-@contextlib.contextmanager
-def filter_warning(*args, record: bool = False, **kwargs):
-    """
-    A shortcut wrapper around warnings.catch_warning()
-    and warnings.filterwarnings()
-    """
-    with warnings.catch_warnings(record=record) as context:
-        warnings.filterwarnings(*args, **kwargs)
-        yield context
-
-
-def box(minx, miny, maxx, maxy) -> shapely.Polygon:
-    """
-    Make a box, with coordinates going counterclockwise
-    starting at (minx miny).
-    """
-    return shapely.Polygon([
-        (minx, miny),
-        (maxx, miny),
-        (maxx, maxy),
-        (minx, maxy),
-    ])
-
-
-def reduce_axes(arr: numpy.ndarray, axes: tuple[bool, ...] | None = None) -> numpy.ndarray:
-    """
-    Reduce the size of an array by one on an axis-by-axis basis. If an axis is
-    reduced, neigbouring values are averaged together
-
-    :param arr: The array to reduce.
-    :param axes: A tuple of booleans indicating which axes should be reduced. Optional, defaults to reducing along all axes.
-    :returns: A new array with the same number of axes, but one size smaller in each axis that was reduced.
-    """
-    if axes is None:
-        axes = tuple(True for _ in arr.shape)
-    axes_slices = [[numpy.s_[+1:], numpy.s_[:-1]] if axis else [numpy.s_[:]] for axis in axes]
-    return numpy.mean([arr[tuple(p)] for p in itertools.product(*axes_slices)], axis=0)  # type: ignore
-
-
-def mask_from_strings(mask_strings: list[str]) -> numpy.ndarray:
-    """
-    Make a boolean mask array from a list of strings:
-
-        >>> mask_from_strings([
-        ...     "101",
-        ...     "010",
-        ...     "111",
-        ... ])
-        array([[ True, False,  True],
-               [False,  True, False],
-               [ True,  True,  True]])
-    """
-    return numpy.array([list(map(int, line)) for line in mask_strings]).astype(bool)
+from .array import reduce_axes
 
 
 class ShocLayerGenerator(abc.ABC):
@@ -132,7 +66,7 @@ class ShocLayerGenerator(abc.ABC):
 
 
 class ShocGridGenerator(abc.ABC):
-    dimensions = {
+    dimensions: dict[ArakawaCGridKind, tuple[Hashable, Hashable]] = {
         ArakawaCGridKind.face: ('j_centre', 'i_centre'),
         ArakawaCGridKind.back: ('j_back', 'i_back'),
         ArakawaCGridKind.left: ('j_left', 'i_left'),
@@ -376,130 +310,3 @@ class RadialShocGrid(ShocGridGenerator):
 
     def make_y_grid(self, j: numpy.ndarray, i: numpy.ndarray) -> numpy.ndarray:
         return 0.1 * (5 + j) * numpy.sin(numpy.pi - i * numpy.pi / (self.i_size))  # type: ignore
-
-
-def assert_property_not_cached(
-    instance: Any,
-    prop_name: str,
-    /,
-) -> None:
-    __tracebackhide__ = True  # noqa
-    cls = type(instance)
-    prop = getattr(cls, prop_name)
-    assert isinstance(prop, cached_property), \
-        "{instance!r}.{prop_name} is not a cached_property"
-
-    cache = instance.__dict__
-    assert prop.attrname not in cache, \
-        f"{instance!r}.{prop_name} was cached!"
-
-
-def skip_versions(*requirements: str):
-    """
-    Skips a test function if any of the version specifiers match.
-    """
-    invalid_versions = []
-    for requirement in map(Requirement, requirements):
-        assert not requirement.extras
-        assert requirement.url is None
-        assert requirement.marker is None
-
-        try:
-            version = importlib.metadata.version(requirement.name)
-        except importlib.metadata.PackageNotFoundError:
-            # The package is not installed, so an invalid version isn't installed
-            continue
-
-        if version in requirement.specifier:
-            invalid_versions.append(
-                f'{requirement.name}=={version} matches skipped version specifier {requirement}')
-
-    return pytest.mark.skipif(len(invalid_versions) > 0, reason='\n'.join(invalid_versions))
-
-
-def only_versions(*requirements: str):
-    """
-    Runs a test function only if all of the version specifiers match.
-    """
-    invalid_versions = []
-    for requirement in map(Requirement, requirements):
-        assert not requirement.extras
-        assert requirement.url is None
-        assert requirement.marker is None
-
-        try:
-            version = importlib.metadata.version(requirement.name)
-        except importlib.metadata.PackageNotFoundError:
-            # The package is not installed, so a required version is not installed
-            invalid_versions.append(f'{requirement.name} is not installed')
-            continue
-
-        if version not in requirement.specifier:
-            invalid_versions.append(
-                f'{requirement.name}=={version} does not satisfy {requirement}')
-
-    return pytest.mark.skipif(len(invalid_versions) > 0, reason='\n'.join(invalid_versions))
-
-
-def plot_geometry(
-    dataset: xarray.Dataset,
-    out: Pathish,
-    *,
-    figsize: tuple[float, float] = (10, 10),
-    extent: Bounds | None = None,
-    title: str | None = None
-) -> None:
-    figure = plt.figure(layout='constrained', figsize=figsize)
-    axes: GeoAxes = figure.add_subplot(projection=dataset.ems.data_crs)
-    axes.set_aspect(aspect='equal', adjustable='datalim')
-    axes.gridlines(draw_labels=['left', 'bottom'], linestyle='dashed')
-
-    dataset.ems.plot_geometry(axes)
-    grid = dataset.ems.default_grid
-    x, y = grid.centroid_coordinates.T
-    axes.scatter(x, y, c='red')
-
-    if title is not None:
-        axes.set_title(title)
-    if extent is not None:
-        axes.set_extent(extent)
-
-    figure.savefig(out)
-
-
-class TracemallocTracker:
-    _finished = False
-    _usage = None
-
-    def __enter__(self):
-        tracemalloc.start()
-        return self
-
-    @property
-    def current(self):
-        if not self._finished:
-            raise RuntimeError("Context manager has not exited yet")
-        return self._usage[0]
-
-    @property
-    def peak(self):
-        if not self._finished:
-            raise RuntimeError("Context manager has not exited yet")
-        return self._usage[1]
-
-    def __exit__(
-        self,
-        exc_type: Type[Exception] | None,
-        exc_value: Exception | None,
-        exc_traceback: TracebackType | None,
-    ) -> bool | None:
-        self._finished = True
-        self._usage = tracemalloc.get_traced_memory()
-
-        tracemalloc.stop()
-
-        return None
-
-
-def track_peak_memory_usage():
-    return TracemallocTracker()
