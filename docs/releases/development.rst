@@ -19,3 +19,5 @@ Next release (in development)
   pytz was included as a dependency of pandas,
   and pandas recently dropped pytz which broke things.
   (:pr:`219`).
+* Defer ShocSimple coordinate detection to the CFGrid2D base class
+  (:issue:`217`, :pr:`218`).
