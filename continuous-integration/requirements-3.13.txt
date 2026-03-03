@@ -4,7 +4,7 @@
 #
 #    pip-compile --extra=testing --output-file=./continuous-integration/requirements-3.13.txt --unsafe-package=emsarray pyproject.toml
 #
-bokeh==3.8.1
+bokeh==3.8.2
     # via dask
 bottleneck==1.6.0
     # via
@@ -12,7 +12,7 @@ bottleneck==1.6.0
     #   emsarray (pyproject.toml)
 cartopy==0.25.0
     # via emsarray
-certifi==2025.11.12
+certifi==2026.2.25
     # via
     #   netcdf4
     #   pyproj
@@ -25,7 +25,7 @@ cfunits==3.3.7
     # via emsarray
 charset-normalizer==3.4.4
     # via requests
-click==8.3.0
+click==8.3.1
     # via
     #   dask
     #   distributed
@@ -37,23 +37,23 @@ contourpy==1.3.3
     # via
     #   bokeh
     #   matplotlib
-coverage[toml]==7.11.3
+coverage[toml]==7.13.4
     # via pytest-cov
 cycler==0.12.1
     # via matplotlib
-dask[array,complete,dataframe,diagnostics,distributed]==2025.11.0
+dask[array,complete,dataframe,diagnostics,distributed]==2026.1.2
     # via
     #   distributed
     #   xarray
-distributed==2025.11.0
+distributed==2026.1.2
     # via dask
 flake8==7.3.0
     # via emsarray (pyproject.toml)
-fonttools==4.60.1
+fonttools==4.61.1
     # via matplotlib
 freezegun==1.5.5
     # via emsarray (pyproject.toml)
-fsspec==2025.10.0
+fsspec==2026.2.0
     # via dask
 geojson==3.2.0
     # via
@@ -63,7 +63,7 @@ idna==3.11
     # via requests
 iniconfig==2.3.0
     # via pytest
-isort==7.0.0
+isort==8.0.1
     # via emsarray (pyproject.toml)
 jinja2==3.1.6
     # via
@@ -73,6 +73,8 @@ jinja2==3.1.6
     #   pytest-mpl
 kiwisolver==1.4.9
     # via matplotlib
+librt==0.8.1
+    # via mypy
 locket==1.0.0
     # via
     #   distributed
@@ -81,7 +83,7 @@ lz4==4.4.5
     # via dask
 markupsafe==3.0.3
     # via jinja2
-matplotlib==3.10.7
+matplotlib==3.10.8
     # via
     #   cartopy
     #   emsarray
@@ -90,17 +92,17 @@ mccabe==0.7.0
     # via flake8
 msgpack==1.1.2
     # via distributed
-mypy==1.18.2
+mypy==1.19.1
     # via emsarray (pyproject.toml)
 mypy-extensions==1.1.0
     # via mypy
-narwhals==2.11.0
+narwhals==2.17.0
     # via bokeh
-netcdf4==1.7.3
+netcdf4==1.7.4
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-numpy==2.3.4
+numpy==2.4.2
     # via
     #   bokeh
     #   bottleneck
@@ -118,7 +120,7 @@ numpy==2.3.4
     #   pykdtree
     #   shapely
     #   xarray
-packaging==25.0
+packaging==26.0
     # via
     #   bokeh
     #   cartopy
@@ -132,33 +134,33 @@ packaging==25.0
     #   pytest
     #   pytest-mpl
     #   xarray
-pandas==2.3.3
+pandas==3.0.1
     # via
     #   bokeh
     #   dask
     #   xarray
-pandas-stubs==2.3.2.250926
+pandas-stubs==3.0.0.260204
     # via emsarray (pyproject.toml)
 partd==1.4.2
     # via dask
-pathspec==0.12.1
+pathspec==1.0.4
     # via mypy
-pillow==12.0.0
+pillow==12.1.1
     # via
     #   bokeh
     #   matplotlib
     #   pytest-mpl
-platformdirs==4.5.0
+platformdirs==4.9.2
     # via pooch
 pluggy==1.6.0
     # via
     #   pytest
     #   pytest-cov
-pooch==1.8.2
+pooch==1.9.0
     # via emsarray
-psutil==7.1.3
+psutil==7.2.2
     # via distributed
-pyarrow==22.0.0
+pyarrow==23.0.1
     # via dask
 pycodestyle==2.14.0
     # via flake8
@@ -168,16 +170,16 @@ pygments==2.19.2
     # via pytest
 pykdtree==1.4.3
     # via emsarray
-pyparsing==3.2.5
+pyparsing==3.3.2
     # via matplotlib
 pyproj==3.7.2
     # via cartopy
-pyshp==3.0.2.post1
+pyshp==3.0.3
     # via
     #   cartopy
     #   emsarray
     #   emsarray (pyproject.toml)
-pytest==9.0.1
+pytest==9.0.2
     # via
     #   emsarray (pyproject.toml)
     #   pytest-cov
@@ -191,8 +193,6 @@ python-dateutil==2.9.0.post0
     #   freezegun
     #   matplotlib
     #   pandas
-pytz==2025.2
-    # via pandas
 pyyaml==6.0.3
     # via
     #   bokeh
@@ -216,27 +216,23 @@ toolz==1.1.0
     #   dask
     #   distributed
     #   partd
-tornado==6.5.2
+tornado==6.5.4
     # via
     #   bokeh
     #   distributed
 types-pytz==2025.2.0.20251108
-    # via
-    #   emsarray (pyproject.toml)
-    #   pandas-stubs
+    # via emsarray (pyproject.toml)
 typing-extensions==4.15.0
     # via mypy
-tzdata==2025.2
-    # via pandas
-urllib3==2.5.0
+urllib3==2.6.3
     # via
     #   distributed
     #   requests
-xarray[parallel]==2025.10.1
+xarray[parallel]==2026.2.0
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-xyzservices==2025.10.0
+xyzservices==2025.11.0
     # via bokeh
 zict==3.0.0
     # via distributed

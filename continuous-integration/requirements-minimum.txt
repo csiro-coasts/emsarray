@@ -34,20 +34,17 @@ contourpy~=1.3.3
     #   matplotlib
 cycler~=0.12.1
     # via matplotlib
-dask~=2024.12.1
+dask~=2025.2.0
     # via
-    #   dask-expr
     #   distributed
     #   xarray
-dask-expr~=1.1.21
+distributed~=2025.2.0
     # via dask
-distributed~=2024.12.1
-    # via dask
-fonttools~=4.54.1
+fonttools~=4.56.0
     # via matplotlib
-fsspec~=2024.10.0
+fsspec~=2025.2.0
     # via dask
-geojson~=3.1.0
+geojson~=3.2.0
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
@@ -64,23 +61,23 @@ locket~=1.0.0
     # via
     #   distributed
     #   partd
-lz4~=4.3.3
+lz4~=4.4.5
     # via dask
 markupsafe~=3.0.3
     # via jinja2
-matplotlib~=3.10.7
+matplotlib~=3.10.8
     # via
     #   cartopy
     #   emsarray
 msgpack~=1.1.2
     # via distributed
-narwhals~=2.11.0
+narwhals~=1.28.0
     # via bokeh
-netcdf4~=1.7.3
+netcdf4~=1.7.4
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-numpy~=1.26.4
+numpy~=2.1.3
     # via
     #   bokeh
     #   bottleneck
@@ -113,11 +110,10 @@ pandas~=2.2.3
     # via
     #   bokeh
     #   dask
-    #   dask-expr
     #   xarray
 partd~=1.4.2
     # via dask
-pillow~=11.0.0
+pillow~=11.1.0
     # via
     #   bokeh
     #   matplotlib
@@ -125,13 +121,11 @@ platformdirs~=4.3.8
     # via pooch
 pooch~=1.8.2
     # via emsarray
-psutil~=6.1.1
+psutil~=7.0.0
     # via distributed
-pyarrow~=18.0.0
-    # via
-    #   dask
-    #   dask-expr
-pykdtree~=1.3.13
+pyarrow~=19.0.1
+    # via dask
+pykdtree~=1.4.3
     # via emsarray
 pyparsing~=3.2.5
     # via matplotlib
@@ -158,7 +152,7 @@ shapely~=2.0.7
     #   cartopy
     #   emsarray
     #   emsarray (pyproject.toml)
-six~=1.16.0
+six~=1.17.0
     # via python-dateutil
 sortedcontainers~=2.4.0
     # via distributed
@@ -173,15 +167,15 @@ tornado~=6.4.2
     # via
     #   bokeh
     #   distributed
-urllib3~=2.2.3
+urllib3~=2.3.0
     # via
     #   distributed
     #   requests
-xarray~=2024.10.0
+xarray~=2025.1.2
     # via
     #   emsarray
     #   emsarray (pyproject.toml)
-xyzservices~=2024.9.0
+xyzservices~=2025.1.0
     # via bokeh
 zict~=3.0.0
     # via distributed
@@ -191,6 +185,6 @@ zict~=3.0.0
 # emsarray
 # pytz
 # tzdata
-pytz
 tzdata
+pytz
 certifi
