@@ -1040,3 +1040,35 @@ def estimate_bounds_1d(
     dataset = dataset.set_coords(bounds_name)
     dataset[coordinate.name].attrs['bounds'] = bounds_name
     return dataset
+
+
+def coordinates_plus_bounds(dataset: xarray.Dataset, names: list[Hashable]) -> list[Hashable]:
+    """
+    Given a list of coordinate variable names,
+    return a list of all these coordinates plus the names of their bounds variables,
+    if such bounds exist.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        The dataset with coordinate variables
+    names : list of Hashable
+        A list of coordinate variables
+
+    Returns
+    -------
+    list of Hashable
+        All of the coordinates in `names`,
+        plus any bounds variables named in the attributes of these coordinate variables.
+    """
+    all_names = []
+    for name in names:
+        all_names.append(name)
+        data_array = dataset[name]
+        if 'bounds' not in data_array.attrs:
+            continue
+        bounds_name = data_array.attrs['bounds']
+        if bounds_name not in dataset.variables.keys():
+            continue
+        all_names.append(bounds_name)
+    return all_names

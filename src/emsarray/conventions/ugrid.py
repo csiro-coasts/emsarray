@@ -1410,7 +1410,7 @@ class UGrid(DimensionConvention[UGridKind]):
             names.append(topology.face_x.name)
         if topology.face_y is not None:
             names.append(topology.face_y.name)
-        return names
+        return utils.coordinates_plus_bounds(self.dataset, names)
 
     def drop_geometry(self) -> xarray.Dataset:
         dataset = super().drop_geometry()

@@ -251,9 +251,11 @@ class Grid[GridKind, Index](abc.ABC):
         axis : int, optional
             The axis number that should be wound.
             Optional, defaults to the last axis.
+            Mutually exclusive with the `linear_dimension` parameter.
         linear_dimension : Hashable, optional
-            The axis number that should be wound.
+            The name of the dimension in the data array that should be wound.
             Optional, defaults to the last dimension.
+            Mutually exclusive with the `axis` parameter.
 
         Returns
         -------
@@ -989,9 +991,11 @@ class Convention[GridKind, Index](abc.ABC):
         axis : int, optional
             The axis number that should be wound.
             Optional, defaults to the last axis.
+            Mutually exclusive with the `linear_dimension` parameter.
         linear_dimension : Hashable, optional
-            The axis number that should be wound.
+            The name of the dimension in the data array that should be wound.
             Optional, defaults to the last dimension.
+            Mutually exclusive with the `axis` parameter.
 
         Returns
         -------

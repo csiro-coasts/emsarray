@@ -543,3 +543,30 @@ def test_wind_dimension_renamed():
     )
     wound = utils.wind_dimension(data_array, ['y', 'x'], [5, 4], linear_dimension='ix')
     xarray.testing.assert_equal(wound, expected)
+
+
+def test_coordinates_with_bounds():
+    lat_bounds = numpy.arange(5)
+    lon_bounds = numpy.arange(7)
+    depth_bounds = numpy.arange(6)
+    dataset = xarray.Dataset(
+        {
+            'lat_bounds': (('lat', 'two'), numpy.c_[lat_bounds[:-1], lat_bounds[1:]]),
+            'depth_bounds': (('depth', 'two'), numpy.c_[depth_bounds[:-1], depth_bounds[1:]]),
+            'temp': (('lat', 'lon'), numpy.arange(4 * 6).reshape((4, 6)), {'standard_name': 'temp'}),
+        },
+        coords={
+            # lat has bounds attribute, and lat_bounds exists
+            'lat': ('lat', (lat_bounds[:-1] + lat_bounds[1:]) / 2, {'bounds': 'lat_bounds'}),
+            # lon has bounds atttribute, but lon_bounds doesn't exist
+            'lon': ('lon', (lon_bounds[:-1] + lon_bounds[1:]) / 2, {'bounds': 'lon_bounds'}),
+            # time doesn't have bounds attribute
+            'time': ('time', pandas.date_range('2026-03-04', periods=5)),
+            # depth has bounds but isn't included in the list of coordinates
+            'depth': ('depth', (depth_bounds[:-1] + depth_bounds[1:]) / 2, {'bounds': 'depth_bounds'}),
+        }
+    )
+
+    assert utils.coordinates_plus_bounds(dataset, ['lat', 'lon', 'time']) == [
+        'lat', 'lat_bounds', 'lon', 'time'
+    ]
