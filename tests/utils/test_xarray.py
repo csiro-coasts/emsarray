@@ -422,6 +422,25 @@ def test_find_unused_dimension_conflict(dims: list[str], prefix: str, expected: 
     assert utils.find_unused_dimension(data_array, prefix) == expected
 
 
+@pytest.mark.parametrize(
+    ['candidate', 'expected'],
+    [
+        ('x', 'x'),
+        ('y', 'y_0'),
+        ('z', 'z_2'),
+    ],
+)
+def test_find_unused_name(candidate, expected):
+    data_array = xarray.Dataset({
+        'y': ((), 0),
+        'y0': ((), 1),
+        'z': ((), 2),
+        'z_0': ((), 3),
+        'z_1': ((), 4),
+    })
+    assert utils.find_unused_name(data_array, candidate) == expected
+
+
 def test_ravel_dimensions_exact_dimensions():
     data_array = xarray.DataArray(
         data=numpy.random.random((3, 5)),

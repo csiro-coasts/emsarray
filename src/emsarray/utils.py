@@ -544,6 +544,36 @@ def find_unused_dimension(
         if candidate not in existing_dims)
 
 
+def find_unused_name(
+    dataset: xarray.Dataset,
+    candidate: Hashable,
+) -> Hashable:
+    """
+    Find an unused variable name in a :class:`xarray.Dataset`.
+    Useful when adding a derived variable to a dataset, such as bounds variables.
+    This first tests a candidate name to see if it exists,
+    then appends numeric suffixes ("_0", "_1", "_2", ...) until a valid name is found.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        The dataset to find an unused name in
+    candidate : Hashable
+        A candidate variable name.
+
+    Returns
+    -------
+    Hashable
+        A variable name that does not clash with any other names in the dataset.
+    """
+    if candidate not in dataset.variables.keys():
+        return candidate
+    candidates = (f'{candidate}_{suffix}' for suffix in itertools.count(start=0))
+    return next(
+        candidate for candidate in candidates
+        if candidate not in dataset.variables.keys())
+
+
 def ravel_dimensions(
     data_array: xarray.DataArray,
     dimensions: list[Hashable],
@@ -935,3 +965,78 @@ def data_array_to_name(dataset: xarray.Dataset, data_array: DataArrayOrName) -> 
         if data_array not in dataset.variables:
             raise ValueError(f"Data array {data_array!r} is not in the dataset")
         return data_array
+
+
+def estimate_bounds_1d(
+    dataset: xarray.Dataset,
+    coordinate: DataArrayOrName,
+    *,
+    bounds_name: Hashable | None = None,
+    bounds_dimension: Hashable = 'Two',
+) -> xarray.Dataset:
+    """
+    Estimate the bounds of a one dimensional coordinate variable.
+    The bounds between two coordinates is the average of the two values,
+    while the bounds on each end are the first and last coordinate values.
+    This is a crude approach.
+
+    Parameters
+    ==========
+    dataset : xarray.Dataset
+        The dataset containing the coordinate.
+    coordinate : xarray.DataArray or str
+        The coordinate variable to estimate the bounds of.
+    bounds_name : Hashable, optional
+        The name of the bounds variable to create.
+        Optional, defaults to the name of the coordinate with a "_bounds" suffix.
+    bounds_dimension : Hashable, default "Two"
+        The name of the second dimension of the bounds variable.
+        This dimension will have size 2.
+        This dimension can be reused by other one-dimensional bounds variables.
+        Defaults to "Two".
+
+    Returns
+    =======
+    xarray.Dataset
+        A copy of the original dataset including the new estimated bounds.
+
+    Raises
+    ======
+    ValueError
+        Raised if the coordinate variable already has a 'bounds' attribute.
+    """
+    dataset = dataset.copy()
+    coordinate_name = data_array_to_name(dataset, coordinate)
+    coordinate = dataset[coordinate_name]
+
+    if len(coordinate.dims) != 1:
+        raise ValueError(
+            f"Coordinate {coordinate_name!r} has {len(coordinate.dims)} dimensions {coordinate.dims}, "
+            "expecting one dimension")
+
+    if 'bounds' in coordinate.attrs:
+        raise ValueError(f"Coordinate {coordinate_name!r} already has a 'bounds' attribute")
+
+    if bounds_dimension in dataset.dims and dataset.sizes[bounds_dimension] != 2:
+        raise ValueError(
+            f"Dataset already has a conflicting dimension {bounds_dimension!r} "
+            f"of size {dataset.sizes[bounds_dimension]}")
+
+    if bounds_name is None:
+        bounds_name = find_unused_name(dataset, f'{coordinate_name}_bounds')
+    else:
+        if bounds_name in dataset:
+            raise ValueError(
+                f"Dataset already has a variable named {bounds_name!r}")
+
+    values = coordinate.values
+    midpoints = (values[:-1] + values[1:]) / 2
+    midpoints = numpy.concat([[values[0]], midpoints, [values[-1]]])
+    dataset[bounds_name] = xarray.DataArray(
+        name=bounds_name,
+        data=numpy.c_[midpoints[:-1], midpoints[1:]],
+        dims=(coordinate.dims[0], bounds_dimension),
+    )
+    dataset = dataset.set_coords(bounds_name)
+    dataset[coordinate.name].attrs['bounds'] = bounds_name
+    return dataset

@@ -25,3 +25,5 @@ Next release (in development)
   (:pr:`220`).
 * Split `tests.test_utils` in to multiple `tests.utils.test_component` submodules
   (:pr:`220`).
+* Add :func:`emsarray.utils.estimate_bounds_1d` function
+  (:pr:`221`).
