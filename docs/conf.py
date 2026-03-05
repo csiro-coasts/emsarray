@@ -111,6 +111,7 @@ sphinx_gallery_conf = {
     'examples_dirs': '../examples',
     'gallery_dirs': './examples',
     'filename_pattern': '/plot-',
-    'matplotlib_animations': True,
+    'matplotlib_animations': (True, 'jshtml'),
     'backreferences_dir': './examples/backreferences',
+    'remove_config_comments': True,
 }
