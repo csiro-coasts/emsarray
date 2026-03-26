@@ -17,7 +17,6 @@ from emsarray.utils import move_dimensions_to_end, name_to_data_array
 
 from . import artists
 
-
 # Useful for calculating distances in a AzimuthalEquidistant projection
 # centred on some point:
 #
@@ -525,7 +524,8 @@ class Transect:
         """
         data_array = name_to_data_array(self.dataset, data_array)
         if edgecolor == 'auto':
-            edgecolor = axes._get_lines.get_next_color()
+            cycler: Any = axes._get_lines  # type: ignore
+            edgecolor = cast(ColorType, cycler.get_next_color())
         artist = artists.TransectStepArtist.from_transect(
             self, data_array=data_array,
             fill=fill, edgecolor=edgecolor, **kwargs)

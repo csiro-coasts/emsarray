@@ -13,6 +13,7 @@ from emsarray.exceptions import NoSuchCoordinateError
 from emsarray.plot import make_plot_title
 from emsarray.types import DataArrayOrName, Landmark
 from emsarray.utils import name_to_data_array
+
 from .base import Transect
 
 
@@ -77,6 +78,7 @@ def plot(
 
     setup_distance_axis(transect, axes)
     if depth_coordinate is not None:
+        ylim: tuple[float, float] | bool
         if len(transect.segments) > 0:
             depths_with_data = numpy.flatnonzero(numpy.isfinite(transect_data.values).any(axis=-1))
             depth_bounds = dataset[depth_coordinate.attrs['bounds']]
@@ -85,7 +87,7 @@ def plot(
                 depth_bounds.values[depths_with_data[-1], 1],
             )
         else:
-            ylim = None
+            ylim = False
         setup_depth_axis(transect, axes, depth_coordinate=depth_coordinate, ylim=ylim)
 
         if bathymetry is not None:
@@ -181,12 +183,12 @@ def setup_depth_axis(
             axes.set_ylim(depth_max, depth_min)
         else:
             axes.set_ylim(depth_min, depth_max)
-    elif ylim not in {False, None}:
+    elif ylim is not False:
         axes.set_ylim(ylim)
 
     if label is True:
-        label = depth_coordinate.attrs.get('long_name')
-    if label not in {False, None}:
+        label = str(depth_coordinate.attrs.get('long_name'))
+    if label is not None and label is not False:
         axis.set_label_text(label)
 
     if units is True:
