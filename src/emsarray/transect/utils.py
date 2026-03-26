@@ -92,8 +92,10 @@ def plot(
             transect.make_ocean_floor_artist(axes, bathymetry)
 
     else:
-        ylim = (numpy.nanmin(transect_data), numpy.nanmax(transect_data))
-        axes.set_ylim(ylim)
+        if transect_data.size > 0:
+            ylim = (numpy.nanmin(transect_data), numpy.nanmax(transect_data))
+            axes.set_ylim(ylim)
+        axes.set_ylabel(data_array.attrs.get('units', ''))
 
     if landmarks is not None:
         top_axis = axes.secondary_xaxis('top')

@@ -55,11 +55,20 @@ class CrossSectionArtist(QuadMesh, TransectArtist):
             depth_coordinate = transect.convention.get_depth_coordinate_for_data_array(data_array)
         depth_bounds = transect.dataset[depth_coordinate.attrs['bounds']].values
 
-        holes = transect.holes
-        xs = numpy.concat([distance_bounds[:, 0], distance_bounds[-1:, 1]])
-        xs = numpy.insert(xs, holes, distance_bounds[holes - 1, 1])
-        ys = numpy.concat([depth_bounds[:, 0], depth_bounds[-1:, 1]])
-        coordinates = numpy.stack(numpy.meshgrid(xs, ys), axis=-1)
+        if len(transect.segments) > 0:
+            holes = transect.holes
+            xs = numpy.concat([distance_bounds[:, 0], distance_bounds[-1:, 1]])
+            xs = numpy.insert(xs, holes, distance_bounds[holes - 1, 1])
+            ys = numpy.concat([depth_bounds[:, 0], depth_bounds[-1:, 1]])
+            coordinates = numpy.stack(numpy.meshgrid(xs, ys), axis=-1)
+        else:
+            # A transect that doesn't intersect the dataset geometry at all is tricky.
+            # A QuadMesh needs at least one polygon else it throws an error when drawn.
+            # This is an empty polygon that spans the entire transect length, but with zero height.
+            max_length = transect.points[-1].distance_metres
+            coordinates = numpy.array([
+                [[0, 0], [max_length, 0], [max_length, 0], [0, 0]],
+            ])
 
         # There are issues with passing both transect and data array to the constructor
         # where the `set_data_array()` is called before `set_transect()`.
@@ -112,7 +121,8 @@ class TransectStepArtist(StepPatch, TransectArtist):
         return cls(values, edges, transect=transect, **kwargs)
 
     def set_data_array(self, data_array: xarray.DataArray) -> None:
-        self.set_data(self.prepare_data_array(self._transect, data_array))
+        if len(self._transect.segments) > 0:
+            self.set_data(self.prepare_data_array(self._transect, data_array))
 
     @staticmethod
     def prepare_data_array(transect: "base.Transect", data_array: xarray.DataArray) -> numpy.ndarray:
