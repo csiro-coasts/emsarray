@@ -37,3 +37,5 @@ Next release (in development)
 * Monkeypatch the cartopy GSHHS downloader to use the new URL from
   the University of Hawaii
   (:pr:`225`, :pr:`SciTools/cartopy#2659`).
+* Silence all warnings in CI
+  (:pr:`227`).
