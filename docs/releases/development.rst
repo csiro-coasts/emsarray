@@ -29,3 +29,8 @@ Next release (in development)
   (:pr:`221`).
 * Bounds variables are now included in :meth:`Convention.get_all_geometry_names()`
   (:pr:`222`).
+* Allow transecting two-dimensional variables, such as sea surface height
+  (:issue:`197`, :pr:`216`).
+* Add :meth:`.Transect.make_artist()` method and the related
+  :class:`.CrossSectionArtist` and :class:`.TransectStepArtist` artists
+  (:issue:`175`, :pr:`216`).
