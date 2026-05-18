@@ -158,11 +158,39 @@ jobs:
           extras: docs
           package-artifact-name: ${{ needs.build.outputs.artifact-name }}
 
-      - run: |
+      - name: Set up cartopy cache directories
+        id: cartopy
+        run: |
+          export CARTOPY_DATA_DIR="$RUNNER_TEMP/cartopy"
+          echo "CARTOPY_DATA_DIR=$CARTOPY_DATA_DIR" >> $GITHUB_ENV
+          python3 -c 'from importlib.metadata import version; v=version("cartopy"); print(f"version={v}\n")' >> $GITHUB_OUTPUT
+          python3 -c 'import cartopy; d=cartopy.config["data_dir"]; print(f"data-dir={d}\n")' >> $GITHUB_OUTPUT
+          echo "Setting cartopy cache directory to $CARTOPY_DATA_DIR"
+        env:
+          RUNNER_TEMP: ${{ runner.temp }}
+
+      - name: Restore cartopy cached assets
+        uses: actions/cache@v5
+        with:
+          key: cartopy-data-dir-${{ steps.cartopy.outputs.version }}
+          path: ${{ env.CARTOPY_DATA_DIR }}
+
+      - name: Build docs
+        run: |
           cd docs/
           sphinx-build -b dirhtml -aEW . _build/dirhtml
 
-      - uses: actions/upload-artifact@v4
+      - name: Store compiled docs artifact
+        uses: actions/upload-artifact@v4
         with:
           name: Docs
           path: docs/_build/dirhtml
+
+      - name: Copy downloaded cartopy files to cache
+        run: |
+          if [[ -d "$CARTOPY_CACHE" ]] ; then
+            echo "$CARTOPY_CACHE exists, copying to $CARTOPY_DATA_DIR"
+            cp -RT "$CARTOPY_CACHE" "$CARTOPY_DATA_DIR"
+          fi
+        env:
+          CARTOPY_CACHE: ${{ steps.cartopy.outputs.data-dir }}
