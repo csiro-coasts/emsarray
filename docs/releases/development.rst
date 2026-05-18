@@ -34,3 +34,6 @@ Next release (in development)
 * Add :meth:`.Transect.make_artist()` method and the related
   :class:`.CrossSectionArtist` and :class:`.TransectStepArtist` artists
   (:issue:`175`, :pr:`216`).
+* Monkeypatch the cartopy GSHHS downloader to use the new URL from
+  the University of Hawaii
+  (:pr:`225`, :pr:`SciTools/cartopy#2659`).

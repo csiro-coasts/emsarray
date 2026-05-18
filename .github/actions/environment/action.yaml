@@ -48,18 +48,17 @@ runs:
       with:
         path: ~/conda_pkgs_dir
         key:
-          ${{ runner.os }}-conda-${{
-          hashFiles('continuous-integration/environment.yaml') }}
+          ${{ runner.os }}-conda-${{ hashFiles('continuous-integration/environment.yaml') }}
 
     - name: Install base Conda environment
-      uses: conda-incubator/setup-miniconda@v3
+      uses: conda-incubator/setup-miniconda@v4
       with:
         environment-file: continuous-integration/environment.yaml
         python-version: ${{ inputs.python-version }}
         channels: conda-forge
     - shell: bash -l {0}
       run: |
-        conda install -c conda-forge wheel
+        conda install -c conda-forge pip wheel
 
     - name: Install pinned dependencies
       if: ${{ inputs.dependencies == 'pinned' }}
