@@ -3,16 +3,63 @@ This module contains shortcut functions to make common plotting operations simpl
 They are designed as quick shortcuts for making basic plots for exploring a dataset.
 They aim for ease of use and simplicity over being fully featured.
 """
+import copy
+import logging
 from collections.abc import Iterable
+from functools import cache
+from importlib.metadata import version
 from typing import Any
 
+import cartopy
 from cartopy.feature import GSHHSFeature
 from cartopy.mpl import gridliner
 from cartopy.mpl.geoaxes import GeoAxes
 from matplotlib import patheffects
 from matplotlib.axes import Axes
+from packaging.version import Version
 
 from emsarray.types import Landmark
+
+logger = logging.getLogger(__name__)
+
+# The GSHHS download URL changed because of NOAA funding problems.
+# Cartopy has updated the URL for the download but has not released a patched
+# version yet. This is the last version with the old broken URL.
+# We will monkeypatch the cartopy GSHHS downloader in this version and older.
+#
+# See also: https://github.com/SciTools/cartopy/pull/2659
+CARTOPY_BAD_GSHHS_VERSION = Version('0.25.0')
+
+
+@cache  # Abusing cache so this can only be called a single time
+def monkeypatch_gshhs_downloader() -> None:
+    """
+    Monkeypatch the cartopy GSHHS downloader to update the URL.
+    """
+    logger.debug("monkeypatching gshhs download URL")
+    cartopy_version = Version(version('cartopy'))
+    if cartopy_version > CARTOPY_BAD_GSHHS_VERSION:
+        logger.debug("bailing because version check")
+        return
+
+    # Make sure everything is where it should be
+    downloader_key = ('shapefiles', 'gshhs')
+    if downloader_key not in cartopy.config['downloaders']:
+        logger.debug("bailing because downloader isn't present")
+        return
+
+    # Make sure we don't accidentally double patch someone elses monkeypatch
+    current_downloader = cartopy.config['downloaders'][downloader_key]
+    if not current_downloader.url({}).startswith('https://www.ngdc.noaa.gov/mgg/shorelines/data/'):
+        logger.debug("bailing because download url doesn't match expected")
+        return
+
+    # Swap out the downloader for a copy with the correct URL
+    new_downloader = copy.copy(current_downloader)
+    new_downloader.url_template = 'https://www.soest.hawaii.edu/pwessel/gshhg/gshhg-shp-2.3.7.zip'
+    cartopy.config['downloaders'][downloader_key] = new_downloader
+
+    logger.info("Monkeypatched cartopy GSHHS downloader url")
 
 
 def add_coast(axes: GeoAxes, **kwargs: Any) -> None:
@@ -35,6 +82,8 @@ def add_coast(axes: GeoAxes, **kwargs: Any) -> None:
     kwargs
         Passed to :meth:`GeoAxes.add_feature() <cartopy.mpl.geoaxes.GeoAxes.add_feature>`.
     """
+    monkeypatch_gshhs_downloader()
+
     kwargs = {
         'facecolor': (0.7, 0.7, 0.7, 0.5),
         'edgecolor': 'darkgrey',

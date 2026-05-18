@@ -17,6 +17,7 @@ which can be used to customise the appearance of the plot.
 import cartopy.crs
 import emsarray
 import emsarray.plot
+from emsarray.plot.shortcuts import monkeypatch_gshhs_downloader
 from cartopy.feature import GSHHSFeature
 from matplotlib import pyplot
 
@@ -37,6 +38,8 @@ eta_artist = ds.ems.make_artist(
 figure.colorbar(eta_artist, ax=axes, location='right', label="metres")
 
 # Draw some coastlines
+# Temporary workaround for https://github.com/SciTools/cartopy/pull/2659/changes
+monkeypatch_gshhs_downloader()
 coast = GSHHSFeature(scale='intermediate')
 axes.add_feature(coast, facecolor='linen', edgecolor='darkgrey', linewidth=0.5)
 
