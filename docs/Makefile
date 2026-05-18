@@ -19,6 +19,12 @@ help:
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
+# sphinx-build -M clean only removes the $(BUILDDIR) directory.
+# We also need to clean up the generated example files.
+clean: Makefile
+	@$(SPHINXBUILD) -M clean "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	@rm -rf ./examples/
+
 WATCH_EVENTS=modify close_write move create delete
 WATCH_PATHS=./ ../src/
 WATCH_IGNORE=./_build
