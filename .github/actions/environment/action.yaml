@@ -31,6 +31,7 @@ runs:
       # Used for the pip cache, not for the python version
     - uses: actions/setup-python@v5
       with:
+        python-version: ${{ inputs.python-version }}
         cache: 'pip'
         cache-dependency-path: |
           continuous-integration/requirements-${{ inputs.python-version }}.txt
