@@ -39,3 +39,5 @@ Next release (in development)
   (:pr:`225`, :pr:`SciTools/cartopy#2659`).
 * Silence all warnings in CI
   (:pr:`227`).
+* Manage dependencies, lock files, and installing in CI using poetry
+  (:pr:`228`).
