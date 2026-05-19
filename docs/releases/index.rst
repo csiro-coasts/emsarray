@@ -5,7 +5,6 @@ Release notes
 .. toctree::
 
    1.0.0
-   1.0.0a1
    0.10.0
    0.9.0
    0.8.0
