@@ -83,6 +83,12 @@ jobs:
           dependencies: ${{ matrix.dependencies }}
           strict: "true"
 
+      - run: |
+          echo "MATRIX_TAG=py${MATRIX_PYTHON_VERSION}-${MATRIX_DEPENDENCIES}-deps" >> "$GITHUB_ENV"
+        env:
+          MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
+          MATRIX_DEPENDENCIES: ${{ matrix.dependencies }}
+
       - name: Run tests
         shell: bash -l {0}
         run: |
@@ -90,16 +96,18 @@ jobs:
             --mpl \
             --mpl-results-path=./mpl-results \
             --mpl-generate-summary html \
-            --junitxml=junit-py${{ matrix.python-version }}.xml \
+            --junitxml=junit-${MATRIX_TAG}.xml \
             --cov --cov-report term \
-            --cov-report xml:coverage-${{ matrix.python-version }}.xml
+            --cov-report xml:coverage-${MATRIX_TAG}.xml
 
-      - name: JUnit Report
+      - name: JUnit report
         uses: mikepenz/action-junit-report@v6
         if: always()
         with:
           report_paths: 'junit-py*.xml'
-          check_name: "JUnit Test Report - python ${{ matrix.python-version }}, ${{ matrix.dependencies }} dependencies"
+          check_name: "JUnit test report - ${{ env.MATRIX_TAG }}"
+          annotate_only: true
+          job_summary: false
 
       - name: MPL image comparison report
         uses: actions/upload-artifact@v7
