@@ -20,7 +20,7 @@ jobs:
     outputs:
       artifact-name: ${{ steps.build.outputs.artifact-name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/build-python-package
         id: build
         with:
@@ -39,8 +39,8 @@ jobs:
     if: startsWith(github.head_ref, 'release-')
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           repository: conda-forge/emsarray-feedstock
           path: emsarray-feedstock
@@ -75,13 +75,19 @@ jobs:
 
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/environment
         with:
           python-version: ${{ matrix.python-version }}
           package-artifact-name: ${{ needs.build.outputs.artifact-name }}
           dependencies: ${{ matrix.dependencies }}
           strict: "true"
+
+      - run: |
+          echo "MATRIX_TAG=py${MATRIX_PYTHON_VERSION}-${MATRIX_DEPENDENCIES}-deps" >> "$GITHUB_ENV"
+        env:
+          MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
+          MATRIX_DEPENDENCIES: ${{ matrix.dependencies }}
 
       - name: Run tests
         shell: bash -l {0}
@@ -90,19 +96,21 @@ jobs:
             --mpl \
             --mpl-results-path=./mpl-results \
             --mpl-generate-summary html \
-            --junitxml=junit-py${{ matrix.python-version }}.xml \
+            --junitxml=junit-${MATRIX_TAG}.xml \
             --cov --cov-report term \
-            --cov-report xml:coverage-${{ matrix.python-version }}.xml
+            --cov-report xml:coverage-${MATRIX_TAG}.xml
 
-      - name: JUnit Report
-        uses: mikepenz/action-junit-report@v5
+      - name: JUnit report
+        uses: mikepenz/action-junit-report@v6
         if: always()
         with:
           report_paths: 'junit-py*.xml'
-          check_name: "JUnit Test Report - python ${{ matrix.python-version }}, ${{ matrix.dependencies }} dependencies"
+          check_name: "JUnit test report - ${{ env.MATRIX_TAG }}"
+          annotate_only: true
+          job_summary: false
 
       - name: MPL image comparison report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: "MPL image comparison report - python ${{ matrix.python-version }}, ${{ matrix.dependencies }} dependencies"
@@ -110,7 +118,8 @@ jobs:
           # No guarantee that the test failures were due to image comparisons
           if-no-files-found: 'ignore'
 
-      - uses: actions/upload-artifact@v4
+      - name: Code coverage report
+        uses: actions/upload-artifact@v7
         with:
           name: Code coverage for Python ${{ matrix.python-version }}, ${{ matrix.dependencies }} dependencies
           path: coverage-*.xml
@@ -125,14 +134,14 @@ jobs:
         shell: bash -l {0}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/environment
         with:
           python-version: ${{ env.python-version }}
           package-artifact-name: ${{ needs.build.outputs.artifact-name }}
 
       - name: 'mypy cache'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: '.mypy_cache'
           key: mypy-${{ runner.os }}-py${{ env.python-version }}-${{ hashFiles(format('continuous-integration/requirements-{0}.txt', env.python-version)) }}
@@ -151,7 +160,7 @@ jobs:
         shell: bash -l {0}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/environment
         with:
           python-version: ${{ env.python-version }}
@@ -181,7 +190,7 @@ jobs:
           sphinx-build -b dirhtml -aEW . _build/dirhtml
 
       - name: Store compiled docs artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Docs
           path: docs/_build/dirhtml

@@ -29,8 +29,9 @@ runs:
 
   steps:
       # Used for the pip cache, not for the python version
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
+        python-version: ${{ inputs.python-version }}
         cache: 'pip'
         cache-dependency-path: |
           continuous-integration/requirements-${{ inputs.python-version }}.txt
@@ -38,13 +39,13 @@ runs:
           setup.cfg
 
     - name: Fetch built emsarray package
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: ${{ inputs.package-artifact-name }}
         path: "dist/"
 
     - name: Cache conda packages
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/conda_pkgs_dir
         key:
