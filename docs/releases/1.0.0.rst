@@ -1,6 +1,8 @@
-=============================
-Next release (in development)
-=============================
+=====
+1.0.0
+=====
+
+Released on 2026-05-19
 
 * Add `sphinx-gallery <https://sphinx-gallery.github.io/>`_ to the docs
   to render the example gallery (:pr:`210`).
