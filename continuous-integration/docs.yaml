@@ -6,7 +6,4 @@ dependencies:
   - udunits2 >=2.2.25
   - python =3.14
   - ffmpeg
-  - wheel
-  - pip:
-    - -r ./requirements-3.14.txt
-    - -e ..[docs]
+  - poetry
