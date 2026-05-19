@@ -4,10 +4,13 @@ build:
   os: "ubuntu-20.04"
   tools:
     python: "mambaforge-4.10"
+  jobs:
+    post_install:
+      - POETRY_VIRTUALENVS_CREATE=false poetry --no-ansi install --with docs --all-extras
+
+conda:
+  environment: continuous-integration/docs.yaml
 
 sphinx:
   configuration: "docs/conf.py"
   builder: "dirhtml"
-
-conda:
-  environment: continuous-integration/docs.yaml

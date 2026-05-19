@@ -81,7 +81,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
           package-artifact-name: ${{ needs.build.outputs.artifact-name }}
           dependencies: ${{ matrix.dependencies }}
-          strict: "true"
 
       - run: |
           echo "MATRIX_TAG=py${MATRIX_PYTHON_VERSION}-${MATRIX_DEPENDENCIES}-deps" >> "$GITHUB_ENV"
@@ -164,7 +163,7 @@ jobs:
       - uses: ./.github/actions/environment
         with:
           python-version: ${{ env.python-version }}
-          extras: docs
+          groups: docs
           package-artifact-name: ${{ needs.build.outputs.artifact-name }}
 
       - name: Set up cartopy cache directories

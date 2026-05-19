@@ -42,7 +42,7 @@ that must be installed using some other method.
   `cartopy <https://scitools.org.uk/cartopy/docs/latest/installing.html>`_.
   This is used for plotting
 * ``udunits2``, via
-* `cfunits <https://ncas-cms.github.io/cfunits/installation.html>`.
+* `cfunits <https://ncas-cms.github.io/cfunits/installation.html>`_.
   This is used for plotting.
 
 These can be installed via your package manager or via ``conda``.
@@ -68,15 +68,14 @@ or Python crashing when calling ``cartopy`` functions.
 Building
 ========
 
-On any computer, run the following commands from the root of the ``emsarray`` source directory to build a package:
+``emsarray`` uses `poetry <https://python-poetry.org/>`_ for building and dependency management.
+To build ``emsarray`` first `install poetry <https://python-poetry.org/docs/#installing-manually>`_.
+Then run:
 
 .. code-block:: shell-session
 
-    $ python3 -m venv venv
-    $ source venv/bin/activate
-    $ pip3 install --upgrade pip build
-    $ rm -rf dist/
-    $ python3 -m build
+    $ cd /path/to/emsarray
+    $ poetry build
 
 Two new files will be created in the ``dist/`` directory.
 This is the Python package you can install in other environments.
