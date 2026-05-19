@@ -13,16 +13,13 @@ inputs:
     required: false
     default: 'pinned'
   extras:
-    description: Which set of emsarray 'extras' to install.
+    description: Which set of emsarray extras to install.
+    required: false
+    default: 'complete'
+  groups:
+    description: Which set of emsarray dependency groups to install.
     required: false
     default: 'testing'
-  strict:
-    description: |
-      Whether to install transitive dependencies automatically. When installing
-      from a set of pinned dependencies the assumption is that all dependencies
-      are pinned, so there should be no missing transitive dependencies.
-    required: false
-    default: 'false'
 
 runs:
   using: composite
@@ -34,9 +31,9 @@ runs:
         python-version: ${{ inputs.python-version }}
         cache: 'pip'
         cache-dependency-path: |
-          continuous-integration/requirements-${{ inputs.python-version }}.txt
           continuous-integration/environment.yaml
-          setup.cfg
+          pyproject.toml
+          poetry.lock
 
     - name: Fetch built emsarray package
       uses: actions/download-artifact@v8
@@ -56,45 +53,30 @@ runs:
       with:
         environment-file: continuous-integration/environment.yaml
         python-version: ${{ inputs.python-version }}
-        channels: conda-forge
-    - shell: bash -l {0}
-      run: |
-        conda install -c conda-forge pip wheel
+        miniforge-version: latest
+        use-only-tar-bz2: true
 
-    - name: Install pinned dependencies
-      if: ${{ inputs.dependencies == 'pinned' }}
+    - name: Install dependencies
       shell: bash -l {0}
       run: |
         wheels=( dist/emsarray-*.whl )
-        args=()
-        if [[ "${{ inputs.strict }}" == "true" ]] ; then args+=('--no-deps') ; fi
 
-        pip install \
-          "${args[@]}" \
-          -r continuous-integration/requirements-${{ inputs.python-version }}.txt \
-          "${wheels[0]}[${{ inputs.extras }}]"
+        if [[ "${INPUTS_DEPENDENCIES}" == "minimum" ]] ; then
+          export POETRY_SOLVER_MIN_RELEASE_AGE=365
+          export POETRY_SOLVER_MIN_RELEASE_AGE_EXCLUDE=certify,idna
+          # Remove the docs dependency group. It has minimum requirements that
+          # do not adhere to the minimum release age solver. This is jank.
+          sed -i -e '/^docs = \[$/,/^\]$/{d}' "pyproject.toml"
+        fi
+        if [[ "${INPUTS_DEPENDENCIES}" != "pinned" ]] ; then
+          rm poetry.lock
+        fi
+
+        poetry install --no-root --extras="${INPUTS_EXTRAS}" --only="main,${INPUTS_GROUPS}"
+        pip install --no-deps "${wheels[0]}"
         pip check
 
-    - name: Install minimum supported version dependencies
-      if: ${{ inputs.dependencies == 'minimum' }}
-      shell: bash -l {0}
-      run: |
-        wheels=( dist/emsarray-*.whl )
-        args=()
-        if [[ "${{ inputs.strict }}" == "true" ]] ; then args+=('--no-deps') ; fi
-
-        pip install \
-          "${args[@]}" \
-          -r continuous-integration/requirements-minimum.txt \
-          "${wheels[0]}"
-        pip check
-        pip install \
-          -r continuous-integration/requirements-minimum.txt \
-          "${wheels[0]}[${{ inputs.extras }}]"
-
-    - name: Install latest dependencies
-      if: ${{ inputs.dependencies == 'latest' }}
-      shell: bash -l {0}
-      run: |
-        wheels=( dist/emsarray-*.whl )
-        pip install "${wheels[0]}[${{ inputs.extras }}]"
+      env:
+        INPUTS_DEPENDENCIES: ${{ inputs.dependencies }}
+        INPUTS_EXTRAS: ${{ inputs.extras }}
+        INPUTS_GROUPS: ${{ inputs.groups }}

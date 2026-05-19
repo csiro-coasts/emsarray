@@ -19,16 +19,35 @@ runs:
 
   steps:
     - uses: actions/checkout@v5
+
     - uses: actions/setup-python@v6
       with:
         python-version: ${{ inputs.python-version }}
         cache: 'pip'
+        cache-dependency-path: |
+          continuous-integration/environment.yaml
+          pyproject.toml
+          poetry.lock
+
+    - name: Cache conda packages
+      uses: actions/cache@v5
+      with:
+        path: ~/conda_pkgs_dir
+        key:
+          ${{ runner.os }}-conda-${{ hashFiles('continuous-integration/environment.yaml') }}
+
+    - name: Install base Conda environment
+      uses: conda-incubator/setup-miniconda@v4
+      with:
+        environment-file: continuous-integration/environment.yaml
+        python-version: ${{ inputs.python-version }}
+        miniforge-version: latest
+        use-only-tar-bz2: true
 
     - name: Build python package
       shell: bash -l {0}
       run: |
-        pip install build
-        python3 -m build
+        poetry build
 
     - uses: actions/upload-artifact@v7
       with:
