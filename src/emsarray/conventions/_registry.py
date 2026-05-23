@@ -8,6 +8,7 @@ from itertools import chain
 import xarray
 
 from ._base import Convention
+from ._fixes import hotfix_convention
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class ConventionRegistry:
             All the :class:`~emsarray.conventions.Convention` subclasses registered
             via the ``emsarray.conventions`` entry point.
         """
-        return list(entry_point_conventions())
+        return list(hotfix_convention(c) for c in entry_point_conventions())
 
     def add_convention(self, convention: type[Convention]) -> None:
         """Register a Convention subclass with this registry.
@@ -66,7 +67,7 @@ class ConventionRegistry:
         """
         with suppress(AttributeError):
             del self.conventions
-        self.registered_conventions.append(convention)
+        self.registered_conventions.append(hotfix_convention(convention))
 
     def match_conventions(self, dataset: xarray.Dataset) -> list[tuple[type[Convention], int]]:
         """
