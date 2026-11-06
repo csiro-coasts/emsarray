@@ -238,6 +238,70 @@ def test_time_coordinate_with_units_first(datasets: pathlib.Path) -> None:
     assert time_coordinate.name == 'time_with_units'
 
 
+def test_time_coordinate_prefers_marked_coordinate(tmp_path: pathlib.Path) -> None:
+    # A forecast dataset with two time variables that both have CF time units.
+    # 'forecast_reference_time' comes first, but 'time' is the time coordinate.
+    dataset = xarray.Dataset(
+        data_vars={
+            'forecast_reference_time': xarray.DataArray(
+                data=numpy.zeros(4, dtype=numpy.int32),
+                dims=['time'],
+                attrs={
+                    'units': 'seconds since 2024-02-28 00:00:00',
+                    'standard_name': 'forecast_reference_time',
+                    'calendar': 'gregorian',
+                },
+            ),
+            'sfc_temp': xarray.DataArray(
+                data=numpy.zeros(4, dtype=numpy.float32),
+                dims=['time'],
+                attrs={'standard_name': 'surface_temperature', 'units': 'degrees C'},
+            ),
+        },
+        coords={
+            'time': xarray.DataArray(
+                data=19781.0 + numpy.arange(4),
+                dims=['time'],
+                attrs={
+                    'axis': 'T',
+                    'calendar': 'gregorian',
+                    'long_name': 'time',
+                    'standard_name': 'time',
+                    'units': 'days since 1970-01-01 00:00:00',
+                    'coordinate_type': 'time',
+                },
+            ),
+        },
+    )
+    dataset.to_netcdf(tmp_path / 'forecast.nc')
+    dataset = xarray.open_dataset(tmp_path / 'forecast.nc')
+
+    names = list(dataset.variables.keys())
+    assert names.index('forecast_reference_time') < names.index('time')
+    assert dataset['forecast_reference_time'].dtype.type == numpy.datetime64
+
+    SimpleConvention(dataset).bind()
+    time_coordinate = dataset.ems.time_coordinate
+    assert time_coordinate.name == 'time'
+    xarray.testing.assert_equal(time_coordinate, dataset['time'])
+
+
+def test_time_coordinate_ties_keep_dataset_order() -> None:
+    dataset = xarray.Dataset({
+        'time_a': xarray.DataArray(
+            data=pandas.date_range('2025-09-08', '2025-10-08'),
+            attrs={'standard_name': 'time'},
+        ),
+        'time_b': xarray.DataArray(
+            data=pandas.date_range('2025-09-08', '2025-10-08'),
+            attrs={'standard_name': 'time'},
+        ),
+    })
+
+    SimpleConvention(dataset).bind()
+    assert dataset.ems.time_coordinate.name == 'time_a'
+
+
 def test_time_coordinate_missing() -> None:
     dataset = xarray.Dataset()
     SimpleConvention(dataset).bind()

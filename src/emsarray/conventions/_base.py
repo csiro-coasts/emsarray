@@ -489,34 +489,58 @@ class Convention[GridKind, Index](abc.ABC):
         but if none are found it will fall back to picking a datetime variable
         that has at least one `coordinate_type`: `time`, `standard_name`: `time`, or `axis`: `T` attribute set.
 
+        A dataset can have more than one datetime variable,
+        for example both `time` and `forecast_reference_time`.
+        When several variables qualify, emsarray picks the one with the most indications
+        that it is the time coordinate:
+        one for each of the `coordinate_type`, `standard_name` and `axis` attributes above,
+        and one for being a dimension coordinate (a variable named after its only dimension).
+        Ties are resolved by the order of the variables in the dataset.
+
         References
         ----------
         .. [1] `CF Conventions v1.10, 4.4 Time Coordinate <https://cfconventions.org/Data/cf-conventions/cf-conventions-1.10/cf-conventions.html#time-coordinate>`_
         """
-        # First look for a datetime64 variable with a 'units' field in the encoding
-        for name in self.dataset.variables.keys():
-            variable = self.dataset[name]
-            # The variable must be a numpy datetime
-            if variable.dtype.type == numpy.datetime64:
-                # xarray will automatically decode all time variables
-                # and move the 'units' attribute over to encoding to store this change.
-                if 'units' in variable.encoding:
-                    units = variable.encoding['units']
-                    # A time variable must have units of the form '<units> since <epoc>'
-                    if 'since' in units:
-                        return variable
+        time_attributes = {
+            'coordinate_type': 'time',
+            'standard_name': 'time',
+            'axis': 'T',
+        }
+
+        def time_score(variable: xarray.DataArray) -> int:
+            # One point for each attribute that marks this variable as a time coordinate,
+            # and one for being a dimension coordinate.
+            score = sum(1 for key, value in time_attributes.items() if variable.attrs.get(key, None) == value)
+            if variable.dims == (variable.name,):
+                score += 1
+            return score
+
+        # The variable must be a numpy datetime
+        datetime_variables = [
+            self.dataset[name] for name in self.dataset.variables.keys()
+            if self.dataset[name].dtype.type == numpy.datetime64
+        ]
+
+        # First look for a datetime64 variable with a 'units' field in the encoding.
+        # xarray will automatically decode all time variables
+        # and move the 'units' attribute over to encoding to store this change.
+        # A time variable must have units of the form '<units> since <epoc>'
+        with_units = [
+            variable for variable in datetime_variables
+            if 'units' in variable.encoding and 'since' in variable.encoding['units']
+        ]
+        if with_units:
+            # max() returns the first of several equally good candidates,
+            # so the dataset order decides ties.
+            return max(with_units, key=time_score)
 
         # Next, look for any datetime64 variable with an appropriate attribute
-        for name in self.dataset.variables.keys():
-            variable = self.dataset[name]
-            if variable.dtype.type == numpy.datetime64:
-                possible_attributes = {
-                    'coordinate_type': 'time',
-                    'standard_name': 'time',
-                    'axis': 'T',
-                }
-                if any(variable.attrs.get(name, None) == value for name, value in possible_attributes.items()):
-                    return variable
+        with_attributes = [
+            variable for variable in datetime_variables
+            if any(variable.attrs.get(key, None) == value for key, value in time_attributes.items())
+        ]
+        if with_attributes:
+            return max(with_attributes, key=time_score)
 
         raise NoSuchCoordinateError("Could not find time coordinate in dataset")
 
