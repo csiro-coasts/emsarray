@@ -510,7 +510,7 @@ class Convention[GridKind, Index](abc.ABC):
         def time_score(variable: xarray.DataArray) -> int:
             # One point for each attribute that marks this variable as a time coordinate,
             # and one for being a dimension coordinate.
-            score = sum(variable.attrs.get(key, None) == value for key, value in time_attributes.items())
+            score = sum(1 for key, value in time_attributes.items() if variable.attrs.get(key, None) == value)
             if variable.dims == (variable.name,):
                 score += 1
             return score
