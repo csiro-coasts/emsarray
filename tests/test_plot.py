@@ -96,3 +96,25 @@ def test_plot_no_long_name(
 
     matplotlib.pyplot.savefig(tmp_path / 'plot.png')
     logger.info("Saved plot to %r", tmp_path / 'plot.png')
+
+
+@pytest.mark.mpl_image_compare
+@pytest.mark.matplotlib(mock_coast=True)
+@pytest.mark.tutorial
+def test_plot_quiver(
+    datasets: pathlib.Path,
+    tmp_path: pathlib.Path,
+):
+    dataset = emsarray.tutorial.open_dataset('kgari')
+    dataset = dataset.isel(time=0, k=-1)
+    u = dataset['u']
+    v = dataset['v']
+
+    figure = matplotlib.pyplot.figure(figsize=(10, 10), layout='constrained')
+    axes = figure.add_subplot(projection=dataset.ems.data_crs)
+    uv_artist = dataset.ems.make_artist(axes, (u, v))
+    axes.quiverkey(uv_artist, 0.05, 0.05, 0.5, '0.5 m/s')
+    axes.autoscale()
+    figure.savefig(tmp_path / 'plot.png')
+
+    return figure

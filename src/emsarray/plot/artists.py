@@ -366,6 +366,13 @@ def make_polygon_vector_quiver(
 
 
 class PolygonVectorQuiver(Quiver, GridArtist):
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        # axes.quiverkey(quiver) will reuse all kwargs to style the quiverkey.
+        # We need to remove the custom kwargs specific for this class.
+        self.polykw.pop('grid', None)
+        self.polykw.pop('data_array', None)
+
     @classmethod
     def from_grid(
         cls,
